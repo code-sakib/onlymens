@@ -12,7 +12,7 @@ class Utilis {
       backgroundColor: isErr
           ? const Color(0xFFEF9A9A)
           : const Color(0xFFB5A8F5),
-      duration: const Duration(seconds: 2),
+    duration: const Duration(seconds: 2),
       elevation: 2,
     );
 

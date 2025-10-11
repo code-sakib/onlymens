@@ -1,9 +1,10 @@
-import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/core/user_model.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:onlymens/core/data_state.dart';
+// import 'package:onlymens/core/globals.dart';
 
-class OBDataService {
-  Future<void> onboardUser(CurrentUser user) async {
-    // Save user data to Firestore
-    await cloudDB.collection('users').doc(user.uid).set(user.toMap());
-  }
-}
+// class OBDataService {
+//   static Future<void> onboardUser(Map<String, dynamic> userOBValues) async {
+//     // Save user data to Firestore
+//     await 
+//   }
+// }

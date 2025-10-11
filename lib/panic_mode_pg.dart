@@ -44,7 +44,7 @@ class PanicModePg extends StatelessWidget {
           ),
           Padding(
             padding: EdgeInsets.symmetric(vertical: SizeConfig.paddingMedium),
-            child: ThisCountDown(),
+            child: ThisCountDown(onEnd: () => context.go('/aimodel'), secs: 4),
           ),
         ],
       ),
@@ -61,7 +61,7 @@ class PanicOptions {
       "Voice talk",
     ];
     final List<Widget> icons = [
-      Image.asset('assets/ai_pg/ai_chat.png', color: Colors.white,),
+      Image.asset('assets/ai_pg/ai_chat.png', color: Colors.white),
       HugeIcon(icon: HugeIcons.strokeRoundedAiGame),
       HugeIcon(icon: HugeIcons.strokeRoundedAiChat01),
       HugeIcon(icon: HugeIcons.strokeRoundedAiAudio),
@@ -72,7 +72,10 @@ class PanicOptions {
 }
 
 class ThisCountDown extends StatefulWidget {
-  const ThisCountDown({super.key});
+  const ThisCountDown({super.key, required this.onEnd, required this.secs});
+
+  final VoidCallback onEnd;
+  final int secs;
 
   @override
   State<ThisCountDown> createState() => _ThisCountDownState();
@@ -86,12 +89,10 @@ class _ThisCountDownState extends State<ThisCountDown> {
     return TweenAnimationBuilder<double>(
       key: key,
       tween: Tween(begin: 1.0, end: 0.0),
-      duration: const Duration(seconds: 5),
-      onEnd: () {
-        context.go('/aimodel');
-      },
+      duration: Duration(seconds: widget.secs),
+      onEnd: () => widget.onEnd(),
       builder: (context, value, child) {
-        final remaining = (value * 5).ceil();
+        final remaining = (value * widget.secs).ceil();
         return Center(
           child: Stack(
             alignment: Alignment.center,

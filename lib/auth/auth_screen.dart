@@ -81,17 +81,16 @@ class _SignInState extends State<SignIn> {
       await AuthService.signInWithEmail(
         emailController.text,
         passwordController.text,
-      );
+      );  
+      Utilis.showSnackBar('Signed in successfully',);
     } on FirebaseAuthException catch (e) {
       if (mounted) {
-        Utilis.showSnackBar(
-          e.message ?? 'Sign in failed',
-          isErr: true,
-        );
+        Utilis.showSnackBar(e.message ?? 'Sign in failed', isErr: true);
       }
     } catch (e) {
       if (mounted) {
         Utilis.showSnackBar('An error occurred', isErr: true);
+        print(e.toString());
       }
     } finally {
       if (mounted) {
@@ -121,8 +120,8 @@ class _SignInState extends State<SignIn> {
             tFController: emailController,
             validator: (email) =>
                 email != null && EmailValidator.validate(email)
-                    ? null
-                    : "Enter a valid email",
+                ? null
+                : "Enter a valid email",
           ),
 
           AuthTextField(
@@ -183,6 +182,15 @@ class _SignInState extends State<SignIn> {
               ),
             ],
           ),
+          // Center(
+          //   child: TextButton(
+          //     onPressed: () => context.go('/onboarding'),
+          //     child: Text(
+          //       'Go to Onboarding',
+          //       style: TextStyle(color: Colors.deepPurple),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
@@ -222,19 +230,22 @@ class _SignUpState extends State<SignUp> {
         passwordController.text,
       );
 
+      // Mark onboarding as done (skip onboarding for now)
+      await prefs.setBool('onboarding_done', true);
+
       if (mounted) {
-        context.go('/onboarding');
+        // Router will automatically redirect to /streaks
+        // No need to manually navigate - just let the auth state change trigger it
+        Utilis.showSnackBar('Account created successfully!', isErr: false);
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
-        Utilis.showSnackBar(
-          e.message ?? 'Sign up failed',
-          isErr: true,
-        );
+        Utilis.showSnackBar(e.message ?? 'Sign up failed', isErr: true);
       }
     } catch (e) {
       if (mounted) {
         Utilis.showSnackBar('An error occurred', isErr: true);
+        print(e.toString());
       }
     } finally {
       if (mounted) {
@@ -263,8 +274,8 @@ class _SignUpState extends State<SignUp> {
             tFController: emailController,
             validator: (email) =>
                 email != null && EmailValidator.validate(email)
-                    ? null
-                    : "Enter a valid email",
+                ? null
+                : "Enter a valid email",
           ),
 
           AuthTextField(
@@ -381,16 +392,9 @@ class _GoogleSignInButtonState extends State<_GoogleSignInButton> {
 
     try {
       await AuthService.signInWithGoogle();
-
-      if (mounted && widget.isNewUser) {
-        context.go('/onboarding');
-      }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
-        Utilis.showSnackBar(
-          e.message ?? 'Google sign in failed',
-          isErr: true,
-        );
+        Utilis.showSnackBar(e.message ?? 'Google sign in failed', isErr: true);
       }
     } catch (e) {
       if (mounted) {
@@ -423,7 +427,10 @@ class _GoogleSignInButtonState extends State<_GoogleSignInButton> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: Image.asset('assets/logos/google_logo.png', height: 24),
+                    child: Image.asset(
+                      'assets/logos/google_logo.png',
+                      height: 24,
+                    ),
                   ),
                   Text(
                     'Continue with Google',

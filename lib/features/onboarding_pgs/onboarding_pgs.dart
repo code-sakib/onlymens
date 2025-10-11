@@ -1,14 +1,17 @@
-import 'dart:math';
 
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
+import 'package:go_router/go_router.dart';
 
 import 'package:onlymens/core/apptheme.dart';
+import 'package:onlymens/core/globals.dart';
 
 // ============================================================================
 // MAIN ONBOARDING WIDGET
 // ============================================================================
+
+final Map<String, dynamic> obSelectedValues = {};
+
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -252,9 +255,7 @@ class BasePage extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 backgroundColor: Colors.white.withOpacity(0.1),
-                valueColor: const AlwaysStoppedAnimation(
-                  AppColors.primary,
-                ),
+                valueColor: const AlwaysStoppedAnimation(AppColors.primary),
                 minHeight: 4,
               ),
             ),
@@ -281,7 +282,7 @@ class BasePage extends StatelessWidget {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: 16,
                     ),
                   ),
@@ -435,9 +436,12 @@ class StatusPage extends StatelessWidget {
     return BasePage(
       pageIndex: pageIndex,
       headerTitle: 'About You',
-      bigTitle: 'What best describes your current porn use?',
+      bigTitle: 'What best describes your current pornography content use?',
       subtitle: 'Choose the option that best matches your current behavior',
-      onNext: onNext,
+      onNext: () {
+        onNext();
+        obSelectedValues.addAll({'0': selectedFrequency});
+      },
       onBack: onBack,
       isNextEnabled: selectedFrequency != null,
       content: Column(
@@ -511,8 +515,8 @@ class _EffectsPageState extends State<EffectsPage> {
     'Impaired concentration',
     'Reduced creativity',
     'Sleep disturbances',
-    'Reduced interest in activities/relationships',
-    'Interpersonal/relationship difficulties',
+    'Apathy',
+    'Relationship difficulties',
     'Lowered self-esteem',
   ];
 
@@ -552,7 +556,17 @@ class _EffectsPageState extends State<EffectsPage> {
       headerTitle: 'Possible effects',
       bigTitle: 'How has pornography affected you?',
       subtitle: '',
-      onNext: widget.onNext,
+      onNext: () {
+        widget.onNext();
+        obSelectedValues.addAll({
+          '1': [
+            widget.selectedEffects,
+            widget.customEffect,
+            widget.selectedTriggers,
+            widget.customTrigger,
+          ],
+        });
+      },
       onBack: widget.onBack,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -706,7 +720,13 @@ class _GoalsPageState extends State<GoalsPage> {
       headerTitle: 'Your Growth Goals',
       bigTitle: 'In this area, you would like to:',
       subtitle: '',
-      onNext: widget.onNext,
+      onNext: () async {
+        obSelectedValues.addAll({
+          '2': [widget.selectedAspects, widget.aspectDetails],
+        });
+        await prefs.setBool('onboarding_done', true);
+        context.go('/');
+      },
       onBack: widget.onBack,
       content: Stack(
         children: [
@@ -766,50 +786,50 @@ class _GoalsPageState extends State<GoalsPage> {
               const SizedBox(height: 20),
 
               // "You will become smarter" section
-              const Text(
-                "You'll become smarter",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              RadioCard(
-                title: 'For sure ✅',
-                isSelected: smarterSelected,
-                onTap: () {
-                  setState(() {
-                    smarterSelected = true;
-                  });
-                  //confetti
-                  _confettiController.play();
-                },
-              ),
+              // const Text(
+              //   "You'll become smarter",
+              //   style: TextStyle(
+              //     color: Colors.white,
+              //     fontSize: 28,
+              //     fontWeight: FontWeight.bold,
+              //   ),
+              // ),
+              // const SizedBox(height: 16),
+              // RadioCard(
+              //   title: 'For sure ✅',
+              //   isSelected: smarterSelected,
+              //   onTap: () {
+              //     setState(() {
+              //       smarterSelected = true;
+              //     });
+              //     //confetti
+              //     _confettiController.play();
+              //   },
+              // ),
 
-              Align(
-                alignment: Alignment.topCenter,
-                child: ConfettiWidget(
-                  confettiController: _confettiController,
-                  blastDirectionality: BlastDirectionality
-                      .explosive, // 🔥 sprays in all directions
-                  emissionFrequency: 0.4, // low = bursty
-                  numberOfParticles: 25,
-                  gravity: 0.2, // softer fall
-                  shouldLoop: false,
-                  maxBlastForce: 25, // spread intensity
-                  minBlastForce: 10,
-                  blastDirection: -pi / 2, // just sets initial orientation
-                  colors: const [
-                    Colors.deepPurple,
-                    Colors.pinkAccent,
-                    Colors.cyanAccent,
-                    Colors.amber,
-                    Colors.lightGreenAccent,
-                  ],
-                  particleDrag: 0.08, // makes it feel airy
-                ),
-              ),
+              // Align(
+              //   alignment: Alignment.topCenter,
+              //   child: ConfettiWidget(
+              //     confettiController: _confettiController,
+              //     blastDirectionality: BlastDirectionality
+              //         .explosive, // 🔥 sprays in all directions
+              //     emissionFrequency: 0.4, // low = bursty
+              //     numberOfParticles: 25,
+              //     gravity: 0.2, // softer fall
+              //     shouldLoop: false,
+              //     maxBlastForce: 25, // spread intensity
+              //     minBlastForce: 10,
+              //     blastDirection: -pi / 2, // just sets initial orientation
+              //     colors: const [
+              //       Colors.deepPurple,
+              //       Colors.pinkAccent,
+              //       Colors.cyanAccent,
+              //       Colors.amber,
+              //       Colors.lightGreenAccent,
+              //     ],
+              //     particleDrag: 0.08, // makes it feel airy
+              //   ),
+              // ),
             ],
           ),
         ],
@@ -874,9 +894,7 @@ class RadioCard extends StatelessWidget {
                   height: 12,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isSelected
-                        ? AppColors.primary
-                        : Colors.transparent,
+                    color: isSelected ? AppColors.primary : Colors.transparent,
                   ),
                 ),
               ),
@@ -931,9 +949,7 @@ class MultiSelectCard extends StatelessWidget {
               height: 24,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(6),
-                color: isSelected
-                    ? AppColors.primary
-                    : Colors.transparent,
+                color: isSelected ? AppColors.primary : Colors.transparent,
                 border: Border.all(
                   color: isSelected ? AppColors.primary : Colors.white30,
                   width: 2,

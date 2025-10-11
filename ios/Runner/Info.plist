@@ -16,6 +16,8 @@
 		</array>
 	</dict>
 	</array>
+	<key>io.flutter.embedded_views_preview</key>
+	<true/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -59,5 +61,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>We need access to speech recognition to communicate with your AI coach</string>
+
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need microphone access to hear your voice</string>
 </dict>
 </plist>

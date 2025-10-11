@@ -22,7 +22,8 @@ void main() async {
   // init shared prefs
   prefs = await SharedPreferences.getInstance();
 
-  // Set status bar + nav bar theme
+  // Set status bar + nav bar theme + portrait mode
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -31,6 +32,7 @@ void main() async {
   );
 
   // await auth.signOut();
+  // await prefs.clear();
   runApp(const MyApp());
 }
 

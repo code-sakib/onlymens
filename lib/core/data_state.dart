@@ -9,7 +9,6 @@ class DataState {
   // Usage: await DataState.run(() async { await someAsyncOperation(); });
   static Future<void> run(Future<void> Function() funcToRun) async {
     try {
-      
       await funcToRun();
     } on FirebaseAuthException catch (e) {
       // Specific handling for auth errors
@@ -20,8 +19,6 @@ class DataState {
     } catch (e) {
       // Generic errors
       Utilis.showSnackBar(e.toString(), isErr: true);
-    } finally {
-      
     }
   }
 }
