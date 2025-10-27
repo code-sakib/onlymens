@@ -66,10 +66,13 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBHjcXUCHKQ6zi9jFUizizc9Ebf0qNl3Qc',
-    appId: '1:99850291815:ios:0afa2019ca7996860d22c2',
+    appId: '1:99850291815:ios:ef967da51d751f360d22c2',
     messagingSenderId: '99850291815',
     projectId: 'onlymens-344d2',
     storageBucket: 'onlymens-344d2.firebasestorage.app',
-    iosBundleId: 'com.example.onlymens',
+    androidClientId: '99850291815-r5thu3jolbvv3nf3q8t5edvr8vabpm61.apps.googleusercontent.com',
+    iosClientId: '99850291815-nlhlh5jgg7rvsagev5ac8ii7p2t16oco.apps.googleusercontent.com',
+    iosBundleId: 'com.sakib.onlymens',
   );
+
 }

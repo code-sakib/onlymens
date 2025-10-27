@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "99850291815",
+    "project_id": "onlymens-344d2",
+    "storage_bucket": "onlymens-344d2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:99850291815:android:89808d74cc2d010a0d22c2",
+        "android_client_info": {
+          "package_name": "com.example.onlymens"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "99850291815-r5thu3jolbvv3nf3q8t5edvr8vabpm61.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.onlymens",
+            "certificate_hash": "f560183bc6f88e161600d32a684cdd8e1ce56172"
+          }
+        },
+        {
+          "client_id": "99850291815-7e01okhsfonadcmaj3g3ju3cgtie7817.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDBJsqPLvfh-4tC2zV5Uf4kCQ7Zs_WXx1k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "99850291815-7e01okhsfonadcmaj3g3ju3cgtie7817.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "99850291815-gp2t2k7vla265ilrt7fka1hunsfpmbba.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.onlymens"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

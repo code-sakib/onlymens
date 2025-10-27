@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -387,35 +388,43 @@ class _ChatScreenState extends State<ChatScreen> {
 
           ElevatedButton(
             onPressed: () async {
+              print('\n========== iOS DIAGNOSTIC ==========');
+
+              // 1. Get fresh token
               final user = FirebaseAuth.instance.currentUser;
-
-              print('=== AUTH DEBUG ===');
-              print('User exists: ${user != null}');
-              print('User ID: ${user?.uid}');
-              print('Email: ${user?.email}');
-
-              if (user != null) {
-                final token = await user.getIdToken();
-                print('Token exists: ${token != null}');
-                print('Token (first 50 chars): ${token?.substring(0, 50)}');
+              if (user == null) {
+                print('❌ No user logged in');
+                return;
               }
 
-              // Now try calling the function
+              final token = await user.getIdToken(true);
+              print('User: ${user.email}');
+              print('Token: ${token?.substring(0, 50)}...');
+
+              // 2. Initialize Functions with explicit configuration
+              final functions = FirebaseFunctions.instanceFor(
+                region: 'us-central1',
+              );
+
               try {
-                final callable = FirebaseFunctions.instance.httpsCallable(
-                  'sendChatMessage',
-                );
-                final result = await callable.call({'message': 'test'});
-                print('✅ Function call SUCCESS');
-                print('Result: ${result.data}');
-              } on FirebaseFunctionsException catch (e) {
-                print('❌ Function call FAILED');
-                print('Error code: ${e.code}');
-                print('Error message: ${e.message}');
-                print('Error details: ${e.details}');
+                print('Calling testAuth...');
+                final callable = functions.httpsCallable('testAuth');
+                final result = await callable.call({
+                  'platform': 'iOS',
+                  'timestamp': DateTime.now().toIso8601String(),
+                });
+
+                print('✅ SUCCESS: ${result.data}');
+              } catch (e) {
+                print('❌ ERROR: $e');
+                if (e is FirebaseFunctionsException) {
+                  print('Code: ${e.code}');
+                  print('Message: ${e.message}');
+                  print('Details: ${e.details}');
+                }
               }
             },
-            child: Text('Debug Function Auth'),
+            child: Text("IOS diagnos"),
           ),
           if (_isLoading)
             const LinearProgressIndicator(

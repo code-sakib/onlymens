@@ -1,16 +1,1 @@
-{
-  "functions": [
-    {
-      "source": "functions",
-      "codebase": "default",
-      "disallowLegacyRuntimeConfig": true,
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local"
-      ]
-    }
-  ]
-}
+{"functions":[{"source":"functions","codebase":"default","disallowLegacyRuntimeConfig":true,"ignore":["node_modules",".git","firebase-debug.log","firebase-debug.*.log","*.local"]}],"emulators":{"functions":{"port":5001},"ui":{"enabled":true},"singleProjectMode":true},"flutter":{"platforms":{"android":{"default":{"projectId":"onlymens-344d2","appId":"1:99850291815:android:89808d74cc2d010a0d22c2","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"onlymens-344d2","appId":"1:99850291815:ios:ef967da51d751f360d22c2","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"onlymens-344d2","configurations":{"android":"1:99850291815:android:89808d74cc2d010a0d22c2","ios":"1:99850291815:ios:ef967da51d751f360d22c2"}}}}}}

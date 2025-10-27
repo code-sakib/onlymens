@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -16,11 +17,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  // App Check
-  await FirebaseAppCheck.instance.activate(
-    providerApple: AppleAppAttestProvider(),
-  );
 
   // .env loaded
   await dotenv.load(fileName: ".env");
@@ -49,6 +45,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // sizes with context init
     SizeConfig().init(context);
+
+    hasInternet.then((value) {
+      if (!value) {
+        print('no internet');
+      } else {
+        print(' internet available');
+      }
+    });
 
     return SafeArea(
       child: MaterialApp.router(

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -17,7 +16,7 @@ class OpenAIService {
 
   /// Sends user message to GPT-4o-mini via Cloud Function
   Future<String> sendMessage(String userMessage) async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = auth.currentUser;
 
     if (user == null) {
       return 'Please log in to use the chat feature.';
