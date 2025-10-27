@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:animated_text_kit/animated_text_kit.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -299,12 +301,14 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final OpenAIService _openAIService = OpenAIService();
   final TextEditingController _controller = TextEditingController();
+  final List<Map<String, String>> messages = [];
 
   bool _isLoading = false;
+  bool typerAnimationShowed = false;
 
   void _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _isLoading) return;
 
     setState(() {
       messages.add({"role": "user", "text": text});
@@ -324,67 +328,110 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-
-      children: [
-        messages.isNotEmpty
-            ? SizedBox(
-                height: SizeConfig.screenHeight / 1.37,
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = messages[index];
-                    final isUser = msg["role"] == "user";
-                    return Align(
-                      alignment: isUser
-                          ? Alignment.topRight
-                          : Alignment.topLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 10,
-                          horizontal: 14,
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          messages.isNotEmpty
+              ? SizedBox(
+                  height: SizeConfig.screenHeight / 1.37,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      final msg = messages[index];
+                      final isUser = msg["role"] == "user";
+                      return Align(
+                        alignment: isUser
+                            ? Alignment.topRight
+                            : Alignment.topLeft,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isUser
+                                ? Colors.deepPurple.withValues(alpha: 0.3)
+                                : Colors.grey.shade800,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            msg["text"] ?? "",
+                            style: const TextStyle(color: Colors.white),
+                          ),
                         ),
-                        decoration: BoxDecoration(
-                          color: isUser
-                              ? Colors.deepPurple.withValues(alpha: 0.3)
-                              : Colors.grey.shade800,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          msg["text"] ?? "",
-                          style: const TextStyle(color: Colors.white),
-                        ),
+                      );
+                    },
+                  ),
+                )
+              : Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: SizeConfig.screenHeight / 4,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      HugeIcon(
+                        icon: HugeIcons.strokeRoundedAiMagic,
+                        size: 100,
+                        color: Colors.grey[850],
                       ),
-                    );
-                  },
+                      const Text(
+                        "Hey! I'm your AI assistant. How can I help you today?",
+                      ),
+                    ],
+                  ),
                 ),
-              )
-            : Padding(
-                padding: EdgeInsets.symmetric(
-                  vertical: SizeConfig.screenHeight / 3.4,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    HugeIcon(
-                      icon: HugeIcons.strokeRoundedAiMagic,
-                      size: 100,
-                      color: Colors.grey[850],
-                    ),
-                    Text(
-                      "Hey! I'm your AI assistant. How can I help you today?",
-                    ),
-                  ],
-                ),
-              ),
-        if (_isLoading)
-          const LinearProgressIndicator(color: Colors.deepPurple, minHeight: 2),
-        chatInput(_controller, _sendMessage),
-      ],
+
+          ElevatedButton(
+            onPressed: () async {
+              final user = FirebaseAuth.instance.currentUser;
+
+              print('=== AUTH DEBUG ===');
+              print('User exists: ${user != null}');
+              print('User ID: ${user?.uid}');
+              print('Email: ${user?.email}');
+
+              if (user != null) {
+                final token = await user.getIdToken();
+                print('Token exists: ${token != null}');
+                print('Token (first 50 chars): ${token?.substring(0, 50)}');
+              }
+
+              // Now try calling the function
+              try {
+                final callable = FirebaseFunctions.instance.httpsCallable(
+                  'sendChatMessage',
+                );
+                final result = await callable.call({'message': 'test'});
+                print('✅ Function call SUCCESS');
+                print('Result: ${result.data}');
+              } on FirebaseFunctionsException catch (e) {
+                print('❌ Function call FAILED');
+                print('Error code: ${e.code}');
+                print('Error message: ${e.message}');
+                print('Error details: ${e.details}');
+              }
+            },
+            child: Text('Debug Function Auth'),
+          ),
+          if (_isLoading)
+            const LinearProgressIndicator(
+              color: Colors.deepPurple,
+              minHeight: 2,
+            ),
+          chatInput(_controller, _sendMessage, !_isLoading),
+        ],
+      ),
     );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 }
 
@@ -408,12 +455,13 @@ Widget chatInput(
           Expanded(
             child: TextField(
               controller: controller,
+              enabled: isEnabled,
               textCapitalization: TextCapitalization.sentences,
               style: const TextStyle(color: Colors.white),
               cursorColor: Colors.deepPurpleAccent,
               minLines: 1,
               maxLines: 5,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Message...',
                 hintStyle: TextStyle(color: Colors.grey),
                 border: InputBorder.none,
@@ -421,14 +469,17 @@ Widget chatInput(
                 focusedBorder: InputBorder.none,
                 fillColor: Colors.transparent,
                 isDense: true,
-                enabled: isEnabled,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
           FloatingActionButton(
             shape: const CircleBorder(),
-            onPressed: sendMessage,
-            backgroundColor: Colors.deepPurple,
+            onPressed: isEnabled ? sendMessage : null,
+            backgroundColor: isEnabled ? Colors.deepPurple : Colors.grey,
             child: const Icon(Icons.send_rounded, color: Colors.white),
           ),
         ],
@@ -672,7 +723,6 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget>
     with SingleTickerProviderStateMixin {
   late stt.SpeechToText _speech;
   final VoiceModeAIService _voiceAIService = VoiceModeAIService();
-  final VoiceUsageService _usageService = VoiceUsageService();
   final TextEditingController _textController = TextEditingController();
 
   late AnimationController _pulseController;
@@ -704,13 +754,16 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget>
   }
 
   Future<void> _checkPremiumStatus() async {
-    final remaining = await _usageService.getRemainingPremiumSeconds();
-    final canUse = await _usageService.canUsePremiumTTS();
-    if (mounted) {
-      setState(() {
-        _remainingPremiumSeconds = remaining;
-        _isPremiumTTS = canUse;
-      });
+    try {
+      final status = await _voiceAIService.getPremiumTTSStatus();
+      if (mounted) {
+        setState(() {
+          _remainingPremiumSeconds = status['remainingSeconds'] ?? 0;
+          _isPremiumTTS = _remainingPremiumSeconds > 0;
+        });
+      }
+    } catch (e) {
+      print('Error checking premium status: $e');
     }
   }
 
@@ -802,7 +855,7 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget>
         _isProcessing = false;
       });
 
-      // Auto-selects TTS based on usage
+      // Auto-selects between OpenAI TTS (premium) and Flutter TTS (free)
       await _voiceAIService.speakWithAI(
         reply,
         onStart: () {
@@ -888,109 +941,155 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget>
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: SizeConfig.paddingLarge),
-      child: Column(
-        children: [
-          // Premium Status Badge
-          if (_remainingPremiumSeconds > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.amber.shade400, Colors.orange.shade600],
+    return SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: SizeConfig.paddingLarge),
+        child: Column(
+          children: [
+            // Premium Status Badge
+            if (_remainingPremiumSeconds > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
                 ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.stars, color: Colors.white, size: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Premium Voice: ${(_remainingPremiumSeconds / 60).floor()}m ${_remainingPremiumSeconds % 60}s',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.amber.shade400, Colors.orange.shade600],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.stars, color: Colors.white, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Premium Voice: ${(_remainingPremiumSeconds / 60).floor()}m ${_remainingPremiumSeconds % 60}s',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-
-          SizedBox(height: SizeConfig.blockHeight * 2),
-
-          // Animated Lottie with Gradient Background
-          ScaleTransition(
-            scale: _pulseAnimation,
-            child: Lottie.network(
-              'https://lottie.host/b72fd15d-61a4-4510-ae8f-93936c32c857/xzLgoD2MQj.json',
-              width: 200,
-              height: 200,
-              fit: BoxFit.contain,
-            ),
-          ),
-
-          SizedBox(height: SizeConfig.blockHeight * 27),
-
-          // Microphone Button
-          GestureDetector(
-            onTap: _isProcessing || _isSpeaking
-                ? null
-                : (_isListening ? _stopListening : _startListening),
-            child: Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: _isListening
-                      ? [Colors.red.shade400, Colors.red.shade600]
-                      : _isProcessing || _isSpeaking
-                          ? [Colors.orange.shade400, Colors.orange.shade600]
-                          : [
-                              Colors.deepPurple.shade400,
-                              Colors.deepPurple.shade600,
-                            ],
+                  ],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: (_isListening ? Colors.red : Colors.deepPurple)
-                        .withOpacity(0.3),
-                    blurRadius: 20,
-                    spreadRadius: _isListening ? 8 : 0,
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade800,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.volume_up,
+                      color: Colors.grey.shade400,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Standard Voice',
+                      style: TextStyle(
+                        color: Colors.grey.shade400,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            SizedBox(height: SizeConfig.blockHeight * 2),
+
+            // Animated Lottie with Gradient Background
+            ScaleTransition(
+              scale: _pulseAnimation,
+              child: Lottie.network(
+                'https://lottie.host/b72fd15d-61a4-4510-ae8f-93936c32c857/xzLgoD2MQj.json',
+                width: 200,
+                height: 200,
+                fit: BoxFit.contain,
+              ),
+            ),
+
+            SizedBox(height: SizeConfig.blockHeight * 20),
+
+            // Microphone Button
+            GestureDetector(
+              onTap: _isProcessing || _isSpeaking
+                  ? null
+                  : (_isListening ? _stopListening : _startListening),
+              child: Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: _isListening
+                        ? [Colors.red.shade400, Colors.red.shade600]
+                        : _isProcessing || _isSpeaking
+                        ? [Colors.orange.shade400, Colors.orange.shade600]
+                        : [
+                            Colors.deepPurple.shade400,
+                            Colors.deepPurple.shade600,
+                          ],
                   ),
-                ],
-              ),
-              child: Center(
-                child: _isListening
-                    ? voiceHugeIcons(HugeIcons.strokeRoundedMic01)
-                    : _isProcessing || _isSpeaking
-                        ? voiceHugeIcons(HugeIcons.strokeRoundedHourglass)
-                        : voiceHugeIcons(HugeIcons.strokeRoundedMic01),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (_isListening ? Colors.red : Colors.deepPurple)
+                          .withOpacity(0.3),
+                      blurRadius: 20,
+                      spreadRadius: _isListening ? 8 : 0,
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: _isListening
+                      ? voiceHugeIcons(HugeIcons.strokeRoundedMic01)
+                      : _isProcessing || _isSpeaking
+                      ? voiceHugeIcons(HugeIcons.strokeRoundedHourglass)
+                      : voiceHugeIcons(HugeIcons.strokeRoundedMic01),
+                ),
               ),
             ),
-          ),
 
-          SizedBox(height: SizeConfig.blockHeight * 2),
+            SizedBox(height: SizeConfig.blockHeight * 2),
 
-          // Status Text
-          Text(
-            _isListening
-                ? 'Listening...'
-                : _isSpeaking
-                    ? (_isPremiumTTS ? 'Speaking (Premium)...' : 'Speaking...')
-                    : _isProcessing
-                        ? 'Processing...'
-                        : '',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade700,
+            // Status Text with Voice Type Indicator
+            Text(
+              _isListening
+                  ? 'Listening...'
+                  : _isSpeaking
+                  ? (_isPremiumTTS
+                        ? 'Speaking (Premium)...'
+                        : 'Speaking (Standard)...')
+                  : _isProcessing
+                  ? 'Processing...'
+                  : '',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade700,
+              ),
             ),
-          ),
-        ],
+
+            SizedBox(height: SizeConfig.blockHeight * 1),
+
+            // Helper text when premium expires
+            if (!_isPremiumTTS && (_isSpeaking || _isProcessing))
+              Text(
+                'Using standard voice quality',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              ),
+          ],
+        ),
       ),
     );
   }

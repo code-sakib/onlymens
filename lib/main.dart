@@ -1,3 +1,4 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +16,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // App Check
+  await FirebaseAppCheck.instance.activate(
+    providerApple: AppleAppAttestProvider(),
+  );
 
   // .env loaded
   await dotenv.load(fileName: ".env");
@@ -34,8 +40,6 @@ void main() async {
   // await auth.signOut();
   // await prefs.clear();
   runApp(const MyApp());
-
-  print(DateTime.now());
 }
 
 class MyApp extends StatelessWidget {
