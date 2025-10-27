@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:onlymens/core/app_error.dart';
 import 'package:onlymens/core/globals.dart';
+import 'package:onlymens/features/streaks_page/presentation/pTimer.dart';
 import 'package:onlymens/utilis/snackbar.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -17,10 +17,127 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isContentBlocked = true;
   final TextEditingController _confirmationController = TextEditingController();
 
+  // Goal tracking variables
+  String? _goalTitle;
+  int _goalDays = 0;
+  int _currentDay = 0;
+
   @override
   void dispose() {
     _confirmationController.dispose();
     super.dispose();
+  }
+
+  void _showAddGoalDialog() {
+    final goalController = TextEditingController();
+    final daysController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[850],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Set Your Goal',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: goalController,
+                style: TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'e.g., No Porn',
+                  hintStyle: TextStyle(color: Colors.grey[600]),
+                  labelText: 'Goal Description',
+                  labelStyle: TextStyle(color: Colors.deepPurple[300]),
+                  filled: true,
+                  fillColor: Colors.grey[800],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[700]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[700]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.deepPurple, width: 2),
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+              TextField(
+                controller: daysController,
+                keyboardType: TextInputType.number,
+                style: TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'e.g., 7',
+                  hintStyle: TextStyle(color: Colors.grey[600]),
+                  labelText: 'Number of Days',
+                  labelStyle: TextStyle(color: Colors.deepPurple[300]),
+                  filled: true,
+                  fillColor: Colors.grey[800],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[700]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[700]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.deepPurple, width: 2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel', style: TextStyle(color: Colors.grey[400])),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () {
+                if (goalController.text.isNotEmpty &&
+                    daysController.text.isNotEmpty) {
+                  setState(() {
+                    _goalTitle = goalController.text;
+                    _goalDays = int.tryParse(daysController.text) ?? 0;
+                    _currentDay = 0;
+                  });
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Goal set successfully!'),
+                      backgroundColor: Colors.green[700],
+                    ),
+                  );
+                }
+              },
+              child: Text('Set Goal', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showToggleOffDialog() {
@@ -149,7 +266,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _handleToggleChange(bool value) {
     if (value) {
-      // Turning on - no confirmation needed
       setState(() {
         _isContentBlocked = true;
       });
@@ -160,7 +276,6 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       );
     } else {
-      // Turning off - show confirmation dialog
       _showToggleOffDialog();
     }
   }
@@ -169,7 +284,6 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[900],
-
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => context.pop(),
@@ -194,7 +308,6 @@ class _ProfilePageState extends State<ProfilePage> {
               padding: EdgeInsets.symmetric(vertical: 30),
               child: Column(
                 children: [
-                  // Avatar Image
                   Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
@@ -229,8 +342,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   SizedBox(height: 16),
-
-                  // Name
                   Text(
                     'Sakib Shaikh',
                     style: TextStyle(
@@ -240,8 +351,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   SizedBox(height: 8),
-
-                  // Level Badge
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     decoration: BoxDecoration(
@@ -259,8 +368,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   SizedBox(height: 12),
-
-                  // Days Counter
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -282,6 +389,304 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ],
               ),
+            ),
+
+            SizedBox(height: 16),
+
+            // Goal Section
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 16),
+              padding: EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey[850],
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: _goalTitle == null
+                  ? Column(
+                      children: [
+                        Icon(
+                          Icons.flag_outlined,
+                          size: 48,
+                          color: Colors.deepPurple[300],
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'No Active Goal',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Set a goal to track your progress',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[400],
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _showAddGoalDialog,
+                          icon: Icon(Icons.add, color: Colors.white),
+                          label: Text(
+                            'Add Goal',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.deepPurple.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.deepPurple,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.shopping_bag_outlined,
+                                    color: Colors.deepPurple[300],
+                                    size: 28,
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _goalTitle!,
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    Text(
+                                      '$_goalDays days challenge',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[400],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    backgroundColor: Colors.grey[850],
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    title: Text(
+                                      'Delete Goal?',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    content: Text(
+                                      'Are you sure you want to delete this goal?',
+                                      style: TextStyle(color: Colors.grey[400]),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: Text(
+                                          'Cancel',
+                                          style: TextStyle(
+                                            color: Colors.grey[400],
+                                          ),
+                                        ),
+                                      ),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red[700],
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            _goalTitle = null;
+                                            _goalDays = 0;
+                                            _currentDay = 0;
+                                          });
+                                          Navigator.pop(context);
+                                        },
+                                        child: Text(
+                                          'Delete',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                              icon: Icon(Icons.close, color: Colors.grey[500]),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 20),
+                        Stack(
+                          children: [
+                            Container(
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[800],
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            AnimatedContainer(
+                              duration: Duration(milliseconds: 500),
+                              height: 40,
+                              width:
+                                  MediaQuery.of(context).size.width *
+                                  0.8 *
+                                  (_currentDay / _goalDays),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.deepPurple,
+                                    Colors.purpleAccent,
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.deepPurple.withOpacity(0.5),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: _currentDay > 0
+                                  ? Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        Container(
+                                          margin: EdgeInsets.only(right: 8),
+                                          padding: EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(
+                                              0.3,
+                                            ),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            Icons.star,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : null,
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Day $_currentDay of $_goalDays',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              '\$${_goalDays - _currentDay} left',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.deepPurple[300],
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _currentDay < _goalDays
+                                    ? () {
+                                        setState(() {
+                                          _currentDay++;
+                                        });
+                                        if (_currentDay == _goalDays) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                '🎉 Congratulations! Goal completed!',
+                                              ),
+                                              backgroundColor:
+                                                  Colors.green[700],
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    : null,
+                                icon: Icon(
+                                  Icons.check_circle_outline,
+                                  color: Colors.white,
+                                ),
+                                label: Text(
+                                  'Mark Day Complete',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _currentDay < _goalDays
+                                      ? Colors.green[700]
+                                      : Colors.grey[700],
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
             ),
 
             SizedBox(height: 16),
@@ -335,6 +740,12 @@ class _ProfilePageState extends State<ProfilePage> {
                         Colors.deepPurple,
                       ),
                     ],
+                  ),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: CompactHeatMap(),
+                    ),
                   ),
                 ],
               ),
@@ -500,7 +911,6 @@ class _ProfilePageState extends State<ProfilePage> {
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: ElevatedButton(
                 onPressed: () {
-                  // Show confirmation dialog for sign out
                   showDialog(
                     context: context,
                     builder: (BuildContext context) {
@@ -530,12 +940,11 @@ class _ProfilePageState extends State<ProfilePage> {
                               backgroundColor: Colors.red[700],
                             ),
                             onPressed: () async {
-                              // Add sign out logic here
                               try {
-                                isGuest = false; // Reset guest mode
+                                isGuest = false;
                                 await auth.signOut();
                                 if (context.mounted) {
-                                  context.go('/'); // Correct route
+                                  context.go('/');
                                 }
                                 Utilis.showSnackBar('Signed out successfully');
                               } on AppError catch (e) {

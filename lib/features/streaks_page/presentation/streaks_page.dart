@@ -4,29 +4,10 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_3d_controller/flutter_3d_controller.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
-import 'package:onlymens/core/app_error.dart';
-import 'package:onlymens/core/apptheme.dart';
 import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/utilis/size_config.dart';
-import 'package:onlymens/utilis/snackbar.dart';
-
-import 'dart:async';
-import 'dart:math';
-
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_3d_controller/flutter_3d_controller.dart';
-import 'package:go_router/go_router.dart';
-import 'package:hugeicons/hugeicons.dart';
-import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
-import 'package:onlymens/core/app_error.dart';
-import 'package:onlymens/core/apptheme.dart';
-import 'package:onlymens/core/globals.dart';
+import 'package:onlymens/features/streaks_page/presentation/pTimer.dart';
 import 'package:onlymens/utilis/size_config.dart';
 import 'package:onlymens/utilis/snackbar.dart';
 
@@ -49,128 +30,48 @@ class _StreaksPageState extends State<StreaksPage> {
     if (_showSmallHeatmap) setState(() => _showSmallHeatmap = false);
   }
 
+  final bool _isLoading = false;
+
+  @override
+  void initState() {
+    currentUser = auth.currentUser!;
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: _scaffoldKey,
-      appBar: CupertinoNavigationBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        leading: IconButton(
-          onPressed: () {
-            _scaffoldKey.currentState?.openDrawer();
-          },
-          icon: Icon(Icons.more_vert, color: Colors.transparent),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
+      body: SingleChildScrollView(
+        child: Column(
           children: [
-            IconButton(
-              onPressed: _toggleSmallHeatmap,
-              icon: HugeIcon(
-                icon: HugeIcons.strokeRoundedCalendar03,
-                color: Colors.white,
-              ),
+            SizedBox(
+              height: SizeConfig.screenHeight / 2,
+              child: Flexible(child: TimerComponents()),
             ),
-            IconButton(
-              onPressed: () {
-                context.push('/profile');
-              },
-              icon: HugeIcon(
-                icon: HugeIcons.strokeRoundedUserCircle,
-                color: Colors.white,
-              ),
-            ),
+            secondRowButtons(context),
+            const SizedBox(height: 24),
+
+            // Daily Motivation Section
+            _buildMotivationSection(),
+            const SizedBox(height: 24),
+
+            // Progress Insights Section
+            _buildProgressInsights(),
+            const SizedBox(height: 24),
+
+            // Blog Articles Section
+            _buildBlogSection(context),
+            const SizedBox(height: 24),
+
+            // Community Support Section
+            _buildCommunitySupportSection(),
+            const SizedBox(height: 24),
+
+            // Quick Tips Section
+            _buildQuickTipsSection(),
+            const SizedBox(height: 40),
           ],
         ),
-      ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Center(
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            _scaffoldKey.currentState?.openDrawer();
-                          },
-                          child: SizedBox(
-                            height: 300,
-                            width: 200,
-                            child: Flutter3DViewer(src: 'assets/3d/av_lv3.glb'),
-                          ),
-                        ),
-                        PornFreeTimerCompact(startTime: DateTime(2025, 10, 1)),
-                      ],
-                    ),
-                    const DaysList(),
-                    secondRowButtons(),
-                    const SizedBox(height: 24),
-
-                    // Daily Motivation Section
-                    _buildMotivationSection(),
-                    const SizedBox(height: 24),
-
-                    // Progress Insights Section
-                    _buildProgressInsights(),
-                    const SizedBox(height: 24),
-
-                    // Blog Articles Section
-                    _buildBlogSection(context),
-                    const SizedBox(height: 24),
-
-                    // Community Support Section
-                    _buildCommunitySupportSection(),
-                    const SizedBox(height: 24),
-
-                    // Quick Tips Section
-                    _buildQuickTipsSection(),
-                    const SizedBox(height: 40),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          if (_showSmallHeatmap)
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _hideSmallHeatmap,
-                child: Stack(
-                  children: [
-                    Positioned(
-                      top: _popupTopOffset,
-                      right: _popupRight,
-                      child: GestureDetector(
-                        onTap: () {},
-                        child: Material(
-                          elevation: 10,
-                          borderRadius: BorderRadius.circular(12),
-                          clipBehavior: Clip.hardEdge,
-                          child: Container(
-                            width: min(SizeConfig.screenWidth * 0.6, 260),
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [CompactHeatMap()],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
       ),
       drawer: Drawer(
         width: SizeConfig.screenWidth / 1.5,
@@ -234,133 +135,364 @@ class _StreaksPageState extends State<StreaksPage> {
       ),
     );
   }
+}
 
-  Widget _buildMotivationSection() {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.deepPurple[700]!, Colors.deepPurple[500]!],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.deepPurple.withOpacity(0.3),
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
+Widget _buildMotivationSection() {
+  return Container(
+    margin: EdgeInsets.symmetric(horizontal: 16),
+    padding: EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [Colors.deepPurple[700]!, Colors.deepPurple[500]!],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.deepPurple.withValues(alpha: 0.3),
+          blurRadius: 8,
+          offset: Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.lightbulb, color: Colors.amber, size: 28),
+            SizedBox(width: 12),
+            Text(
+              'A wise man said',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 16),
+        Text(
+          '"Every moment of resistance is a victory. You\'re not just avoiding a habit—you\'re reclaiming your power, your focus, and your future."',
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.white.withValues(alpha: 0.95),
+            height: 1.5,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildProgressInsights() {
+  return Container(
+    margin: EdgeInsets.symmetric(horizontal: 16),
+    padding: EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.grey[850],
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Progress Insights',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildInsightCard(
+              'Current Streak',
+              '11 Days',
+              Icons.whatshot,
+              Colors.orange,
+            ),
+            _buildInsightCard(
+              'Best Streak',
+              '18 Days',
+              Icons.emoji_events,
+              Colors.amber,
+            ),
+            _buildInsightCard(
+              'Success Rate',
+              '60%',
+              Icons.trending_up,
+              Colors.green,
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildInsightCard(
+  String label,
+  String value,
+  IconData icon,
+  Color color,
+) {
+  return Column(
+    children: [
+      Container(
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.5)),
+        ),
+        child: Icon(icon, color: color, size: 28),
+      ),
+      SizedBox(height: 8),
+      Text(
+        value,
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+      SizedBox(height: 4),
+      Text(
+        label,
+        style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+        textAlign: TextAlign.center,
+      ),
+    ],
+  );
+}
+
+Widget _buildBlogSection(BuildContext context) {
+  final blogs = [
+    {
+      'title': 'How Porn Paves the Way to Misery',
+      'excerpt':
+          'Understanding the psychological and physiological impact of pornography addiction and its devastating effects on mental health, relationships, and personal growth.',
+      'icon': Icons.psychology,
+      'color': Colors.red,
+      'route': '/blog/misery',
+    },
+    {
+      'title': 'Rewiring Your Brain: The Science of Recovery',
+      'excerpt':
+          'Discover how neuroplasticity can help you rebuild neural pathways, restore dopamine sensitivity, and reclaim control over your life.',
+      'icon': Icons.psychology_alt,
+      'color': Colors.blue,
+      'route': '/blog/rewiring',
+    },
+    {
+      'title': 'Building Unshakeable Self-Discipline',
+      'excerpt':
+          'Practical strategies and mindset shifts to develop iron-will discipline that helps you resist urges and build lasting positive habits.',
+      'icon': Icons.fitness_center,
+      'color': Colors.green,
+      'route': '/blog/discipline',
+    },
+  ];
+
+  return Container(
+    margin: EdgeInsets.symmetric(horizontal: 16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 16),
+          child: Row(
             children: [
-              Icon(Icons.lightbulb, color: Colors.amber, size: 28),
-              SizedBox(width: 12),
+              Icon(Icons.article, color: Colors.deepPurple[300], size: 28),
+              SizedBox(width: 8),
               Text(
-                'Daily Motivation',
+                'Recovery Insights',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
             ],
           ),
-          SizedBox(height: 16),
-          Text(
-            '"Every moment of resistance is a victory. You\'re not just avoiding a habit—you\'re reclaiming your power, your focus, and your future."',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.white.withOpacity(0.95),
-              height: 1.5,
-              fontStyle: FontStyle.italic,
+        ),
+        ...blogs.map(
+          (blog) => Padding(
+            padding: EdgeInsets.only(bottom: 16),
+            child: _buildBlogCard(
+              context,
+              blog['title'] as String,
+              blog['excerpt'] as String,
+              blog['icon'] as IconData,
+              blog['color'] as Color,
+              blog['route'] as String,
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
-  Widget _buildProgressInsights() {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      padding: EdgeInsets.all(20),
+Widget _buildBlogCard(
+  BuildContext context,
+  String title,
+  String excerpt,
+  IconData icon,
+  Color color,
+  String route,
+) {
+  return GestureDetector(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              BlogDetailPage(title: title, icon: icon, color: color),
+        ),
+      );
+    },
+    child: Container(
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey[850],
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
         ],
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Progress Insights',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: color.withValues(alpha: 0.5)),
             ),
+            child: Icon(icon, color: color, size: 28),
           ),
-          SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildInsightCard(
-                'Current Streak',
-                '11 Days',
-                Icons.whatshot,
-                Colors.orange,
-              ),
-              _buildInsightCard(
-                'Best Streak',
-                '18 Days',
-                Icons.emoji_events,
-                Colors.amber,
-              ),
-              _buildInsightCard(
-                'Success Rate',
-                '60%',
-                Icons.trending_up,
-                Colors.green,
-              ),
-            ],
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  excerpt,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[400],
+                    height: 1.4,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                SizedBox(height: 8),
+                Row(
+                  children: [
+                    Text(
+                      'Read More',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(Icons.arrow_forward, color: color, size: 16),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildInsightCard(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Column(
+Widget _buildCommunitySupportSection() {
+  return Container(
+    margin: EdgeInsets.symmetric(horizontal: 16),
+    padding: EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.grey[850],
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withOpacity(0.5)),
-          ),
-          child: Icon(icon, color: color, size: 28),
+        Row(
+          children: [
+            Icon(Icons.group, color: Colors.deepPurple[300], size: 28),
+            SizedBox(width: 12),
+            Text(
+              'Community Support',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
         ),
-        SizedBox(height: 8),
+        SizedBox(height: 16),
+        Text(
+          'You\'re not alone in this journey. Join thousands of others who are committed to positive change.',
+          style: TextStyle(fontSize: 14, color: Colors.grey[400], height: 1.5),
+        ),
+        SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: _buildSupportStat('1.2K', 'Active Members')),
+            SizedBox(width: 12),
+            Expanded(child: _buildSupportStat('850+', 'Success Stories')),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildSupportStat(String value, String label) {
+  return Container(
+    padding: EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.deepPurple.withValues(alpha: 0.2),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.3)),
+    ),
+    child: Column(
+      children: [
         Text(
           value,
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 22,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: Colors.deepPurple[300],
           ),
         ),
         SizedBox(height: 4),
@@ -370,431 +502,175 @@ class _StreaksPageState extends State<StreaksPage> {
           textAlign: TextAlign.center,
         ),
       ],
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildBlogSection(BuildContext context) {
-    final blogs = [
-      {
-        'title': 'How Porn Paves the Way to Misery',
-        'excerpt':
-            'Understanding the psychological and physiological impact of pornography addiction and its devastating effects on mental health, relationships, and personal growth.',
-        'icon': Icons.psychology,
-        'color': Colors.red,
-        'route': '/blog/misery',
-      },
-      {
-        'title': 'Rewiring Your Brain: The Science of Recovery',
-        'excerpt':
-            'Discover how neuroplasticity can help you rebuild neural pathways, restore dopamine sensitivity, and reclaim control over your life.',
-        'icon': Icons.psychology_alt,
-        'color': Colors.blue,
-        'route': '/blog/rewiring',
-      },
-      {
-        'title': 'Building Unshakeable Self-Discipline',
-        'excerpt':
-            'Practical strategies and mindset shifts to develop iron-will discipline that helps you resist urges and build lasting positive habits.',
-        'icon': Icons.fitness_center,
-        'color': Colors.green,
-        'route': '/blog/discipline',
-      },
-    ];
+Widget _buildQuickTipsSection() {
+  final tips = [
+    'Stay hydrated - drink 8 glasses of water daily',
+    'Exercise for 30 minutes to boost mood',
+    'Practice mindfulness meditation',
+    'Get 7-8 hours of quality sleep',
+  ];
 
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 16),
+  return Container(
+    margin: EdgeInsets.symmetric(horizontal: 16),
+    padding: EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.grey[850],
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.tips_and_updates, color: Colors.amber, size: 28),
+            SizedBox(width: 12),
+            Text(
+              'Quick Daily Tips',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 16),
+        ...tips.map(
+          (tip) => Padding(
+            padding: EdgeInsets.only(bottom: 12),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.article, color: Colors.deepPurple[300], size: 28),
-                SizedBox(width: 8),
-                Text(
-                  'Recovery Insights',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                Icon(Icons.check_circle, color: Colors.green[400], size: 20),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    tip,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[300],
+                      height: 1.4,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          ...blogs
-              .map(
-                (blog) => Padding(
-                  padding: EdgeInsets.only(bottom: 16),
-                  child: _buildBlogCard(
-                    context,
-                    blog['title'] as String,
-                    blog['excerpt'] as String,
-                    blog['icon'] as IconData,
-                    blog['color'] as Color,
-                    blog['route'] as String,
-                  ),
-                ),
-              )
-              ,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBlogCard(
-    BuildContext context,
-    String title,
-    String excerpt,
-    IconData icon,
-    Color color,
-    String route,
-  ) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                BlogDetailPage(title: title, icon: icon, color: color),
-          ),
-        );
-      },
-      child: Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey[850],
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.3)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: color.withOpacity(0.5)),
-              ),
-              child: Icon(icon, color: color, size: 28),
-            ),
-            SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    excerpt,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[400],
-                      height: 1.4,
-                    ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Text(
-                        'Read More',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: color,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(width: 4),
-                      Icon(Icons.arrow_forward, color: color, size: 16),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCommunitySupportSection() {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.grey[850],
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.group, color: Colors.deepPurple[300], size: 28),
-              SizedBox(width: 12),
-              Text(
-                'Community Support',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 16),
-          Text(
-            'You\'re not alone in this journey. Join thousands of others who are committed to positive change.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[400],
-              height: 1.5,
-            ),
-          ),
-          SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: _buildSupportStat('1.2K', 'Active Members')),
-              SizedBox(width: 12),
-              Expanded(child: _buildSupportStat('850+', 'Success Stories')),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSupportStat(String value, String label) {
-    return Container(
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.deepPurple.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.deepPurple.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.deepPurple[300],
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(fontSize: 12, color: Colors.grey[400]),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickTipsSection() {
-    final tips = [
-      'Stay hydrated - drink 8 glasses of water daily',
-      'Exercise for 30 minutes to boost mood',
-      'Practice mindfulness meditation',
-      'Get 7-8 hours of quality sleep',
-    ];
-
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.grey[850],
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.tips_and_updates, color: Colors.amber, size: 28),
-              SizedBox(width: 12),
-              Text(
-                'Quick Daily Tips',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 16),
-          ...tips
-              .map(
-                (tip) => Padding(
-                  padding: EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.check_circle,
-                        color: Colors.green[400],
-                        size: 20,
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          tip,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[300],
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-              ,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAvatarCard({
-    required String imagePath,
-    required String level,
-    required String days,
-    required String characteristic,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                imagePath,
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 80,
-                    height: 80,
-                    color: Colors.grey[300],
-                    child: Icon(
-                      Icons.person,
-                      size: 40,
-                      color: Colors.grey[600],
-                    ),
-                  );
-                },
-              ),
-            ),
-            SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    level,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    days,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    characteristic,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.blue[700],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  secondRowButtons() {
-    return Padding(
-      padding: const EdgeInsets.all(10.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          ElevatedButton.icon(
-            onPressed: () => GoRouter.of(context).push('/affirmations'),
-            label: const Icon(
-              Icons.local_library,
-              color: Colors.black,
-              size: 20,
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple[600],
-              shape: const CircleBorder(),
-            ),
-          ),
-          PanicButton(onTriggered: () {}),
-          ElevatedButton.icon(
-            onPressed: () async {
-              context.push('/meditation');
-            },
-            label: Image.asset('assets/streaks/medi.png', height: 20),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple[600],
-              shape: const CircleBorder(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
 }
 
-// Keep all existing classes (PanicButton, DaysList, CompactHeatMap, PornFreeTimerCompact, etc.)
-// ... [Previous classes remain the same]
+Widget _buildAvatarCard({
+  required String imagePath,
+  required String level,
+  required String days,
+  required String characteristic,
+}) {
+  return Container(
+    decoration: BoxDecoration(
+      color: Colors.grey[100],
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+      ],
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.asset(
+              imagePath,
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: 80,
+                  height: 80,
+                  color: Colors.grey[300],
+                  child: Icon(Icons.person, size: 40, color: Colors.grey[600]),
+                );
+              },
+            ),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  level,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  days,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  characteristic,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.blue[700],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+secondRowButtons(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.all(10.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton.icon(
+          onPressed: () => context.push('/affirmations'),
+          label: HugeIcon(icon: HugeIcons.strokeRoundedHandPrayer, size: 20),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.deepPurple[600],
+            shape: const CircleBorder(),
+          ),
+        ),
+        PanicButton(onTriggered: () {}),
+        ElevatedButton.icon(
+          onPressed: () async {
+            context.push('/meditation');
+          },
+          label: HugeIcon(icon: HugeIcons.strokeRoundedRelieved01),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.deepPurple[600],
+            shape: const CircleBorder(),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Replace the entire DaysList class with this:
 
 class PanicButton extends StatefulWidget {
   final VoidCallback onTriggered;
@@ -945,9 +821,6 @@ class _PanicButtonState extends State<PanicButton>
   }
 }
 
-/// ---------------------------------------------------------------------------
-/// Custom Painter: Draws an animated rectangular border filling clockwise
-/// ---------------------------------------------------------------------------
 class _RectBorderPainter extends CustomPainter {
   final double progress; // 0 → 1
   final Color color;
@@ -986,231 +859,6 @@ class _RectBorderPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _RectBorderPainter oldDelegate) =>
       oldDelegate.progress != progress;
-}
-
-class DaysList extends StatelessWidget {
-  const DaysList({super.key});
-
-  static const listOfDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  static ValueNotifier<int?> selectedDay = ValueNotifier(null);
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 60,
-      child: ValueListenableBuilder<int?>(
-        valueListenable: selectedDay,
-        builder: (context, value, child) {
-          final mL = List.generate(6, (i) => i);
-          return ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: listOfDays.length,
-            itemBuilder: (context, index) {
-              return GestureDetector(
-                onTap: () {
-                  selectedDay.value = index;
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 5,
-                    horizontal: 8,
-                  ),
-                  margin: const EdgeInsets.all(4),
-                  constraints: BoxConstraints.tight(Size(50, 60)),
-                  decoration: BoxDecoration(
-                    color: selectedDay.value == index || mL.contains(index)
-                        ? AppColors.primary
-                        : Colors.transparent,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: AppColors.primary.withValues(alpha: 0.5),
-                        width: 3,
-                      ),
-                      left: BorderSide(
-                        color: AppColors.primary.withValues(alpha: 0.5),
-                        width: 1,
-                      ),
-                      right: BorderSide(
-                        color: AppColors.primary.withValues(alpha: 0.5),
-                        width: 1,
-                      ),
-                      top: BorderSide(
-                        color: AppColors.primary.withValues(alpha: 0.5),
-                        width: 1,
-                      ),
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.5),
-                        blurRadius: 8,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(listOfDays[index]),
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// CompactHeatMap: small, tight heatmap used in the top-right popup
-class CompactHeatMap2 extends StatelessWidget {
-  const CompactHeatMap2({super.key});
-
-  Map<DateTime, int> _genData() {
-    final now = DateTime.now();
-    return {
-      for (var i = 0; i < 20; i++)
-        DateTime(now.year, now.month, (i % 28) + 1): (i % 5) + 1,
-    };
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return HeatMapCalendar(
-      defaultColor: Colors.white,
-      flexible: true,
-      colorMode: ColorMode.color,
-      datasets: {}..addAll(_genData()),
-      showColorTip: false,
-      textColor: Colors.black54,
-      size: 30,
-      initDate: DateTime.now(),
-      colorsets: const {1: Color.fromARGB(255, 139, 89, 225)},
-    );
-  }
-}
-
-class CompactHeatMap extends StatelessWidget {
-  const CompactHeatMap({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    Map<DateTime, int> generateStreakData() {
-      Map<DateTime, int> streakData = {};
-
-      // September - 30 days with 4/10 ratio (break/maintain)
-      // This means approximately 12 days break, 18 days maintain
-      List<int> septemberBreaks = [
-        3,
-        7,
-        11,
-        15,
-        16,
-        20,
-        23,
-        24,
-        27,
-        28,
-        29,
-        30,
-      ];
-
-      for (var day = 1; day <= 30; day++) {
-        if (septemberBreaks.contains(day)) {
-          streakData[DateTime(2025, 9, day)] = 0; // Break day
-        } else {
-          streakData[DateTime(2025, 9, day)] = 1; // Maintain day
-        }
-      }
-
-      // October - First 11 days, all maintained (full streak)
-      for (var day = 1; day <= 11; day++) {
-        streakData[DateTime(2025, 10, day)] = 1; // All maintained
-      }
-
-      return streakData;
-    }
-
-    return HeatMapCalendar(
-      defaultColor: Colors.white,
-      flexible: true,
-      colorMode: ColorMode.color,
-      datasets: generateStreakData(),
-      showColorTip: false,
-      textColor: Colors.black54,
-      size: 30,
-      initDate: DateTime.now(),
-      colorsets: const {1: Color.fromARGB(255, 139, 89, 225)},
-    );
-  }
-}
-
-class PornFreeTimerCompact extends StatefulWidget {
-  final DateTime startTime;
-  const PornFreeTimerCompact({super.key, required this.startTime});
-
-  @override
-  State<PornFreeTimerCompact> createState() => _PornFreeTimerCompactState();
-}
-
-class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
-  late Timer _timer;
-  Duration _elapsed = Duration.zero;
-
-  @override
-  void initState() {
-    super.initState();
-    _elapsed = DateTime.now().difference(widget.startTime);
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() {
-        _elapsed = DateTime.now().difference(widget.startTime);
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final days = _elapsed.inDays;
-    final hours = _elapsed.inHours % 24;
-    final minutes = _elapsed.inMinutes % 60;
-    final seconds = _elapsed.inSeconds % 60;
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // 🕒 Timer Text
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("You've been porn free for.."),
-            // Days & Hours
-            Text(
-              "$days days  $hours hrs",
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 6),
-            // Minutes & Seconds
-            Text(
-              "$minutes min  $seconds sec",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[400],
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 }
 
 class BlogDetailPage extends StatelessWidget {
@@ -1472,7 +1120,7 @@ You are capable of this. Not someday, not once you "get ready," not after one mo
             Container(
               padding: EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
+                color: color.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: color, size: 20),
@@ -1502,12 +1150,15 @@ You are capable of this. Not someday, not once you "get ready," not after one mo
               padding: EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [color.withOpacity(0.3), color.withOpacity(0.1)],
+                  colors: [
+                    color.withValues(alpha: 0.3),
+                    color.withValues(alpha: 0.1),
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.withOpacity(0.5)),
+                border: Border.all(color: color.withValues(alpha: 0.5)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1571,9 +1222,9 @@ You are capable of this. Not someday, not once you "get ready," not after one mo
             Container(
               padding: EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.withOpacity(0.3)),
+                border: Border.all(color: color.withValues(alpha: 0.3)),
               ),
               child: Column(
                 children: [

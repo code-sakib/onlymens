@@ -64,7 +64,7 @@ class _AiMainpageState extends State<AiMainpage> {
                 builder: (context) => IconButton(
                   onPressed: () => Scaffold.of(context).openDrawer(),
                   icon: HugeIcon(
-                    icon: HugeIcons.strokeRoundedMenu01,
+                    icon: HugeIcons.strokeRoundedSidebarLeft,
                     color: Colors.white,
                   ),
                 ),
@@ -400,7 +400,7 @@ Widget chatInput(
     child: Container(
       height: SizeConfig.blockHeight * 7,
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.deepPurple), // your purple border
+        border: Border.all(color: Colors.deepPurple),
         borderRadius: BorderRadius.circular(30),
       ),
       child: Row(
@@ -416,10 +416,9 @@ Widget chatInput(
               decoration: InputDecoration(
                 hintText: 'Message...',
                 hintStyle: TextStyle(color: Colors.grey),
-                border: InputBorder.none, // removes default underline & box
+                border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
-
                 fillColor: Colors.transparent,
                 isDense: true,
                 enabled: isEnabled,
@@ -468,7 +467,7 @@ class _HardModeWidgetState extends State<HardModeWidget> {
     // Load from SharedPreferences or get from widget parameters
     setState(() {
       userPersona = {
-        'usage': 'frequent', // Load from storage
+        'usage': 'frequent',
         'effects': [
           'Impaired concentration',
           'Reduced creativity',
@@ -482,8 +481,8 @@ class _HardModeWidgetState extends State<HardModeWidget> {
           'Cultivate inner peace',
         ],
       };
-      currentStreak = 10; // Load from storage
-      longestStreak = 15; // Load from storage
+      currentStreak = 10;
+      longestStreak = 15;
     });
   }
 
@@ -499,7 +498,6 @@ class _HardModeWidgetState extends State<HardModeWidget> {
 
     _controller.clear();
 
-    // Call Hard Mode AI with persona and streak data
     final reply = await _hardModeAIService.sendHardModeMessage(
       userMessage: text,
       userPersona: userPersona,
@@ -521,7 +519,6 @@ class _HardModeWidgetState extends State<HardModeWidget> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     _loadUserData();
     hardModeMessages.isEmpty
@@ -663,6 +660,7 @@ class GameModeWidget extends StatelessWidget {
   }
 }
 
+/// ------------------ VOICE MODE (with animated Lottie) ------------------
 class VoiceModeWidget extends StatefulWidget {
   const VoiceModeWidget({super.key});
 
@@ -670,22 +668,58 @@ class VoiceModeWidget extends StatefulWidget {
   State<VoiceModeWidget> createState() => _VoiceModeWidgetState();
 }
 
-class _VoiceModeWidgetState extends State<VoiceModeWidget> {
+class _VoiceModeWidgetState extends State<VoiceModeWidget>
+    with SingleTickerProviderStateMixin {
   late stt.SpeechToText _speech;
   final VoiceModeAIService _voiceAIService = VoiceModeAIService();
+  final VoiceUsageService _usageService = VoiceUsageService();
   final TextEditingController _textController = TextEditingController();
+
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   bool _isListening = false;
   bool _isProcessing = false;
   bool _isSpeaking = false;
   String _spokenText = '';
   String _aiResponse = '';
+  int _remainingPremiumSeconds = 180;
+  bool _isPremiumTTS = true;
 
   @override
   void initState() {
     super.initState();
     _speech = stt.SpeechToText();
     _requestMicPermission();
+    _checkPremiumStatus();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  Future<void> _checkPremiumStatus() async {
+    final remaining = await _usageService.getRemainingPremiumSeconds();
+    final canUse = await _usageService.canUsePremiumTTS();
+    if (mounted) {
+      setState(() {
+        _remainingPremiumSeconds = remaining;
+        _isPremiumTTS = canUse;
+      });
+    }
+  }
+
+  void _startPulseAnimation() {
+    _pulseController.repeat(reverse: true);
+  }
+
+  void _stopPulseAnimation() {
+    _pulseController.stop();
   }
 
   Future<void> _requestMicPermission() async {
@@ -701,6 +735,7 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget> {
         if (status == 'done') {
           if (mounted) {
             setState(() => _isListening = false);
+            _stopPulseAnimation();
           }
           if (_spokenText.isNotEmpty) {
             _sendToAI();
@@ -710,6 +745,7 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget> {
       onError: (error) {
         if (mounted) {
           setState(() => _isListening = false);
+          _stopPulseAnimation();
         }
         Utilis.showSnackBar('Error: ${error.errorMsg}');
       },
@@ -722,6 +758,7 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget> {
           _spokenText = '';
           _aiResponse = '';
         });
+        _startPulseAnimation();
       }
 
       await _speech.listen(
@@ -742,6 +779,7 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget> {
     await _speech.stop();
     if (mounted) {
       setState(() => _isListening = false);
+      _stopPulseAnimation();
     }
     if (_spokenText.isNotEmpty) {
       _sendToAI();
@@ -751,25 +789,21 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget> {
   Future<void> _sendToAI() async {
     if (!mounted) return;
 
-    if (mounted) {
-      setState(() => _isProcessing = true);
-    }
+    setState(() => _isProcessing = true);
+    _startPulseAnimation();
 
     try {
-      // Get text response from AI
       final reply = await _voiceAIService.sendVoiceMessage(_spokenText);
 
       if (!mounted) return;
 
-      if (mounted) {
-        setState(() {
-          _aiResponse = reply;
-          _isProcessing = false;
-        });
-      }
+      setState(() {
+        _aiResponse = reply;
+        _isProcessing = false;
+      });
 
-      // Speak using OpenAI TTS with Fable voice
-      await _voiceAIService.speakWithOpenAI(
+      // Auto-selects TTS based on usage
+      await _voiceAIService.speakWithAI(
         reply,
         onStart: () {
           if (mounted) {
@@ -779,12 +813,15 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget> {
         onComplete: () {
           if (mounted) {
             setState(() => _isSpeaking = false);
+            _stopPulseAnimation();
+            _checkPremiumStatus(); // Update remaining time
           }
         },
       );
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
+        _stopPulseAnimation();
       }
       Utilis.showSnackBar('Error: $e');
     }
@@ -792,35 +829,29 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget> {
 
   Future<void> _sendTextMessage() async {
     if (_textController.text.trim().isEmpty) return;
-
     if (!mounted) return;
 
-    if (mounted) {
-      setState(() {
-        _spokenText = _textController.text.trim();
-        _isProcessing = true;
-        _aiResponse = '';
-      });
-    }
+    setState(() {
+      _spokenText = _textController.text.trim();
+      _isProcessing = true;
+      _aiResponse = '';
+    });
+    _startPulseAnimation();
 
     _textController.clear();
     FocusScope.of(context).unfocus();
 
     try {
-      // Get text response from AI
       final reply = await _voiceAIService.sendVoiceMessage(_spokenText);
 
       if (!mounted) return;
 
-      if (mounted) {
-        setState(() {
-          _aiResponse = reply;
-          _isProcessing = false;
-        });
-      }
+      setState(() {
+        _aiResponse = reply;
+        _isProcessing = false;
+      });
 
-      // Speak using OpenAI TTS with Fable voice
-      await _voiceAIService.speakWithOpenAI(
+      await _voiceAIService.speakWithAI(
         reply,
         onStart: () {
           if (mounted) {
@@ -830,12 +861,15 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget> {
         onComplete: () {
           if (mounted) {
             setState(() => _isSpeaking = false);
+            _stopPulseAnimation();
+            _checkPremiumStatus();
           }
         },
       );
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
+        _stopPulseAnimation();
       }
       Utilis.showSnackBar('Error: $e');
     }
@@ -843,12 +877,7 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget> {
 
   @override
   void dispose() {
-    // Stop all ongoing operations before disposing
-    _isListening = false;
-    _isProcessing = false;
-    _isSpeaking = false;
-
-    // Cancel all async operations - ignore futures
+    _pulseController.dispose();
     _speech.cancel().catchError((_) => false);
     _speech.stop().catchError((_) => false);
     _voiceAIService.stopSpeaking().catchError((_) {});
@@ -859,32 +888,51 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Flexible(
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: SizeConfig.paddingLarge),
       child: Column(
         children: [
-          Lottie.network(
-            'https://lottie.host/41e66247-1420-47b1-b827-34ec32d4ffbd/maRnCJnDFO.json',
-          ),
-
-          // AI Response Display with Lottie Animation
-          if (_aiResponse.isNotEmpty)
+          // Premium Status Badge
+          if (_remainingPremiumSeconds > 0)
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.grey.shade800,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _aiResponse,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                gradient: LinearGradient(
+                  colors: [Colors.amber.shade400, Colors.orange.shade600],
                 ),
-                textAlign: TextAlign.center,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.stars, color: Colors.white, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Premium Voice: ${(_remainingPremiumSeconds / 60).floor()}m ${_remainingPremiumSeconds % 60}s',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
 
-          const Spacer(),
+          SizedBox(height: SizeConfig.blockHeight * 2),
+
+          // Animated Lottie with Gradient Background
+          ScaleTransition(
+            scale: _pulseAnimation,
+            child: Lottie.network(
+              'https://lottie.host/b72fd15d-61a4-4510-ae8f-93936c32c857/xzLgoD2MQj.json',
+              width: 200,
+              height: 200,
+              fit: BoxFit.contain,
+            ),
+          ),
+
+          SizedBox(height: SizeConfig.blockHeight * 27),
 
           // Microphone Button
           GestureDetector(
@@ -892,19 +940,19 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget> {
                 ? null
                 : (_isListening ? _stopListening : _startListening),
             child: Container(
-              width: 80,
-              height: 80,
+              width: 70,
+              height: 70,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
                   colors: _isListening
                       ? [Colors.red.shade400, Colors.red.shade600]
                       : _isProcessing || _isSpeaking
-                      ? [Colors.orange.shade400, Colors.orange.shade600]
-                      : [
-                          Colors.deepPurple.shade400,
-                          Colors.deepPurple.shade600,
-                        ],
+                          ? [Colors.orange.shade400, Colors.orange.shade600]
+                          : [
+                              Colors.deepPurple.shade400,
+                              Colors.deepPurple.shade600,
+                            ],
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -915,46 +963,39 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget> {
                   ),
                 ],
               ),
-              child: Icon(
-                _isListening
-                    ? Icons.mic
+              child: Center(
+                child: _isListening
+                    ? voiceHugeIcons(HugeIcons.strokeRoundedMic01)
                     : _isProcessing || _isSpeaking
-                    ? Icons.hourglass_empty
-                    : Icons.mic_none,
-                size: 50,
-                color: Colors.white,
+                        ? voiceHugeIcons(HugeIcons.strokeRoundedHourglass)
+                        : voiceHugeIcons(HugeIcons.strokeRoundedMic01),
               ),
             ),
           ),
 
-          const SizedBox(height: 20),
+          SizedBox(height: SizeConfig.blockHeight * 2),
 
           // Status Text
           Text(
             _isListening
                 ? 'Listening...'
                 : _isSpeaking
-                ? 'Speaking...'
-                : _isProcessing
-                ? 'Processing...'
-                : 'Tap to speak',
+                    ? (_isPremiumTTS ? 'Speaking (Premium)...' : 'Speaking...')
+                    : _isProcessing
+                        ? 'Processing...'
+                        : '',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: Colors.grey.shade700,
             ),
           ),
-
-          const SizedBox(height: 30),
-
-          // Text Input Field (for simulator testing)
-          chatInput(
-            _textController,
-            _sendTextMessage,
-            !_isProcessing && !_isSpeaking,
-          ),
         ],
       ),
     );
+  }
+
+  voiceHugeIcons(icon) {
+    return HugeIcon(icon: icon, size: 30, color: Colors.white12);
   }
 }

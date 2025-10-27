@@ -13,9 +13,9 @@ import 'package:onlymens/features/ai_model/presentation/ai_mainpage.dart';
 import 'package:onlymens/features/betterwbro/presentation/bwb_page.dart';
 import 'package:onlymens/features/onboarding_pgs/onboarding_pgs.dart';
 import 'package:onlymens/features/streaks_page/presentation/streaks_page.dart';
-import 'package:onlymens/meditation_pg.dart';
 import 'package:onlymens/panic_mode_pg.dart';
 import 'package:onlymens/profile_page.dart';
+import 'package:onlymens/sound_pg.dart';
 import 'package:onlymens/utilis/bottom_appbar.dart';
 import 'package:onlymens/utilis/size_config.dart';
 
@@ -52,7 +52,7 @@ final approutes = GoRouter(
     if (!isLoggedIn) {
       if (!isAuthRoute) {
         print('❌ Not logged in, redirecting to /');
-        return '/';
+        return '/profile';
       }
       print('✅ Show auth screen');
       return null; // Stay on auth page
@@ -69,13 +69,13 @@ final approutes = GoRouter(
         }
         // Onboarding done or has data, go to streaks
         print('✅ Logged in user redirected to /streaks');
-        return '/streaks';
+        return '/aimodel';
       }
 
       // If trying to access onboarding but already completed
       if (isOnboardingRoute && onboardingDone) {
         print('✅ Onboarding done, redirecting to /streaks');
-        return '/streaks';
+        return '/aimodel';
       }
 
       print('✅ Logged in user allowed to ${state.matchedLocation}');
@@ -110,7 +110,8 @@ final approutes = GoRouter(
     GoRoute(path: '/game1', builder: (context, state) => const PongGame()),
     GoRoute(path: '/game2', builder: (context, state) => const QuickDrawGame()),
     GoRoute(path: '/bwb', builder: (context, state) => BwbPage2()),
-    GoRoute(path: '/meditation', builder: (context, state) => MeditationPg()),
+    GoRoute(path: '/meditation', builder: (context, state) => RainScreen()),
+    GoRoute(path: '/fj', builder: (context, state) => Container()),
 
     // Shell route wraps all authenticated routes with bottom bar
     ShellRoute(
@@ -120,14 +121,23 @@ final approutes = GoRouter(
         return Scaffold(
           body: child,
           floatingActionButton: FloatingActionButton(
-            backgroundColor: Colors.transparent,
-            shape: const CircleBorder(),
             onPressed: () => context.go('/streaks'),
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.transparent,
+            splashColor: Colors.transparent,
+            elevation: 0, // 🧨 Removes default shadow
+            highlightElevation: 0,
+            focusElevation: 0,
+            hoverElevation: 0,
+            shape: const CircleBorder(), // Prevents unwanted blur edges
+            materialTapTargetSize:
+                MaterialTapTargetSize.shrinkWrap, // keeps it tight
             child: Lottie.asset(
               'assets/lottie/fire.json',
               width: SizeConfig.fireIconSize,
             ),
           ),
+
           floatingActionButtonLocation:
               FloatingActionButtonLocation.centerDocked,
           bottomNavigationBar: bottomAppBar(

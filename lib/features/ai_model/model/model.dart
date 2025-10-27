@@ -1,5 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:just_audio/just_audio.dart';
@@ -188,6 +191,19 @@ class VoiceModeAIService {
   final String _ttsUrl = 'https://api.openai.com/v1/audio/speech';
   final String _apiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final FlutterTts _flutterTts = FlutterTts();
+  final VoiceUsageService _usageService = VoiceUsageService();
+
+  VoiceModeAIService() {
+    _initFlutterTTS();
+  }
+
+  void _initFlutterTTS() async {
+    await _flutterTts.setLanguage("en-US");
+    await _flutterTts.setSpeechRate(0.5);
+    await _flutterTts.setVolume(1.0);
+    await _flutterTts.setPitch(1.0);
+  }
 
   /// Sends user voice message to GPT-4o-mini and returns AI's reply text
   Future<String> sendVoiceMessage(String userMessage) async {
@@ -227,9 +243,44 @@ class VoiceModeAIService {
     }
   }
 
-  /// Converts text to speech using OpenAI TTS API with Fable voice and plays it
-  /// Returns a callback when speaking starts and ends
-  Future<void> speakWithOpenAI(
+  /// Speaks text using either OpenAI TTS (premium) or Flutter TTS (free)
+  /// Automatically selects based on daily usage
+  Future<void> speakWithAI(
+    String text, {
+    required Function() onStart,
+    required Function() onComplete,
+  }) async {
+    try {
+      // Check if user can use premium TTS
+      final canUsePremium = await _usageService.canUsePremiumTTS();
+
+      if (canUsePremium) {
+        // Use OpenAI Fable TTS (Premium)
+        await _speakWithOpenAI(text, onStart: onStart, onComplete: onComplete);
+      } else {
+        // Use Flutter TTS (Free)
+        await _speakWithFlutterTTS(
+          text,
+          onStart: onStart,
+          onComplete: onComplete,
+        );
+      }
+    } catch (e) {
+      print('Speak error: $e');
+      // Fallback to Flutter TTS on any error
+      await _speakWithFlutterTTS(
+        text,
+        onStart: onStart,
+        onComplete: onComplete,
+      );
+    }
+  }
+
+  /// OpenAI Fable TTS (Premium - First 3 mins/day)
+  final String _instructions =
+      """Voice Affect: Soft, gentle, soothing; embody tranquility.\n\nTone: Calm, reassuring, peaceful; convey genuine warmth and serenity.\n\nPacing: Slow, deliberate, and unhurried; pause gently after instructions to allow the listener time to relax and follow along.\n\nEmotion: Deeply soothing and comforting; express genuine kindness and care.\n\nPronunciation: Smooth, soft articulation, slightly elongating vowels to create a sense of ease.\n\nPauses: Use thoughtful pauses, especially between breathing instructions and visualization guidance, enhancing relaxation and mindfulness.""";
+
+  Future<void> _speakWithOpenAI(
     String text, {
     required Function() onStart,
     required Function() onComplete,
@@ -242,42 +293,76 @@ class VoiceModeAIService {
       };
       final body = jsonEncode({
         "model": "tts-1",
+        "voice": "fable",
         "input": text,
-        "voice": "fable", // Fable voice with Serene vibe
+        "instructions": _instructions,
         "speed": 1.0,
       });
 
       final response = await http.post(uri, headers: headers, body: body);
 
       if (response.statusCode == 200) {
-        // Save audio to temporary file
         final tempDir = await getTemporaryDirectory();
         final audioFile = File(
           '${tempDir.path}/tts_${DateTime.now().millisecondsSinceEpoch}.mp3',
         );
         await audioFile.writeAsBytes(response.bodyBytes);
 
-        // Notify that speaking is starting
         onStart();
 
-        // Set up completion listener
+        // Track usage
+        final duration = _usageService.estimateTextDuration(text);
+        await _usageService.trackTTSUsage(duration);
+
         _audioPlayer.playerStateStream.listen((state) {
           if (state.processingState == ProcessingState.completed) {
             onComplete();
-            // Clean up the temp file
             audioFile.delete().catchError((_) {});
           }
         });
 
-        // Play audio from file
         await _audioPlayer.setFilePath(audioFile.path);
         await _audioPlayer.play();
       } else {
-        print('TTS Error: ${response.statusCode} - ${response.body}');
-        onComplete();
+        print('OpenAI TTS Error: ${response.statusCode}');
+        // Fallback to Flutter TTS
+        await _speakWithFlutterTTS(
+          text,
+          onStart: onStart,
+          onComplete: onComplete,
+        );
       }
     } catch (e) {
-      print('TTS Exception: $e');
+      print('OpenAI TTS Exception: $e');
+      await _speakWithFlutterTTS(
+        text,
+        onStart: onStart,
+        onComplete: onComplete,
+      );
+    }
+  }
+
+  /// Flutter TTS (Free - After 3 mins/day)
+  Future<void> _speakWithFlutterTTS(
+    String text, {
+    required Function() onStart,
+    required Function() onComplete,
+  }) async {
+    try {
+      onStart();
+
+      _flutterTts.setCompletionHandler(() {
+        onComplete();
+      });
+
+      _flutterTts.setErrorHandler((msg) {
+        print('Flutter TTS Error: $msg');
+        onComplete();
+      });
+
+      await _flutterTts.speak(text);
+    } catch (e) {
+      print('Flutter TTS Exception: $e');
       onComplete();
     }
   }
@@ -285,10 +370,109 @@ class VoiceModeAIService {
   /// Stops any playing audio
   Future<void> stopSpeaking() async {
     await _audioPlayer.stop();
+    await _flutterTts.stop();
   }
 
-  /// Dispose audio player
+  /// Dispose resources
   void dispose() {
     _audioPlayer.dispose();
+    _flutterTts.stop();
+  }
+}
+
+class VoiceUsageService {
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  static const int _maxPremiumSeconds = 180; // 3 minutes
+
+  /// Check if user can use premium TTS (Fable) today
+  Future<bool> canUsePremiumTTS() async {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return false;
+
+    try {
+      final today = _getTodayDate();
+      final docRef = _db
+          .collection('users')
+          .doc(userId)
+          .collection('voiceUsage')
+          .doc(today);
+
+      final doc = await docRef.get();
+
+      if (!doc.exists) return true;
+
+      final data = doc.data();
+      final secondsUsed = (data?['ttsSecondsUsed'] ?? 0) as int;
+
+      return secondsUsed < _maxPremiumSeconds;
+    } catch (e) {
+      print('Error checking premium TTS: $e');
+      return false; // Fallback to free TTS on error
+    }
+  }
+
+  /// Get remaining premium seconds for today
+  Future<int> getRemainingPremiumSeconds() async {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return 0;
+
+    try {
+      final today = _getTodayDate();
+      final docRef = _db
+          .collection('users')
+          .doc(userId)
+          .collection('voiceUsage')
+          .doc(today);
+
+      final doc = await docRef.get();
+
+      if (!doc.exists) return _maxPremiumSeconds;
+
+      final data = doc.data();
+      final secondsUsed = (data?['ttsSecondsUsed'] ?? 0) as int;
+
+      return (_maxPremiumSeconds - secondsUsed).clamp(0, _maxPremiumSeconds);
+    } catch (e) {
+      print('Error getting remaining seconds: $e');
+      return 0;
+    }
+  }
+
+  /// Track TTS usage in seconds
+  Future<void> trackTTSUsage(int seconds) async {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return;
+
+    try {
+      final today = _getTodayDate();
+      final docRef = _db
+          .collection('users')
+          .doc(userId)
+          .collection('voiceUsage')
+          .doc(today);
+
+      await docRef.set({
+        'ttsSecondsUsed': FieldValue.increment(seconds),
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'date': today,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('Error tracking TTS usage: $e');
+    }
+  }
+
+  /// Get today's date as string (YYYY-MM-DD)
+  String _getTodayDate() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Estimate text duration in seconds (rough calculation)
+  int estimateTextDuration(String text) {
+    // Average speaking rate: ~150 words per minute = 2.5 words per second
+    final wordCount = text.split(RegExp(r'\s+')).length;
+    return (wordCount / 2.5).ceil();
   }
 }

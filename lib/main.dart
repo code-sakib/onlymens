@@ -34,6 +34,8 @@ void main() async {
   // await auth.signOut();
   // await prefs.clear();
   runApp(const MyApp());
+
+  print(DateTime.now());
 }
 
 class MyApp extends StatelessWidget {

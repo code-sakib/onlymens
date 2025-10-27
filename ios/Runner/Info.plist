@@ -2,22 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>GIDClientID</key>
-	<string>99850291815-gp2t2k7vla265ilrt7fka1hunsfpmbba.apps.googleusercontent.com</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-	<dict>
-		<key>CFBundleTypeRole</key>
-		<string>Editor</string>
-		<key>CFBundleURLSchemes</key>
-		<array>
-			<string>com.googleusercontent.apps.99850291815-gp2t2k7vla265ilrt7fka1hunsfpmbba</string>
-			<string>app-1-99850291815-ios-0afa2019ca7996860d22c2</string>
-		</array>
-	</dict>
-	</array>
-	<key>io.flutter.embedded_views_preview</key>
-	<true/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -38,10 +22,28 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.99850291815-gp2t2k7vla265ilrt7fka1hunsfpmbba</string>
+				<string>app-1-99850291815-ios-0afa2019ca7996860d22c2</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>GIDClientID</key>
+	<string>99850291815-gp2t2k7vla265ilrt7fka1hunsfpmbba.apps.googleusercontent.com</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need microphone access to hear your voice</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>We need access to speech recognition to communicate with your AI coach</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -61,10 +63,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>We need access to speech recognition to communicate with your AI coach</string>
-
-	<key>NSMicrophoneUsageDescription</key>
-	<string>We need microphone access to hear your voice</string>
+	<key>io.flutter.embedded_views_preview</key>
+	<true/>
 </dict>
 </plist>
