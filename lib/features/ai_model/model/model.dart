@@ -1,47 +1,82 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:onlymens/core/globals.dart';
+import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
 import 'package:path_provider/path_provider.dart';
 
-class OpenAIService {
+class AIModelDataService {
   final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
-    region: 'us-central1', // Your function's region
+    region: 'us-central1',
   );
 
-  /// Sends user message to GPT-4o-mini via Cloud Function
-  Future<String> sendMessage(String userMessage) async {
-    final user = auth.currentUser;
+  // Track current active session
+  String? currentSessionId;
 
+  // ============================================
+  // 1. SEND MESSAGE (Enhanced with context)
+  // ============================================
+  Future<String> sendMessage(
+    String userMessage, {
+    String? sessionId,
+    List<MessageModel>? recentMessages, // ✅ NEW: Pass recent messages
+  }) async {
+    final user = auth.currentUser;
     if (user == null) {
       return 'Please log in to use the chat feature.';
     }
 
-    // Force token refresh to ensure it's valid
-    try {
-      await user.getIdToken(true); // Force refresh
-    } catch (e) {
-      print('Token refresh failed: $e');
-      return 'Session expired. Please log in again.';
-    }
+    // Use provided session or current session or create new
+    final activeSession = sessionId ?? currentSessionId;
+    final currentStreak = glbCurrentStreakDays;
+    final longestStreak = glbTotalDoneDays;
+
+    print('$currentStreak $longestStreak');
+
+    // ✅ Detect if this is a deep question
+    final isDeep = _isDeepQuestion(userMessage);
+
+    // ✅ Prepare conversation history (last 5 messages only)
+    final conversationHistory = _prepareConversationHistory(recentMessages);
 
     try {
-      // Call Cloud Function
+      await user.getIdToken(true); // Force refresh token
+
       final callable = _functions.httpsCallable('sendChatMessage');
-      final result = await callable.call({'message': userMessage.trim()});
+      final result = await callable.call({
+        'message': userMessage.trim(),
+        'sessionId': activeSession,
+        'title': activeSession == null
+            ? userMessage.substring(
+                0,
+                userMessage.length > 30 ? 30 : userMessage.length,
+              )
+            : null,
+        // ✅ Pass streak data to Cloud Function
+        'currentStreak': currentStreak,
+        'longestStreak': longestStreak,
+        // ✅ NEW: Pass conversation context
+        'isDeep': isDeep,
+        'conversationHistory': conversationHistory,
+      });
 
-      // Extract response
       final data = result.data as Map<String, dynamic>;
+
+      // Store the sessionId returned by Cloud Function
+      if (data.containsKey('sessionId')) {
+        currentSessionId = data['sessionId'] as String;
+      } else if (activeSession != null) {
+        currentSessionId = activeSession;
+      }
+
       return data['reply'] as String;
     } on FirebaseFunctionsException catch (e) {
-      // Handle specific errors
       if (e.code == 'resource-exhausted') {
-        // Rate limit hit - show user-friendly message
         return e.message ?? 'Rate limit reached. Please try again later.';
       } else if (e.code == 'unauthenticated') {
         return 'Session expired. Please log in again.';
@@ -52,20 +87,200 @@ class OpenAIService {
         return 'Something went wrong. Please try again.';
       }
     } catch (e) {
-      // Network or other errors
       print('Unexpected Error: $e');
       return 'Connection failed. Check your internet and try again.';
     }
   }
 
-  /// Get user's current usage stats (optional feature)
+  // ============================================
+  // HELPER: Detect Deep Questions
+  // ============================================
+  bool _isDeepQuestion(String message) {
+    final deepIndicators = [
+      'urge',
+      'triggered',
+      'struggling',
+      'relapse',
+      'tempted',
+      'feeling weak',
+      'can\'t resist',
+      'want to give up',
+      'about to',
+      'edge',
+      'edging',
+      'craving',
+      'jerk',
+      'feeling to',
+      'want to watch',
+      'lonely',
+      'stressed',
+      'anxious',
+      'depressed',
+      'hopeless',
+      'failing',
+    ];
+
+    final lowerMessage = message.toLowerCase();
+    return deepIndicators.any((indicator) => lowerMessage.contains(indicator));
+  }
+
+  // ============================================
+  // HELPER: Prepare Conversation History
+  // ============================================
+  List<Map<String, String>> _prepareConversationHistory(
+    List<MessageModel>? messages,
+  ) {
+    if (messages == null || messages.isEmpty) {
+      return [];
+    }
+
+    // Get last 5 messages (or fewer if less than 5 exist)
+    final recentMessages = messages.length > 5
+        ? messages.sublist(messages.length - 5)
+        : messages;
+
+    // Convert to format expected by AI
+    return recentMessages.map((msg) {
+      return {
+        'role': msg.role == 'user' ? 'user' : 'assistant',
+        'content': msg.text,
+      };
+    }).toList();
+  }
+
+  // ============================================
+  // 2. GET ALL CONVERSATIONS (For History List)
+  // ============================================
+  Future<List<ConversationModel>> fetchAllConversations() async {
+    try {
+      final snapshot = await cloudDB
+          .collection('users')
+          .doc(auth.currentUser!.uid)
+          .collection('aiModelData')
+          .orderBy('lastUpdated', descending: true)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        final msgs = data['msgs'] as List? ?? [];
+
+        return ConversationModel(
+          sessionId: doc.id,
+          title:
+              data['title'] ??
+              (msgs.isNotEmpty
+                  ? msgs[0]['text'] ?? 'Untitled Chat'
+                  : 'Untitled Chat'),
+          lastUpdated: data['lastUpdated'] as Timestamp?,
+          messages: msgs.map((m) => MessageModel.fromMap(m)).toList(),
+          messageCount: msgs.length,
+        );
+      }).toList();
+    } catch (e) {
+      print('Error fetching conversations: $e');
+      return [];
+    }
+  }
+
+  // ============================================
+  // 3. GET SPECIFIC CONVERSATION (For Chat View)
+  // ============================================
+  Future<ConversationModel?> fetchConversation(String sessionId) async {
+    try {
+      final doc = await cloudDB
+          .collection('users')
+          .doc(auth.currentUser!.uid)
+          .collection('aiModelData')
+          .doc(sessionId)
+          .get();
+
+      if (!doc.exists) return null;
+
+      final data = doc.data()!;
+      final msgs = data['msgs'] as List? ?? [];
+
+      return ConversationModel(
+        sessionId: doc.id,
+        title: data['title'] ?? 'Untitled Chat',
+        lastUpdated: data['lastUpdated'] as Timestamp?,
+        messages: msgs.map((m) => MessageModel.fromMap(m)).toList(),
+        messageCount: msgs.length,
+      );
+    } catch (e) {
+      print('Error fetching conversation: $e');
+      return null;
+    }
+  }
+
+  // ============================================
+  // 4. STREAM CONVERSATION (Real-time Updates)
+  // ============================================
+  Stream<ConversationModel?> streamConversation(String sessionId) {
+    return cloudDB
+        .collection('users')
+        .doc(auth.currentUser!.uid)
+        .collection('aiModelData')
+        .doc(sessionId)
+        .snapshots()
+        .map((doc) {
+          if (!doc.exists) return null;
+
+          final data = doc.data()!;
+          final msgs = data['msgs'] as List? ?? [];
+
+          return ConversationModel(
+            sessionId: doc.id,
+            title: data['title'] ?? 'Untitled Chat',
+            lastUpdated: data['lastUpdated'] as Timestamp?,
+            messages: msgs.map((m) => MessageModel.fromMap(m)).toList(),
+            messageCount: msgs.length,
+          );
+        });
+  }
+
+  // ============================================
+  // 5. START NEW CONVERSATION
+  // ============================================
+  void startNewConversation() {
+    currentSessionId = null;
+  }
+
+  // ============================================
+  // 6. CONTINUE EXISTING CONVERSATION
+  // ============================================
+  void continueConversation(String sessionId) {
+    currentSessionId = sessionId;
+  }
+
+  // ============================================
+  // 7. DELETE CONVERSATION
+  // ============================================
+  Future<void> deleteConversation(String sessionId) async {
+    try {
+      await cloudDB
+          .collection('users')
+          .doc(auth.currentUser!.uid)
+          .collection('aiModelData')
+          .doc(sessionId)
+          .delete();
+
+      if (currentSessionId == sessionId) {
+        currentSessionId = null;
+      }
+    } catch (e) {
+      print('Error deleting conversation: $e');
+      rethrow;
+    }
+  }
+
+  // ============================================
+  // 8. GET USAGE STATS (Optional)
+  // ============================================
   Future<Map<String, int>?> getUsageStats() async {
     if (auth.currentUser == null) return null;
-
     try {
-      final callable = _functions.httpsCallable('sendChatMessage');
-      // You can extend the Cloud Function to return usage in every call
-      // For now, it's returned with each message
+      // This would require a separate Cloud Function
+      // For now, return null
       return null;
     } catch (e) {
       print('Failed to get usage stats: $e');
@@ -74,139 +289,40 @@ class OpenAIService {
   }
 }
 
-class HardModeAIService {
-  final String _baseUrl = 'https://api.openai.com/v1/chat/completions';
-  final String _apiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
+// ============================================
+// DATA MODELS
+// ============================================
 
-  /// Sends user message with persona context and returns personalized AI reply
-  Future<String> sendHardModeMessage({
-    required String userMessage,
-    required Map<String, dynamic> userPersona,
-    required int currentStreak,
-    required int longestStreak,
-  }) async {
-    final uri = Uri.parse(_baseUrl);
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $_apiKey',
-    };
+class ConversationModel {
+  final String sessionId;
+  final String title;
+  final Timestamp? lastUpdated;
+  final List<MessageModel> messages;
+  final int messageCount;
 
-    // Build personalized system prompt
-    final systemPrompt = _buildHardModeSystemPrompt(
-      userPersona,
-      currentStreak,
-      longestStreak,
-    );
+  ConversationModel({
+    required this.sessionId,
+    required this.title,
+    this.lastUpdated,
+    required this.messages,
+    required this.messageCount,
+  });
 
-    final body = jsonEncode({
-      "model": "gpt-4o-mini",
-      "messages": [
-        {"role": "system", "content": systemPrompt},
-        {"role": "user", "content": userMessage},
-      ],
-      "max_tokens": 350,
-      "temperature": 0.9,
-    });
+  DateTime? get lastUpdatedDate => lastUpdated?.toDate();
+}
 
-    final response = await http.post(uri, headers: headers, body: body);
+class MessageModel {
+  final String role; // 'user' or 'ai'
+  final String text;
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final reply = data['choices'][0]['message']['content'];
-      return reply.trim();
-    } else {
-      print('Error: ${response.statusCode} - ${response.body}');
-      return 'Sorry, something went wrong. Please try again.';
-    }
+  MessageModel({required this.role, required this.text});
+
+  factory MessageModel.fromMap(Map<String, dynamic> map) {
+    return MessageModel(role: map['role'] ?? 'user', text: map['text'] ?? '');
   }
 
-  /// Builds a personalized system prompt based on user's persona and progress
-  String _buildHardModeSystemPrompt(
-    Map<String, dynamic> persona,
-    int currentStreak,
-    int longestStreak,
-  ) {
-    final usage = persona['usage'] ?? 'frequent';
-    final effects = List<String>.from(persona['effects'] ?? []);
-    final triggers = List<String>.from(persona['triggers'] ?? []);
-    final aspects = List<String>.from(persona['aspects'] ?? []);
-
-    // Analyze streak progress
-    final streakAnalysis = _getStreakAnalysis(currentStreak, longestStreak);
-
-    return """You are OnlyMens Hard Mode - an advanced AI coach for men overcoming pornography addiction.
-
-USER'S JOURNEY:
-Current Streak: $currentStreak days
-Longest Streak: $longestStreak days
-$streakAnalysis
-
-USER'S PROFILE:
-- Usage Pattern: $usage
-- Negative Effects Experienced: ${effects.join(', ')}
-- Primary Triggers: ${triggers.join(', ')}
-- Growth Goals: ${aspects.join(', ')}
-
-
-YOUR RESPONSE STRUCTURE:
-1. START WITH ACKNOWLEDGMENT (1-2 sentences):
-   - Recognize their current streak progress specifically
-   - Reference their journey considering their usage pattern and effects they've experienced
-   - Be genuine - celebrate wins, but be honest about struggles
-
-2. ADDRESS THEIR MESSAGE (2-3 sentences):
-   - Answer their question or respond to their concern
-   - Reference their specific triggers when relevant
-   - Provide practical, actionable advice aligned with their growth goals
-   - Be direct and honest, not sugar-coated
-
-3. ASK 3 REFLECTIVE QUESTIONS (short, punchy):
-   - Ask 3 deep, personalized questions that challenge them to think about:
-     * Their growth goals (${aspects.join(', ')})
-     * Their triggers (${triggers.join(', ')})
-     * Their life purpose and meaningful activities
-   - Questions should be specific, not generic
-   - Keep each question short and direct
-
-4. END WITH BRAIN HACKS (2-3 quick tactics):
-   - Give 2-3 specific, unconventional tactics to avoid relapse
-   - Focus on brain tricks and psychological hacks
-   - Make them counterintuitive or surprising
-   - Format as short, actionable commands
-   - Examples: "Cold shower for 30 seconds when triggered", "Do 20 pushups immediately", "Text a friend 'I'm struggling' - don't explain why"
-   - Tie hacks to their specific triggers when possible
-
-TONE:
-- Tough love: supportive but challenging
-- Direct and honest, not overly soft
-- Accountable and real
-- Focus on growth, not just abstinence
-- Reference their specific situation, not generic advice
-
-AVOID:
-- Generic motivational phrases
-- Being preachy or judgmental
-- Ignoring their streak data
-- Forgetting their triggers and goals
-- Asking shallow questions at the end""";
-  }
-
-  /// Analyzes streak progress and provides context
-  String _getStreakAnalysis(int current, int longest) {
-    if (current == 0) {
-      return "You're at day zero - a fresh start. Remember, you've done $longest days before.";
-    } else if (current == longest && current > 0) {
-      return "You're at a personal record - $current days and counting. This is new territory.";
-    } else if (current > longest * 0.7) {
-      return "You're approaching your record. ${longest - current} days away from your best.";
-    } else if (current >= 7) {
-      return "You've built momentum with $current days. Keep the focus sharp.";
-    } else if (current >= 3) {
-      return "You're in the crucial early phase at day $current. The hardest days often come early.";
-    } else {
-      return "You're rebuilding at day $current. Every day is progress.";
-    }
-  }
+  bool get isUser => role == 'user';
+  bool get isAI => role == 'ai';
 }
 
 class VoiceModeAIService {
@@ -215,12 +331,14 @@ class VoiceModeAIService {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final FlutterTts _flutterTts = FlutterTts();
 
+  bool _isCurrentlySpeaking = false;
+
   VoiceModeAIService() {
     _initFlutterTTS();
   }
 
   void _initFlutterTTS() async {
-    await _flutterTts.setLanguage("en-US");
+    await _flutterTts.setLanguage("en-GB");
     await _flutterTts.setSpeechRate(0.5);
     await _flutterTts.setVolume(1.0);
     await _flutterTts.setPitch(1.0);
@@ -259,8 +377,17 @@ class VoiceModeAIService {
     String text, {
     required Function() onStart,
     required Function() onComplete,
+    required Function(String) onTextUpdate,
   }) async {
+    // Stop any ongoing speech first
+    await stopSpeaking();
+
     try {
+      _isCurrentlySpeaking = true;
+
+      // Update text immediately
+      onTextUpdate(text);
+
       // Check if premium TTS is available
       final canUsePremium = await _canUsePremiumTTS();
 
@@ -269,7 +396,10 @@ class VoiceModeAIService {
         final success = await _speakWithOpenAI(
           text,
           onStart: onStart,
-          onComplete: onComplete,
+          onComplete: () {
+            _isCurrentlySpeaking = false;
+            onComplete();
+          },
         );
 
         // If OpenAI TTS fails, fallback to Flutter TTS
@@ -277,7 +407,10 @@ class VoiceModeAIService {
           await _speakWithFlutterTTS(
             text,
             onStart: onStart,
-            onComplete: onComplete,
+            onComplete: () {
+              _isCurrentlySpeaking = false;
+              onComplete();
+            },
           );
         }
       } else {
@@ -285,16 +418,23 @@ class VoiceModeAIService {
         await _speakWithFlutterTTS(
           text,
           onStart: onStart,
-          onComplete: onComplete,
+          onComplete: () {
+            _isCurrentlySpeaking = false;
+            onComplete();
+          },
         );
       }
     } catch (e) {
       print('Speak error: $e');
+      _isCurrentlySpeaking = false;
       // Fallback to Flutter TTS on any error
       await _speakWithFlutterTTS(
         text,
         onStart: onStart,
-        onComplete: onComplete,
+        onComplete: () {
+          _isCurrentlySpeaking = false;
+          onComplete();
+        },
       );
     }
   }
@@ -371,11 +511,15 @@ class VoiceModeAIService {
 
       onStart();
 
-      // Play audio
-      _audioPlayer.playerStateStream.listen((state) {
+      // Play audio with proper state handling
+      StreamSubscription? subscription;
+      subscription = _audioPlayer.playerStateStream.listen((state) {
         if (state.processingState == ProcessingState.completed) {
+          subscription?.cancel();
           onComplete();
-          audioFile.delete().catchError((_) {});
+          audioFile.delete().catchError((_) {
+            print('Failed to delete temp audio file.');
+          });
         }
       });
 
@@ -396,6 +540,8 @@ class VoiceModeAIService {
     required Function() onComplete,
   }) async {
     try {
+      await _flutterTts.setLanguage("en-GB");
+
       onStart();
 
       _flutterTts.setCompletionHandler(() {
@@ -423,13 +569,43 @@ class VoiceModeAIService {
 
   /// Stop any playing audio
   Future<void> stopSpeaking() async {
-    await _audioPlayer.stop();
-    await _flutterTts.stop();
+    if (_isCurrentlySpeaking) {
+      await _audioPlayer.stop();
+      await _flutterTts.stop();
+      _isCurrentlySpeaking = false;
+    }
   }
 
   /// Dispose resources
   void dispose() {
     _audioPlayer.dispose();
     _flutterTts.stop();
+  }
+}
+// ============================================
+// Reporting Issue Service
+// ============================================
+
+class ReportService {
+  static Future<void> sendReport(String message, {String? email}) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('reports')
+          .add({
+            'message': message,
+            'timestamp': FieldValue.serverTimestamp(),
+            'userId': user.uid,
+            'userEmail': email ?? user.email,
+            'providedEmail': email != null,
+          });
+    } catch (e) {
+      print('Error sending report: $e');
+      rethrow;
+    }
   }
 }

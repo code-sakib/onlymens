@@ -62,7 +62,16 @@ dependencies:
   noise_meter: ^5.0.2
   cloud_functions: ^6.0.3
   firebase_app_check: ^0.4.1+1
-
+  firebase_storage: ^13.0.3
+  dio: ^5.9.0
+  cached_network_image: ^3.4.1
+  geolocator: ^14.0.2
+  geoflutterfire_plus: ^0.0.33
+  image_picker: ^1.2.0
+  feedback: ^3.2.0
+  syncfusion_flutter_charts: ^31.2.5
+  in_app_purchase: ^3.2.3
+ 
 
 dev_dependencies:
   flutter_test:
@@ -93,10 +102,11 @@ flutter:
     - assets/lottie/
     - assets/affirmations/
     - assets/streaks/
-    - assets/ai_pg/
     - assets/3d/
     - assets/relax/rain/
     - assets/relax/fire/
+    - assets/guide/
+    - assets/onboarding/
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see

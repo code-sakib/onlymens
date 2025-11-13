@@ -1,88 +1,63 @@
-// AppDelegate.swift
+// ios/Runner/AppDelegate.swift
+
 import UIKit
 import Flutter
-import ManagedSettings
-import FamilyControls
-import SwiftUI
 
 @main
-@objc class AppDelegate: FlutterAppDelegate, ExampleViewDelegate {
+@objc class AppDelegate: FlutterAppDelegate {
     
-    private var channel: FlutterMethodChannel?
-    private let appMonitor = AppMonitor()
+    // Create a single instance of the manager
+    private let screenTimeManager = ScreenTimeManager()
 
     override func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        let controller: FlutterViewController = window?.rootViewController as! FlutterViewController
-        channel = FlutterMethodChannel(
-            name: "com.sakib.onlymens/channel",
-            binaryMessenger: controller.binaryMessenger
-        )
-
-        channel?.setMethodCallHandler { [weak self] (call, result) in
+        
+        guard let controller = window?.rootViewController as? FlutterViewController else {
+            fatalError("rootViewController is not type FlutterViewController")
+        }
+        
+        // The name here MUST match the one in your Dart code
+        let screenTimeChannel = FlutterMethodChannel(name: "onlymens/screentime",
+                                                   binaryMessenger: controller.binaryMessenger)
+        
+        // Set up the handler for incoming calls from Flutter
+        screenTimeChannel.setMethodCallHandler({
+            [weak self] (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
+            
+            // Ensure we have a reference to our manager
+            guard let self = self else { return }
+            
+            // Route calls based on the method name
             switch call.method {
             case "requestAuthorization":
-                Task {
-                    do {
-                        do {
-                            try await AuthorizationCenter.shared.requestAuthorization(for: .child)
-                            result(true)
-                        } catch {
-                            result(false)
-                            print("auth failed: \(error.localizedDescription)")
-                        }
-                            
-                        result(true)
-                    }
-                    
-//                    catch {
-//                        print("❌ Child authorization failed: \(error.localizedDescription)")
-//                        result(false)
-//                    }
+                self.screenTimeManager.requestAuthorization(result)
+                
+            case "enablePornBlock":
+                // Safely extract the arguments sent from Flutter
+                guard let args = call.arguments as? [String: Any],
+                      let domains = args["domains"] as? [String] else {
+                    result(FlutterError(code: "INVALID_ARGUMENTS", message: "Expected a dictionary with a 'domains' key of type [String]", details: nil))
+                    return
                 }
-            
-            case "listapps":
-                if #available(iOS 16.0, *) {
-                    var exampleView = ExampleView()
-                    exampleView.delegate = self // Set the delegate
-                    let hostingController = UIHostingController(rootView: exampleView)
-                    controller.present(hostingController, animated: true)
-                    result(true)
-                } else {
-                    result(FlutterError(code: "UNSUPPORTED_OS", message: "Requires iOS 16+", details: nil))
-                }
+                self.screenTimeManager.enablePornBlock(domains)
+                result(nil) // Indicate success with no return value
+                
+            case "disablePornBlock":
+                self.screenTimeManager.disablePornBlock()
+                result(nil) // Indicate success with no return value
 
-            case "unblockApps":
-                self?.appMonitor.clearRestrictions()
-                result(true)
-
+            case "checkAuthorizationStatus":
+                let isApproved = self.screenTimeManager.checkAuthorizationStatus()
+                result(isApproved)
+                
             default:
                 result(FlutterMethodNotImplemented)
             }
-        }
+        })
         
-        if let data = UserDefaults.standard.data(forKey: "lastSelection"),
-           let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
-            appMonitor.applyRestrictions(selection: selection)
-        }
-
         GeneratedPluginRegistrant.register(with: self)
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
-    
-    // MARK: - ExampleViewDelegate
-    func didUpdateSelection(selection: FamilyActivitySelection) {
-        appMonitor.applyRestrictions(selection: selection)
-        
-        // Save selection for later use
-        if let data = try? JSONEncoder().encode(selection) {
-            UserDefaults.standard.set(data, forKey: "lastSelection")
-        }
-        
-        let bundleIds = selection.applications.map { $0.bundleIdentifier }
-        channel?.invokeMethod("onAppSelectionUpdated", arguments: bundleIds)
-    }
-
 }

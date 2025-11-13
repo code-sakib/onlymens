@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Onlymens</string>
+	<string>CleanMind</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -65,5 +65,18 @@
 	</array>
 	<key>io.flutter.embedded_views_preview</key>
 	<true/>
+	<!-- Location Permission (iOS) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We use your location to find people near you on the same journey.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We use your location to find people near you on the same journey.</string>
+	<key>NSFamilyControlsUsageDescription</key>
+	<string>We need Screen Time access to block adult content</string>
+
+	<!-- Storekit -->
+	<key>SKAdNetworkItems</key>
+	<array/>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This app uses tracking for personalized subscriptions.</string>
 </dict>
 </plist>

@@ -5,17 +5,21 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
-import 'package:onlymens/affirmations_pg.dart';
+import 'package:onlymens/features/affirmations/affirmations_pg.dart';
 import 'package:onlymens/auth/auth_screen.dart';
 import 'package:onlymens/core/globals.dart';
 import 'package:onlymens/features/ai_model/game_mode.dart';
 import 'package:onlymens/features/ai_model/presentation/ai_mainpage.dart';
+import 'package:onlymens/features/betterwbro/chat/messages_page.dart';
 import 'package:onlymens/features/betterwbro/presentation/bwb_page.dart';
 import 'package:onlymens/features/onboarding_pgs/onboarding_pgs.dart';
+import 'package:onlymens/features/onboarding_pgs/pricing_pg.dart';
 import 'package:onlymens/features/streaks_page/presentation/streaks_page.dart';
-import 'package:onlymens/panic_mode_pg.dart';
+import 'package:onlymens/guides/blogs.dart';
+import 'package:onlymens/features/panic_mode/panic_mode_pg.dart';
 import 'package:onlymens/profile_page.dart';
 import 'package:onlymens/sound_pg.dart';
+import 'package:onlymens/userpost_pg.dart';
 import 'package:onlymens/utilis/bottom_appbar.dart';
 import 'package:onlymens/utilis/size_config.dart';
 
@@ -69,13 +73,13 @@ final approutes = GoRouter(
         }
         // Onboarding done or has data, go to streaks
         print('✅ Logged in user redirected to /streaks');
-        return '/aimodel';
+        return '/pricing';
       }
 
       // If trying to access onboarding but already completed
       if (isOnboardingRoute && onboardingDone) {
         print('✅ Onboarding done, redirecting to /streaks');
-        return '/aimodel';
+        return '/pricing';
       }
 
       print('✅ Logged in user allowed to ${state.matchedLocation}');
@@ -109,14 +113,24 @@ final approutes = GoRouter(
     GoRoute(path: '/panicpg', builder: (context, state) => const PanicModePg()),
     GoRoute(path: '/game1', builder: (context, state) => const PongGame()),
     GoRoute(path: '/game2', builder: (context, state) => const QuickDrawGame()),
-    GoRoute(path: '/bwb', builder: (context, state) => BwbPage2()),
+    GoRoute(path: '/bwb', builder: (context, state) => BWBPage()),
+    GoRoute(path: '/messages', builder: (context, state) => MessagesPage()),
     GoRoute(path: '/meditation', builder: (context, state) => RainScreen()),
+    GoRoute(path: '/userpostpg', builder: (context, state) => UserPostsPage()),
+    GoRoute(path: '/pricing', builder: (context, state) => PricingPage()),
     GoRoute(path: '/fj', builder: (context, state) => Container()),
+    GoRoute(
+      path: '/blogdetail',
+      builder: (context, state) {
+        final data = state.extra as Map<String, dynamic>? ?? {};
+        return BlogDetailPage(blogData: data);
+      },
+    ),
 
     // Shell route wraps all authenticated routes with bottom bar
     ShellRoute(
       builder: (context, state, child) {
-        SizeConfig().init(context);
+        SizeConfig.init(context);
 
         return Scaffold(
           body: child,

@@ -1,57 +1,67 @@
 import 'package:flutter/widgets.dart';
+import 'dart:math' as math;
 
 class SizeConfig {
-  static late double screenWidth;
-  static late double screenHeight;
-  static late double blockWidth;
-  static late double blockHeight;
-  static late double defaultIconSize;
-  static late double iconLarge;
-  static late double iconMedium;
+  // Screen dims
+  static double screenWidth = 360;
+  static double screenHeight = 800;
 
-  static late double fireIconSize;
-  static late double mediumButtonSize;
+  // 1% units
+  static double blockWidth = 3.6;
+  static double blockHeight = 8.0;
 
-  static late double paddingSmall;
-  static late double paddingMedium;
-  static late double paddingLarge;
-  // Padding for the main content area
-  static late double screenVPadding;
-  static late double screenHPadding;
+  // Icons & sizes
+  static double iconMedium = 16;
+  static double iconLarge = 56;
+  static double fireIconSize = 24;
+  static double mediumButtonSize = 48;
 
-  static late double defaultHeight1;
-  static late double defaultHeight2;
+  // Paddings
+  static double paddingSmall = 8;
+  static double paddingMedium = 16;
+  static double paddingLarge = 24;
+  static double screenVPadding = 12;
+  static double screenHPadding = 16;
 
-  //Tiles
-  static late double defaultTileHeight;
+  // Defaults for spacing
+  static double defaultHeight1 = 12;
+  static double defaultHeight2 = 8;
 
-  static TextStyle sectionTitle = TextStyle(
-    fontSize: 24,
-    fontWeight: FontWeight.w600,
-  );
+  // tiles etc
+  static double defaultTileHeight = 80;
 
-  // Call this in main app (or first screen)
-  void init(BuildContext context) {
-    final MediaQueryData mediaQueryData = MediaQuery.of(context);
-    screenWidth = mediaQueryData.size.width;
-    screenHeight = mediaQueryData.size.height;
-    blockWidth = screenWidth / 100; // 1% of screen width
-    blockHeight = screenHeight / 100; // 1% of screen height
-    iconMedium = blockHeight * 2; // Medium icon size (2% of screen height)
-    iconLarge = blockHeight * 7; // Large icon size (5% of screen height)
-    
-    fireIconSize = blockHeight * 3.5; // Fire icon size (3% of screen height)
-    paddingSmall = blockHeight * 2; // Small padding (0.5% of screen height)
-    paddingMedium = blockHeight * 6; // Medium padding (1% of screen height)
-    paddingLarge = blockHeight * 9; // Large padding (2% of screen height
-    screenVPadding =
-        blockHeight * 2; // Main content padding (3% of screen height)
-    screenHPadding =
-        blockWidth * 4; // Main content padding (4% of screen width)
-    defaultHeight1 =
-        blockHeight * 6; // Default difference between heights for elements
-    defaultHeight2 =
-        blockHeight * 3; // Default difference between heights for elements
-    mediumButtonSize = blockHeight * 5;
+  // call once per screen (idempotent)
+  static void init(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    screenWidth = mq.size.width;
+    screenHeight = mq.size.height;
+
+    // avoid zero division / tiny screens
+    blockWidth = math.max(1, screenWidth / 100);
+    blockHeight = math.max(1, screenHeight / 100);
+
+    // sensible mapping: keep most sizes relative to screen height
+    iconMedium = blockHeight * 2.4; // ~2.4% of screen
+    iconLarge = blockHeight * 6.5;
+
+    fireIconSize = blockHeight * 3.2;
+    mediumButtonSize = blockHeight * 5.0;
+
+    paddingSmall = blockHeight * 1.2;
+    paddingMedium = blockHeight * 3.0;
+    paddingLarge = blockHeight * 5.0;
+    screenVPadding = blockHeight * 1.5;
+    screenHPadding = blockWidth * 4;
+
+    defaultHeight1 = blockHeight * 5.5;
+    defaultHeight2 = blockHeight * 2.5;
+    defaultTileHeight = blockHeight * 9;
+  }
+
+  // helpful helper to clamp heights (avoid overflow)
+  static double clampHeight(double fractionOfScreen,
+      {double min = 48, double max = double.infinity}) {
+    final val = screenHeight * fractionOfScreen;
+    return math.min(math.max(val, min), max);
   }
 }

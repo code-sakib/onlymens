@@ -9,8 +9,11 @@
 /* Begin PBXBuildFile section */
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		228A0A24CF45961B12593E8A /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 040CD93ACE05649DF361B9CB /* Pods_Runner.framework */; };
+		2E1CE33B2EC5D4BF00EBF733 /* Products.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 2E1CE33A2EC5D4BF00EBF733 /* Products.storekit */; };
 		2E1D5AB22E9005740079C575 /* AppMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E1D5AB12E90056D0079C575 /* AppMonitor.swift */; };
 		2E2857502E91273300A82626 /* ExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E1D5AB32E9005980079C575 /* ExampleView.swift */; };
+		2E28C6702EBDFCEA00E9B9EB /* ScreenTimeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E28C66F2EBDFCE100E9B9EB /* ScreenTimeManager.swift */; };
+		2E28C6722EC48BB900E9B9EB /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2E28C6712EC48BB900E9B9EB /* StoreKit.framework */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
@@ -50,9 +53,12 @@
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		2976FF054482B7187F795618 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		2C2FB6A1AE9027BFC1A3C2E4 /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "Runner/GoogleService-Info.plist"; sourceTree = "<group>"; };
+		2E1CE33A2EC5D4BF00EBF733 /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 		2E1D5AB02E8FFA620079C575 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
 		2E1D5AB12E90056D0079C575 /* AppMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMonitor.swift; sourceTree = "<group>"; };
 		2E1D5AB32E9005980079C575 /* ExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExampleView.swift; sourceTree = "<group>"; };
+		2E28C66F2EBDFCE100E9B9EB /* ScreenTimeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTimeManager.swift; sourceTree = "<group>"; };
+		2E28C6712EC48BB900E9B9EB /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
@@ -88,6 +94,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				228A0A24CF45961B12593E8A /* Pods_Runner.framework in Frameworks */,
+				2E28C6722EC48BB900E9B9EB /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -116,6 +123,7 @@
 		97C146E51CF9000F007C117D = {
 			isa = PBXGroup;
 			children = (
+				2E1CE33A2EC5D4BF00EBF733 /* Products.storekit */,
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
 				97C146EF1CF9000F007C117D /* Products */,
@@ -149,6 +157,7 @@
 				2E1D5AB12E90056D0079C575 /* AppMonitor.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 				2E1D5AB32E9005980079C575 /* ExampleView.swift */,
+				2E28C66F2EBDFCE100E9B9EB /* ScreenTimeManager.swift */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -169,6 +178,7 @@
 		B8B9382645C64A68FB71EFEB /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				2E28C6712EC48BB900E9B9EB /* StoreKit.framework */,
 				040CD93ACE05649DF361B9CB /* Pods_Runner.framework */,
 				410C4BEAC6F58DCDDE112522 /* Pods_RunnerTests.framework */,
 			);
@@ -275,6 +285,7 @@
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
+				2E1CE33B2EC5D4BF00EBF733 /* Products.storekit in Resources */,
 				A295514E49F3DA3EB8D9BCF3 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -407,6 +418,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2E1D5AB22E9005740079C575 /* AppMonitor.swift in Sources */,
+				2E28C6702EBDFCEA00E9B9EB /* ScreenTimeManager.swift in Sources */,
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				2E2857502E91273300A82626 /* ExampleView.swift in Sources */,
@@ -506,6 +518,7 @@
 				DEVELOPMENT_TEAM = 45C5XR8A75;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CleanMind;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -691,6 +704,7 @@
 				DEVELOPMENT_TEAM = 45C5XR8A75;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CleanMind;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -716,6 +730,7 @@
 				DEVELOPMENT_TEAM = 45C5XR8A75;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CleanMind;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
