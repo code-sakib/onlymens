@@ -1,6 +1,7 @@
 // Updated bottom_appbar.dart for cleaner 3-button layout
 
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:onlymens/core/apptheme.dart';
 import 'package:onlymens/utilis/size_config.dart';
@@ -15,7 +16,7 @@ Widget bottomAppBar({
     shape: const CircularNotchedRectangle(),
     color: AppColors.surface,
     notchMargin: 3,
-    height: SizeConfig.blockHeight * 7,
+    height: 55.h,
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
@@ -37,7 +38,7 @@ Widget bottomAppBar({
           icon: HugeIcon(
             icon: HugeIcons.strokeRoundedAgreement01,
             color: currentRoute == '/bwb' ? AppColors.primary : Colors.white,
-            size: SizeConfig.iconLarge,
+            size: 30,
           ),
         ),
       ],

@@ -1,16 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
-// ------------------------
-// BlogPost model (robust)
-// ------------------------
+// BlogPost model
 class BlogPost {
   final String id;
   final String title;
   final String excerpt;
-  final String? content; // full long read if present in DB
+  final String? content;
   final String iconName;
   final String colorHex;
   final String route;
@@ -32,7 +31,6 @@ class BlogPost {
   });
 
   factory BlogPost.fromJson(String id, Map<String, dynamic> json) {
-    // guard against timestamps or nested bad values
     DateTime? created;
     if (json['createdAt'] is Timestamp) {
       created = (json['createdAt'] as Timestamp).toDate();
@@ -97,9 +95,7 @@ class BlogPost {
   }
 }
 
-// ------------------------
 // Safe StreamBuilder widget
-// ------------------------
 Widget buildBlogSection(BuildContext context) {
   return StreamBuilder(
     stream: FirebaseFirestore.instance
@@ -108,7 +104,7 @@ Widget buildBlogSection(BuildContext context) {
         .snapshots(),
     builder: (context, snapshot) {
       if (snapshot.connectionState == ConnectionState.waiting) {
-        return Center(child: CircularProgressIndicator());
+        return const Center(child: CircularProgressIndicator());
       }
 
       if (!snapshot.hasData ||
@@ -132,21 +128,20 @@ Widget buildBlogSection(BuildContext context) {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
             child: Text(
               'Your Daily Reads',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 20,
+                fontSize: 20.sp,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ),
-          SizedBox(height: 12),
-
+          SizedBox(height: 12.h),
           ListView.builder(
             shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
+            physics: const NeverScrollableScrollPhysics(),
             itemCount: blogs.length,
             itemBuilder: (context, index) {
               final blog = blogs[index];
@@ -164,31 +159,31 @@ Widget blogCard(BuildContext context, Map<String, dynamic> blog) {
   final color = Color(int.parse(colorHex.replaceFirst('#', '0xff')));
 
   return InkWell(
-    borderRadius: BorderRadius.circular(16),
+    borderRadius: BorderRadius.circular(16.r),
     onTap: () {
       context.push('/blogdetail', extra: blog);
     },
     child: Container(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      margin: EdgeInsets.symmetric(vertical: 8.h, horizontal: 16.w),
       decoration: BoxDecoration(
         color: Colors.grey[850],
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
         leading: Container(
-          height: double.infinity, // ✅ makes it fill the tile vertically
-          width: 48, // ✅ consistent width for a clean layout
+          height: double.infinity,
+          width: 48.w,
           decoration: BoxDecoration(
             color: color.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(12.r),
           ),
-          child: Icon(Icons.article, color: color, size: 24),
+          child: Icon(Icons.article, color: color, size: 24.r),
         ),
         title: Text(
           blog['title'] ?? 'Blog Title',
-          style: const TextStyle(
-            fontSize: 16,
+          style: TextStyle(
+            fontSize: 16.sp,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
@@ -199,9 +194,6 @@ Widget blogCard(BuildContext context, Map<String, dynamic> blog) {
     ),
   );
 }
-// ------------------------
-// Card and fallback
-// ------------------------
 
 Widget fallbackBlogs(BuildContext context) {
   final defaultPosts = [
@@ -233,7 +225,7 @@ Widget fallbackBlogs(BuildContext context) {
       id: '3',
       title: 'Building Unshakeable Self-Discipline',
       excerpt:
-          'Practical strategies and mindset shifts to develop iron-will discipline that helps you resist urges...',
+          'Practical strategies and mindset shifts to develop iron-will discipline...',
       content: null,
       iconName: 'fitness_center',
       colorHex: '#4CAF50',
@@ -247,19 +239,17 @@ Widget fallbackBlogs(BuildContext context) {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
         child: Text(
           'Featured Blogs',
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
-            fontSize: 16,
+            fontSize: 16.sp,
             fontWeight: FontWeight.w600,
           ),
         ),
       ),
-      ...defaultPosts
-          .map((p) => blogCard(context, p.toJson()))
-          , // ✅ convert to Map
+      ...defaultPosts.map((p) => blogCard(context, p.toJson())),
     ],
   );
 }
@@ -268,8 +258,6 @@ Widget fallbackBlogs(BuildContext context) {
 class BlogManager {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Fetch today's featured blogs from 'blogs/today' document
-  /// Falls back to default blogs if document doesn't exist or on error
   static Future<List<BlogPost>> fetchTodayBlogs() async {
     try {
       print('📖 Fetching blogs from blogs/today');
@@ -280,7 +268,6 @@ class BlogManager {
         final data = doc.data() as Map<String, dynamic>;
         final List<BlogPost> blogs = [];
 
-        // Fetch blogs in order: 1, 2, 3
         for (int i = 1; i <= 3; i++) {
           final blogData = data['$i'];
           if (blogData != null && blogData is Map<String, dynamic>) {
@@ -294,7 +281,6 @@ class BlogManager {
         }
       }
 
-      // Document doesn't exist or no valid blogs - return defaults
       print('⚠️ blogs/today document not found or empty, using default blogs');
       return _getDefaultBlogs();
     } catch (e) {
@@ -303,7 +289,6 @@ class BlogManager {
     }
   }
 
-  /// Fetch all blogs from 'blogs/all' document
   static Future<List<BlogPost>> fetchAllBlogs() async {
     try {
       print('📖 Fetching all blogs from blogs/all');
@@ -337,8 +322,7 @@ class BlogManager {
       BlogPost(
         id: '1',
         title: 'How Porn Paves the Way to Misery',
-        excerpt:
-            'Understanding the psychological and physiological impact of pornography addiction and its devastating effects on mental health, relationships, and personal growth.',
+        excerpt: 'Understanding the psychological and physiological impact...',
         iconName: 'psychology',
         colorHex: '#F44336',
         route: '/blog/misery',
@@ -348,8 +332,7 @@ class BlogManager {
       BlogPost(
         id: '2',
         title: 'Rewiring Your Brain: The Science of Recovery',
-        excerpt:
-            'Discover how neuroplasticity can help you rebuild neural pathways, restore dopamine sensitivity, and reclaim control over your life.',
+        excerpt: 'Discover how neuroplasticity can help you rebuild...',
         iconName: 'psychology_alt',
         colorHex: '#2196F3',
         route: '/blog/rewiring',
@@ -359,8 +342,7 @@ class BlogManager {
       BlogPost(
         id: '3',
         title: 'Building Unshakeable Self-Discipline',
-        excerpt:
-            'Practical strategies and mindset shifts to develop iron-will discipline that helps you resist urges and build lasting positive habits.',
+        excerpt: 'Practical strategies and mindset shifts...',
         iconName: 'fitness_center',
         colorHex: '#4CAF50',
         route: '/blog/discipline',
@@ -372,19 +354,15 @@ class BlogManager {
 }
 
 class BlogDetailPage extends StatelessWidget {
-  // expects a map via GoRouter extra, or construct via BlogPost.fromJson externally
   final Map<String, dynamic> blogData;
 
   const BlogDetailPage({super.key, required this.blogData});
 
-  // helpers to extract safely
-  String get _title =>
-      blogData['title']?.toString() ??
-      blogData['route']?.toString() ??
-      'Article';
+  String get _title => blogData['title']?.toString() ?? 'Article';
   String get _excerpt => blogData['excerpt']?.toString() ?? '';
   String? get _content => blogData['content']?.toString();
   String get _iconName => blogData['iconName']?.toString() ?? 'article';
+
   Color get _color {
     try {
       final hex = (blogData['colorHex']?.toString() ?? '#9C27B0').replaceAll(
@@ -409,19 +387,9 @@ class BlogDetailPage extends StatelessWidget {
   }
 
   String _getFallbackContent() {
-    final route = blogData['route']?.toString() ?? _title;
-    if (route.contains('misery') || _title.contains('Misery')) {
-      return _getMiseryContent();
-    } else if (route.contains('rewiring') || _title.contains('Rewiring')) {
-      return _getRewiringContent();
-    } else if (route.contains('discipline') || _title.contains('Discipline')) {
-      return _getDisciplineContent();
-    } else {
-      // default to excerpt if nothing else
-      return _excerpt.isNotEmpty
-          ? _excerpt
-          : 'Full article content not available.';
-    }
+    return _excerpt.isNotEmpty
+        ? _excerpt
+        : 'Full article content not available.';
   }
 
   @override
@@ -434,26 +402,26 @@ class BlogDetailPage extends StatelessWidget {
         backgroundColor: Colors.grey[850],
         elevation: 0,
         leading: IconButton(
-          icon: Icon(CupertinoIcons.back, color: Colors.white),
+          icon: Icon(CupertinoIcons.back, color: Colors.white, size: 24.r),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: EdgeInsets.all(8),
+              padding: EdgeInsets.all(8.r),
               decoration: BoxDecoration(
                 color: _color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8.r),
               ),
-              child: Icon(_icon, color: _color, size: 20),
+              child: Icon(_icon, color: _color, size: 20.r),
             ),
-            SizedBox(width: 12),
+            SizedBox(width: 12.w),
             Expanded(
               child: Text(
                 _title,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -464,59 +432,62 @@ class BlogDetailPage extends StatelessWidget {
         ),
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(20),
+        padding: EdgeInsets.all(20.r),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // header
+            // Header
             Container(
-              padding: EdgeInsets.all(20),
+              padding: EdgeInsets.all(20.r),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [_color.withOpacity(0.28), _color.withOpacity(0.12)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16.r),
                 border: Border.all(color: _color.withOpacity(0.36)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(_icon, color: _color, size: 48),
-                  SizedBox(height: 16),
+                  Icon(_icon, color: _color, size: 48.r),
+                  SizedBox(height: 16.h),
                   Text(
                     _title,
                     style: TextStyle(
-                      fontSize: 28,
+                      fontSize: 28.sp,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                       height: 1.3,
                     ),
                   ),
-                  SizedBox(height: 12),
+                  SizedBox(height: 12.h),
                   Row(
                     children: [
                       Icon(
                         Icons.access_time,
                         color: Colors.grey[400],
-                        size: 16,
+                        size: 16.r,
                       ),
-                      SizedBox(width: 6),
+                      SizedBox(width: 6.w),
                       Text(
                         blogData['readTime']?.toString() ?? '10 min',
-                        style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 14.sp,
+                        ),
                       ),
-                      SizedBox(width: 20),
+                      SizedBox(width: 20.w),
                       if (blogData['createdAt'] != null)
                         Row(
                           children: [
                             Icon(
                               Icons.calendar_today,
                               color: Colors.grey[400],
-                              size: 16,
+                              size: 16.r,
                             ),
-                            SizedBox(width: 6),
+                            SizedBox(width: 6.w),
                             Text(
                               (blogData['createdAt'] is Timestamp)
                                   ? (blogData['createdAt'] as Timestamp)
@@ -528,7 +499,7 @@ class BlogDetailPage extends StatelessWidget {
                                   : blogData['createdAt']?.toString() ?? '',
                               style: TextStyle(
                                 color: Colors.grey[400],
-                                fontSize: 14,
+                                fontSize: 14.sp,
                               ),
                             ),
                           ],
@@ -538,45 +509,45 @@ class BlogDetailPage extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(height: 30),
+            SizedBox(height: 30.h),
 
             Text(
               contentToShow,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 16.sp,
                 color: Colors.grey[300],
                 height: 1.8,
                 letterSpacing: 0.2,
               ),
             ),
 
-            SizedBox(height: 40),
+            SizedBox(height: 40.h),
             // CTA
             Container(
-              padding: EdgeInsets.all(24),
+              padding: EdgeInsets.all(24.r),
               decoration: BoxDecoration(
                 color: _color.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16.r),
                 border: Border.all(color: _color.withOpacity(0.25)),
               ),
               child: Column(
                 children: [
-                  Icon(Icons.favorite, color: _color, size: 40),
-                  SizedBox(height: 16),
+                  Icon(Icons.favorite, color: _color, size: 40.r),
+                  SizedBox(height: 16.h),
                   Text(
                     'Your Journey Starts Today',
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 22.sp,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  SizedBox(height: 12),
+                  SizedBox(height: 12.h),
                   Text(
                     'Every moment you choose recovery is a victory. Keep going—you\'re worth it.',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 15.sp,
                       color: Colors.grey[400],
                       height: 1.5,
                     ),
@@ -585,15 +556,10 @@ class BlogDetailPage extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(height: 40),
+            SizedBox(height: 40.h),
           ],
         ),
       ),
     );
   }
-
-  // paste your long content functions here (same as earlier)
-  String _getMiseryContent() => '''...'''; // copy your long string
-  String _getRewiringContent() => '''...''';
-  String _getDisciplineContent() => '''...''';
 }

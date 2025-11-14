@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:onlymens/legal_screen.dart' show LegalScreen;
 import 'package:onlymens/userpost_pg.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:onlymens/core/data_state.dart';
@@ -18,6 +19,7 @@ import 'package:onlymens/features/avatar/avatar_data.dart';
 import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
 import 'package:onlymens/feedback_service.dart';
 import 'package:onlymens/utilis/snackbar.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 const MethodChannel _screenTimeChannel = MethodChannel('onlymens/screentime');
 
@@ -63,8 +65,8 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isLoading = true;
   bool _isContentBlocked = false;
   String _userName = 'User';
-  String? _customAvatarPath; // User's custom profile picture path
-  String? _streakAvatarUrl; // Streak-based avatar URL
+  String? _customAvatarPath;
+  String? _streakAvatarUrl;
   int _totalDays = 0;
   int _currentStreak = 0;
   int _progressPercentage = 0;
@@ -73,7 +75,6 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _confirmationController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
 
-  // List of domains to block
   final List<String> _blockedDomains = [
     "pornhub.com",
     "xvideos.com",
@@ -136,7 +137,6 @@ class _ProfilePageState extends State<ProfilePage> {
         _calculateProgress();
         await _loadAvatars();
       } else {
-        // Create default profile
         await profileRef.set({
           'name': auth.currentUser?.displayName ?? 'User',
           'totalDays': 0,
@@ -186,19 +186,16 @@ class _ProfilePageState extends State<ProfilePage> {
     });
   }
 
-  /// Load avatars with priority: Custom DP → Streak Avatar → Default Icon
   Future<void> _loadAvatars() async {
     try {
-      // 1. Check for custom user profile picture in local storage
       final customPath = await _getCustomAvatarPath();
       if (customPath != null && File(customPath).existsSync()) {
         setState(() {
           _customAvatarPath = customPath;
         });
-        return; // Custom avatar found, no need to load streak avatar
+        return;
       }
 
-      // 2. Load streak-based avatar from Firebase Storage
       await _loadStreakAvatar();
     } catch (e) {
       print('Error loading avatars: $e');
@@ -209,7 +206,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  /// Get the path to user's custom avatar in local storage
   Future<String?> _getCustomAvatarPath() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
@@ -224,18 +220,11 @@ class _ProfilePageState extends State<ProfilePage> {
     return null;
   }
 
-  /// Load streak-based avatar using the level from AvatarManager
   Future<void> _loadStreakAvatar() async {
     try {
-      // Get current level from StreaksData (already available globally)
       final currentStreakDays = StreaksData.currentStreakDays;
       final calculatedLevel = AvatarManager.getLevelFromDays(currentStreakDays);
 
-      // Try to load from local assets first
-      final assetPath = 'assets/3d/lvl$calculatedLevel.png';
-
-      // Check if we should use Firebase Storage or local assets
-      // For now, let's try Firebase Storage
       try {
         final storageRef = FirebaseStorage.instance
             .ref()
@@ -247,7 +236,6 @@ class _ProfilePageState extends State<ProfilePage> {
           _streakAvatarUrl = downloadUrl;
         });
       } catch (storageError) {
-        // If Firebase fails, we'll fall back to local assets
         print('Firebase Storage failed, will use local assets');
         setState(() {
           _streakAvatarUrl = null;
@@ -261,59 +249,54 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  /// Show options to upload custom avatar, reset avatar, or edit username
   void _showAvatarOptionsDialog() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.grey[850],
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder: (context) => Container(
-        padding: EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        padding: EdgeInsets.symmetric(vertical: 20.h, horizontal: 16.w),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Handle bar
             Container(
-              width: 40,
-              height: 4,
+              width: 40.w,
+              height: 4.h,
               decoration: BoxDecoration(
                 color: Colors.grey[600],
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(2.r),
               ),
             ),
-            SizedBox(height: 20),
-
+            SizedBox(height: 20.h),
             Text(
               'Edit Profile',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
-            SizedBox(height: 20),
-
-            // Upload new photo
+            SizedBox(height: 20.h),
             ListTile(
               leading: Container(
-                padding: EdgeInsets.all(10),
+                padding: EdgeInsets.all(10.r),
                 decoration: BoxDecoration(
                   color: Colors.deepPurple.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: Icon(
                   Icons.photo_library,
                   color: Colors.deepPurple,
-                  size: 24,
+                  size: 24.r,
                 ),
               ),
               title: Text(
                 'Upload from Gallery',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -322,22 +305,20 @@ class _ProfilePageState extends State<ProfilePage> {
                 _pickAndSaveCustomAvatar();
               },
             ),
-
-            // Take photo
             ListTile(
               leading: Container(
-                padding: EdgeInsets.all(10),
+                padding: EdgeInsets.all(10.r),
                 decoration: BoxDecoration(
                   color: Colors.blue.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(10.r),
                 ),
-                child: Icon(Icons.camera_alt, color: Colors.blue, size: 24),
+                child: Icon(Icons.camera_alt, color: Colors.blue, size: 24.r),
               ),
               title: Text(
                 'Take Photo',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -346,23 +327,21 @@ class _ProfilePageState extends State<ProfilePage> {
                 _takePhotoAndSaveAvatar();
               },
             ),
-
-            // Reset to streak avatar (only show if custom avatar exists)
             if (_customAvatarPath != null)
               ListTile(
                 leading: Container(
-                  padding: EdgeInsets.all(10),
+                  padding: EdgeInsets.all(10.r),
                   decoration: BoxDecoration(
                     color: Colors.orange.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(10.r),
                   ),
-                  child: Icon(Icons.refresh, color: Colors.orange, size: 24),
+                  child: Icon(Icons.refresh, color: Colors.orange, size: 24.r),
                 ),
                 title: Text(
                   'Reset to Streak Avatar',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: 16.sp,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -371,49 +350,47 @@ class _ProfilePageState extends State<ProfilePage> {
                   _resetToStreakAvatar();
                 },
               ),
-
-            // Divider
             Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
+              padding: EdgeInsets.symmetric(vertical: 8.h),
               child: Divider(color: Colors.grey[700], thickness: 1),
             ),
-
-            // Edit Username
             ListTile(
               leading: Container(
-                padding: EdgeInsets.all(10),
+                padding: EdgeInsets.all(10.r),
                 decoration: BoxDecoration(
                   color: Colors.teal.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(10.r),
                 ),
-                child: Icon(Icons.edit_outlined, color: Colors.teal, size: 24),
+                child: Icon(
+                  Icons.edit_outlined,
+                  color: Colors.teal,
+                  size: 24.r,
+                ),
               ),
               title: Text(
                 'Edit Username',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               subtitle: Text(
                 _userName,
-                style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                style: TextStyle(color: Colors.grey[400], fontSize: 13.sp),
               ),
               onTap: () {
                 Navigator.pop(context);
                 _showEditNameDialog();
               },
             ),
-
-            SizedBox(height: 10),
+            SizedBox(height: 10.h),
           ],
         ),
       ),
     );
   }
 
-  /// Pick image from gallery and save as custom avatar
   Future<void> _pickAndSaveCustomAvatar() async {
     try {
       final XFile? image = await _picker.pickImage(
@@ -431,7 +408,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  /// Take photo with camera and save as custom avatar
   Future<void> _takePhotoAndSaveAvatar() async {
     try {
       final XFile? photo = await _picker.pickImage(
@@ -449,21 +425,15 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  /// Save custom avatar to local storage
-  // Replace the _saveCustomAvatar method in ProfilePage
-
-  /// Save custom avatar to local storage AND upload to Firebase Storage
   Future<void> _saveCustomAvatar(String imagePath) async {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final customAvatarPath = '${directory.path}/custom_avatar.png';
       final currentUid = auth.currentUser!.uid;
 
-      // Copy the selected image to app's document directory
       final File sourceFile = File(imagePath);
       await sourceFile.copy(customAvatarPath);
 
-      // Upload to Firebase Storage
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('userAvatars')
@@ -472,7 +442,6 @@ class _ProfilePageState extends State<ProfilePage> {
       await storageRef.putFile(File(customAvatarPath));
       final downloadUrl = await storageRef.getDownloadURL();
 
-      // Save URL to Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(currentUid)
@@ -491,7 +460,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  /// Reset to streak-based avatar by deleting custom avatar
   Future<void> _resetToStreakAvatar() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
@@ -499,12 +467,10 @@ class _ProfilePageState extends State<ProfilePage> {
       final customAvatarFile = File(customAvatarPath);
       final currentUid = auth.currentUser!.uid;
 
-      // Delete local file
       if (customAvatarFile.existsSync()) {
         await customAvatarFile.delete();
       }
 
-      // Delete from Firebase Storage
       try {
         final storageRef = FirebaseStorage.instance
             .ref()
@@ -515,7 +481,6 @@ class _ProfilePageState extends State<ProfilePage> {
         debugPrint('Storage file might not exist: $e');
       }
 
-      // Remove URL from Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(currentUid)
@@ -539,7 +504,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // Also update _updateUserName to ensure name updates reflect in posts
   Future<void> _updateUserName(String newName) async {
     try {
       final uid = auth.currentUser?.uid;
@@ -552,9 +516,6 @@ class _ProfilePageState extends State<ProfilePage> {
           .doc('data');
 
       await profileRef.update({'name': newName});
-
-      // The name will automatically be updated in new posts
-      // Existing posts will show old name unless you run a batch update
 
       setState(() {
         _userName = newName;
@@ -592,12 +553,12 @@ class _ProfilePageState extends State<ProfilePage> {
         return AlertDialog(
           backgroundColor: Colors.grey[850],
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16.r),
           ),
           title: Text(
             'Edit Username',
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 20.sp,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
@@ -611,15 +572,15 @@ class _ProfilePageState extends State<ProfilePage> {
               filled: true,
               fillColor: Colors.grey[800],
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8.r),
                 borderSide: BorderSide(color: Colors.grey[700]!),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8.r),
                 borderSide: BorderSide(color: Colors.grey[700]!),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8.r),
                 borderSide: BorderSide(color: Colors.deepPurple, width: 2),
               ),
             ),
@@ -633,7 +594,7 @@ class _ProfilePageState extends State<ProfilePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurple,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                 ),
               ),
               onPressed: () {
@@ -661,17 +622,21 @@ class _ProfilePageState extends State<ProfilePage> {
         return AlertDialog(
           backgroundColor: Colors.grey[850],
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16.r),
           ),
           title: Row(
             children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-              SizedBox(width: 8),
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.orange,
+                size: 28.r,
+              ),
+              SizedBox(width: 8.w),
               Expanded(
                 child: Text(
                   'Disable Content Block?',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 20.sp,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
@@ -685,26 +650,26 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               Text(
                 'To disable content blocking, please type:',
-                style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+                style: TextStyle(fontSize: 14.sp, color: Colors.grey[400]),
               ),
-              SizedBox(height: 12),
+              SizedBox(height: 12.h),
               Container(
-                padding: EdgeInsets.all(12),
+                padding: EdgeInsets.all(12.r),
                 decoration: BoxDecoration(
                   color: Colors.red[900]?.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                   border: Border.all(color: Colors.red[700]!),
                 ),
                 child: Text(
                   'I choose to stay in apathy, embrace destructive thoughts, and avoid personal growth',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 13.sp,
                     fontWeight: FontWeight.w500,
                     color: Colors.red[300],
                   ),
                 ),
               ),
-              SizedBox(height: 16),
+              SizedBox(height: 16.h),
               TextField(
                 controller: _confirmationController,
                 maxLines: 3,
@@ -715,18 +680,18 @@ class _ProfilePageState extends State<ProfilePage> {
                   filled: true,
                   fillColor: Colors.grey[800],
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.r),
                     borderSide: BorderSide(color: Colors.grey[700]!),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.r),
                     borderSide: BorderSide(color: Colors.grey[700]!),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.r),
                     borderSide: BorderSide(color: Colors.deepPurple),
                   ),
-                  contentPadding: EdgeInsets.all(12),
+                  contentPadding: EdgeInsets.all(12.r),
                 ),
               ),
             ],
@@ -743,7 +708,7 @@ class _ProfilePageState extends State<ProfilePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red[700],
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                 ),
               ),
               onPressed: () async {
@@ -832,7 +797,7 @@ class _ProfilePageState extends State<ProfilePage> {
           'Report Issue',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 18,
+            fontSize: 18.sp,
             color: Colors.white,
           ),
         ),
@@ -845,46 +810,49 @@ class _ProfilePageState extends State<ProfilePage> {
               maxLines: 2,
               decoration: InputDecoration(
                 hintText: 'Your Report Message..',
-                hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+                hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14.sp),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                   borderSide: BorderSide(color: Colors.grey[700]!),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                   borderSide: BorderSide(color: Colors.deepPurple, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.grey[800],
-                contentPadding: EdgeInsets.all(12),
+                contentPadding: EdgeInsets.all(12.r),
               ),
-              style: TextStyle(fontSize: 14, color: Colors.white),
+              style: TextStyle(fontSize: 14.sp, color: Colors.white),
             ),
-            SizedBox(height: 12),
+            SizedBox(height: 12.h),
             Text(
               "Sorry for the inconvenience! We'll fix this soon. ThankYou!",
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 11.sp,
                 color: const Color(0xFFEF9A9A),
                 height: 1.4,
               ),
             ),
             if (_userEmail == null) ...[
-              SizedBox(height: 12),
+              SizedBox(height: 12.h),
               TextField(
                 controller: emailController,
                 style: TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Your email (optional)',
-                  hintStyle: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  hintStyle: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 13.sp,
+                  ),
                   filled: true,
                   fillColor: Colors.grey[800],
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.r),
                     borderSide: BorderSide(color: Colors.grey[700]!),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.r),
                     borderSide: BorderSide(color: Colors.deepPurple, width: 2),
                   ),
                 ),
@@ -902,9 +870,9 @@ class _ProfilePageState extends State<ProfilePage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Color(0xFF7F1019).withValues(alpha: 0.5),
               foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8.r),
               ),
             ),
             onPressed: () async {
@@ -935,16 +903,16 @@ class _ProfilePageState extends State<ProfilePage> {
         return AlertDialog(
           backgroundColor: Colors.grey[850],
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16.r),
           ),
           title: Row(
             children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
-              SizedBox(width: 8),
+              Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28.r),
+              SizedBox(width: 8.w),
               Text(
                 'Delete Account?',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 20.sp,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -964,7 +932,7 @@ class _ProfilePageState extends State<ProfilePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red[700],
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                 ),
               ),
               onPressed: () async {
@@ -1014,7 +982,7 @@ class _ProfilePageState extends State<ProfilePage> {
           'Send Feedback',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 18,
+            fontSize: 18.sp,
             color: Colors.white,
           ),
         ),
@@ -1029,15 +997,18 @@ class _ProfilePageState extends State<ProfilePage> {
                   style: TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: 'Write your feedback...',
-                    hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    hintStyle: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14.sp,
+                    ),
                     filled: true,
                     fillColor: Colors.grey[800],
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(8.r),
                       borderSide: BorderSide(color: Colors.grey[700]!),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(8.r),
                       borderSide: BorderSide(
                         color: Colors.deepPurple,
                         width: 2,
@@ -1045,13 +1016,13 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                 ),
-                SizedBox(height: 12),
+                SizedBox(height: 12.h),
                 if (screenshot != null)
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.memory(screenshot!, height: 120),
+                    borderRadius: BorderRadius.circular(8.r),
+                    child: Image.memory(screenshot!, height: 120.h),
                   ),
-                SizedBox(height: 12),
+                SizedBox(height: 12.h),
                 ElevatedButton.icon(
                   onPressed: () async {
                     final boundary =
@@ -1068,12 +1039,12 @@ class _ProfilePageState extends State<ProfilePage> {
                       }
                     }
                   },
-                  icon: Icon(Icons.camera_alt_outlined, size: 16),
+                  icon: Icon(Icons.camera_alt_outlined, size: 16.r),
                   label: Text(
                     screenshot == null
                         ? 'Attach Screenshot'
                         : 'Change Screenshot',
-                    style: TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: 13.sp),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepPurple,
@@ -1115,14 +1086,11 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  /// Build avatar widget with priority: Custom → Streak → Default
   Widget _buildAvatarWidget() {
-    // Priority 1: Custom user avatar
     if (_customAvatarPath != null && File(_customAvatarPath!).existsSync()) {
       return Image.file(File(_customAvatarPath!), fit: BoxFit.cover);
     }
 
-    // Priority 2: Streak-based avatar from Firebase
     if (_streakAvatarUrl != null) {
       return Image.network(
         _streakAvatarUrl!,
@@ -1134,17 +1102,14 @@ class _ProfilePageState extends State<ProfilePage> {
           );
         },
         errorBuilder: (context, error, stackTrace) {
-          // Fallback to local asset if network fails
           return _buildLocalAssetAvatar();
         },
       );
     }
 
-    // Priority 3: Local asset based on current level
     return _buildLocalAssetAvatar();
   }
 
-  /// Build avatar from local assets
   Widget _buildLocalAssetAvatar() {
     final currentStreakDays = StreaksData.currentStreakDays;
     final calculatedLevel = AvatarManager.getLevelFromDays(currentStreakDays);
@@ -1153,8 +1118,7 @@ class _ProfilePageState extends State<ProfilePage> {
       'assets/3d/lvl$calculatedLevel.png',
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) {
-        // Final fallback: default icon
-        return Icon(Icons.person, size: 80, color: Colors.grey[400]);
+        return Icon(Icons.person, size: 80.r, color: Colors.grey[400]);
       },
     );
   }
@@ -1172,21 +1136,20 @@ class _ProfilePageState extends State<ProfilePage> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
-          iconSize: 20,
+          iconSize: 20.r,
           icon: Icon(CupertinoIcons.back, color: Colors.white),
           onPressed: () => context.pop(),
         ),
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
         child: Column(
           children: [
-            /// Avatar with Edit Button
             Stack(
               children: [
                 Container(
-                  width: 140,
-                  height: 140,
+                  width: 140.r,
+                  height: 140.r,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Colors.grey[900],
@@ -1194,38 +1157,33 @@ class _ProfilePageState extends State<ProfilePage> {
                     boxShadow: [
                       BoxShadow(
                         color: Colors.deepPurple.withOpacity(0.35),
-                        blurRadius: 26,
-                        spreadRadius: 4,
-                        offset: Offset(0, 8),
+                        blurRadius: 26.r,
+                        spreadRadius: 4.r,
+                        offset: Offset(0, 8.h),
                       ),
                     ],
                   ),
                   child: ClipOval(child: _buildAvatarWidget()),
                 ),
-
-                /// Edit Icon at Bottom Right
                 Positioned(
                   bottom: 0,
-                  right: 10,
+                  right: 10.w,
                   child: GestureDetector(
                     onTap: _showAvatarOptionsDialog,
                     child: Container(
-                      padding: EdgeInsets.all(8),
+                      padding: EdgeInsets.all(8.r),
                       decoration: BoxDecoration(
                         color: Colors.grey[900],
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: .5),
                       ),
-                      child: Icon(Icons.edit, color: Colors.white, size: 10),
+                      child: Icon(Icons.edit, color: Colors.white, size: 10.r),
                     ),
                   ),
                 ),
               ],
             ),
-
-            SizedBox(height: 14),
-
-            /// Username with verified badge
+            SizedBox(height: 14.h),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1233,7 +1191,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   _userName,
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 24.sp,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
                   ),
@@ -1241,22 +1199,19 @@ class _ProfilePageState extends State<ProfilePage> {
                 Icon(
                   CupertinoIcons.checkmark_seal,
                   color: Colors.blue,
-                  size: 12,
+                  size: 12.r,
                 ),
               ],
             ),
-
-            SizedBox(height: 24),
-
-            /// Progress Stats Section
+            SizedBox(height: 24.h),
             Align(
               alignment: Alignment.centerLeft,
               child: Padding(
-                padding: EdgeInsets.only(left: 4, bottom: 12),
+                padding: EdgeInsets.only(left: 4.w, bottom: 12.h),
                 child: Text(
                   "Progress Stats",
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 13.sp,
                     fontWeight: FontWeight.w500,
                     color: Colors.grey[500],
                     letterSpacing: 0.5,
@@ -1264,20 +1219,18 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
-
-            /// Three Card Layout
             Row(
               children: [
                 Expanded(
                   child: _smallStatCard(
-                    titleTop: "$_currentStreak Days",
-                    titleBottom: "Streak",
+                    titleTop: "$_currentStreak",
+                    titleBottom: "Streak Days",
                     icon: Icons.local_fire_department,
                     iconColor: Colors.orange,
                     borderColor: Colors.orange,
                   ),
                 ),
-                SizedBox(width: 10),
+                SizedBox(width: 10.w),
                 Expanded(
                   child: _smallStatCard(
                     titleTop: "$_progressPercentage%",
@@ -1287,11 +1240,11 @@ class _ProfilePageState extends State<ProfilePage> {
                     borderColor: Colors.green,
                   ),
                 ),
-                SizedBox(width: 10),
+                SizedBox(width: 10.w),
                 Expanded(
                   child: _smallStatCard(
-                    titleTop: "$_totalDays Days",
-                    titleBottom: "Total",
+                    titleTop: "$_totalDays",
+                    titleBottom: "Total Days",
                     icon: Icons.calendar_month_rounded,
                     iconColor: Colors.blue,
                     borderColor: Colors.blue,
@@ -1299,17 +1252,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ],
             ),
-            SizedBox(height: 32),
-
-            /// Preferences Section
+            SizedBox(height: 32.h),
             Align(
               alignment: Alignment.centerLeft,
               child: Padding(
-                padding: EdgeInsets.only(left: 4, bottom: 8),
+                padding: EdgeInsets.only(left: 4.w, bottom: 8.h),
                 child: Text(
                   "Preferences",
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 13.sp,
                     fontWeight: FontWeight.w500,
                     color: Colors.grey[500],
                     letterSpacing: 0.5,
@@ -1317,11 +1268,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
-
             Container(
               decoration: BoxDecoration(
                 color: Colors.grey[850],
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16.r),
               ),
               child: Column(
                 children: [
@@ -1331,7 +1281,17 @@ class _ProfilePageState extends State<ProfilePage> {
                     _isContentBlocked,
                     _handleToggleChange,
                   ),
-                  _tile("Privacy", Icons.lock_outline, onTap: () {}),
+                  _tile(
+                    "Privacy & Terms",
+                    Icons.privacy_tip_outlined,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LegalScreen()),
+                      );
+                    },
+                  ),
+
                   _tile(
                     'Posts',
                     Icons.post_add,
@@ -1355,7 +1315,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       });
                     },
                   ),
-
                   _tile(
                     "Help & Support",
                     Icons.help_outline,
@@ -1364,10 +1323,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ],
               ),
             ),
-
-            SizedBox(height: 40),
-
-            /// Sign out button
+            SizedBox(height: 40.h),
             ElevatedButton(
               onPressed: () async {
                 await auth.signOut();
@@ -1375,28 +1331,25 @@ class _ProfilePageState extends State<ProfilePage> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurple,
-                minimumSize: Size(double.infinity, 50),
+                minimumSize: Size(double.infinity, 50.h),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
               ),
               child: Text(
                 "Sign Out",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
               ),
             ),
-
-            SizedBox(height: 16),
-
+            SizedBox(height: 16.h),
             TextButton(
               onPressed: _deleteAccount,
               child: Text(
                 "Delete Account",
-                style: TextStyle(color: Colors.red[400], fontSize: 14),
+                style: TextStyle(color: Colors.red[400], fontSize: 14.sp),
               ),
             ),
-
-            SizedBox(height: 40),
+            SizedBox(height: 40.h),
           ],
         ),
       ),
@@ -1410,26 +1363,26 @@ class _ProfilePageState extends State<ProfilePage> {
     VoidCallback? onTap,
   }) {
     return ListTile(
-      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
       leading: Container(
-        padding: EdgeInsets.all(10),
+        padding: EdgeInsets.all(10.r),
         decoration: BoxDecoration(
           color: Colors.deepPurple.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(10.r),
         ),
-        child: Icon(icon, color: Colors.deepPurple[300], size: 22),
+        child: Icon(icon, color: Colors.deepPurple[300], size: 22.r),
       ),
       title: Text(
         title,
         style: TextStyle(
-          fontSize: 15,
+          fontSize: 15.sp,
           fontWeight: FontWeight.w500,
           color: Colors.white,
         ),
       ),
       trailing:
           trailingWidget ??
-          Icon(Icons.chevron_right, color: Colors.grey[600], size: 20),
+          Icon(Icons.chevron_right, color: Colors.grey[600], size: 20.r),
       onTap: onTap,
     );
   }
@@ -1442,43 +1395,47 @@ class _ProfilePageState extends State<ProfilePage> {
     required Color borderColor,
   }) {
     return Container(
-      padding: EdgeInsets.all(18),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 18.h),
       decoration: BoxDecoration(
         color: Colors.grey[850],
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         border: Border.all(color: Colors.black, width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.35),
-            blurRadius: 6,
-            offset: Offset(0, 2),
+            blurRadius: 6.r,
+            offset: Offset(0, 2.h),
           ),
         ],
       ),
       child: Column(
         children: [
           Container(
-            padding: EdgeInsets.all(12),
+            padding: EdgeInsets.all(12.r),
             decoration: BoxDecoration(
               color: iconColor.withOpacity(0.18),
               border: Border.all(color: iconColor.withOpacity(0.7), width: 1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(12.r),
             ),
-            child: Icon(icon, size: 28, color: iconColor),
+            child: Icon(icon, size: 28.r, color: iconColor),
           ),
-          SizedBox(height: 10),
-          Text(
-            titleTop,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          SizedBox(height: 10.h),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              titleTop,
+              style: TextStyle(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              maxLines: 1,
             ),
           ),
-          SizedBox(height: 3),
+          SizedBox(height: 3.h),
           Text(
             titleBottom,
-            style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+            style: TextStyle(fontSize: 13.sp, color: Colors.grey[400]),
           ),
         ],
       ),
@@ -1492,22 +1449,22 @@ class _ProfilePageState extends State<ProfilePage> {
     Function(bool) onToggle,
   ) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(10),
+            padding: EdgeInsets.all(10.r),
             decoration: BoxDecoration(
               color: (value ? Colors.green : Colors.red).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(10.r),
             ),
             child: Icon(
               icon,
               color: value ? Colors.green : Colors.red,
-              size: 22,
+              size: 22.r,
             ),
           ),
-          SizedBox(width: 14),
+          SizedBox(width: 14.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1515,15 +1472,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 15.sp,
                     fontWeight: FontWeight.w500,
                     color: Colors.white,
                   ),
                 ),
-                SizedBox(height: 3),
+                SizedBox(height: 3.h),
                 Text(
                   value ? "Enabled" : "Disabled",
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  style: TextStyle(fontSize: 12.sp, color: Colors.grey[500]),
                 ),
               ],
             ),

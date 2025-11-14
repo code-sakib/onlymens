@@ -2,6 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:onlymens/core/globals.dart';
 import 'package:onlymens/features/betterwbro/chat/chat_service.dart';
 import 'package:onlymens/features/betterwbro/chat/chat_screen.dart';
@@ -56,7 +57,7 @@ class _MessagesPageState extends State<MessagesPage> {
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(8),
+          padding: EdgeInsets.all(8.r),
           child: Column(
             children: [
               Row(
@@ -68,10 +69,10 @@ class _MessagesPageState extends State<MessagesPage> {
                       color: Colors.white60,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Text(
+                  SizedBox(width: 12.r),
+                  Text(
                     "Messages",
-                    style: TextStyle(color: Colors.white, fontSize: 18),
+                    style: TextStyle(color: Colors.white, fontSize: 18.sp),
                   ),
                 ],
               ),
@@ -118,8 +119,8 @@ class _MessagesPageState extends State<MessagesPage> {
                       if (chats.isEmpty) {
                         return ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          children: const [
-                            SizedBox(height: 100),
+                          children: [
+                            SizedBox(height: 100.h),
                             Center(
                               child: Text(
                                 "No conversations",
@@ -185,9 +186,9 @@ class _MessagesPageState extends State<MessagesPage> {
                               title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 15,
+                                fontSize: 15.sp,
                               ),
                             ),
                             subtitle: Text(
@@ -203,7 +204,7 @@ class _MessagesPageState extends State<MessagesPage> {
                                   _timeAgo(lastTs),
                                   style: const TextStyle(color: Colors.grey),
                                 ),
-                                const SizedBox(height: 4),
+                                SizedBox(height: 4.h),
                                 if (hasUnread) _unreadPill(unreadCount),
                               ],
                             ),

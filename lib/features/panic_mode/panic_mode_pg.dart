@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onlymens/features/panic_mode/panicm_service.dart';
 import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
@@ -65,12 +66,12 @@ class _PanicModePgState extends State<PanicModePg> {
   String _getFallbackMainText() {
     final streak = glbCurrentStreakDays;
     return streak > 0
-        ? 'You’ve shown incredible strength for $streak days straight. That’s not luck — that’s YOU choosing growth over instant gratification.\n\nWhat you’re feeling right now? It’s just brain chemistry lying to you. These thoughts aren’t facts — they’re echoes of old patterns trying to pull you back.\n\nYou’ve already proven you’re stronger than this urge $streak times. Right now, in this moment, you have all the power. The urge will pass. Your progress is real.'
-        : 'You’ve taken the hardest step — deciding to change. That alone shows incredible courage.\n\nThis urge you’re feeling is your brain’s old wiring trying to fire up. But you’re rewiring it right now, in this very moment.\n\nYou have the power to let this pass. The thoughts aren’t commands — they’re just noise. Stay here. Breathe. This will pass.';
+        ? "You've shown incredible strength for $streak days straight. That's not luck — that's YOU choosing growth over instant gratification.\n\nWhat you're feeling right now? It's just brain chemistry lying to you. These thoughts aren't facts — they're echoes of old patterns trying to pull you back.\n\nYou've already proven you're stronger than this urge $streak times. Right now, in this moment, you have all the power. The urge will pass. Your progress is real."
+        : "You've taken the hardest step — deciding to change. That alone shows incredible courage.\n\nThis urge you're feeling is your brain's old wiring trying to fire up. But you're rewiring it right now, in this very moment.\n\nYou have the power to let this pass. The thoughts aren't commands — they're just noise. Stay here. Breathe. This will pass.";
   }
 
   String _getFallbackGuidanceText() {
-    return 'Take slow, deep breaths. It’s okay if your mind is racing. Don’t fight the thoughts; just let the words above pass through your mind and subtly believe in them.';
+    return "Take slow, deep breaths. It's okay if your mind is racing. Don't fight the thoughts; just let the words above pass through your mind and subtly believe in them.";
   }
 
   void _handleBack() {
@@ -80,7 +81,7 @@ class _PanicModePgState extends State<PanicModePg> {
 
   @override
   Widget build(BuildContext context) {
-    const double topBarHeight = 56;
+    final topBarHeight = 56.h;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -91,9 +92,9 @@ class _PanicModePgState extends State<PanicModePg> {
           // ==========================
           Positioned.fill(
             child: _isLoading
-                ? const Center(
+                ? Center(
                     child: CupertinoActivityIndicator(
-                      radius: 16,
+                      radius: 16.r,
                       color: Colors.grey,
                     ),
                   )
@@ -110,7 +111,7 @@ class _PanicModePgState extends State<PanicModePg> {
             child: SafeArea(
               child: Container(
                 height: topBarHeight,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: EdgeInsets.symmetric(horizontal: 8.w),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -118,10 +119,10 @@ class _PanicModePgState extends State<PanicModePg> {
                     IconButton(
                       padding: EdgeInsets.zero,
                       onPressed: _handleBack,
-                      icon: const Icon(
+                      icon: Icon(
                         CupertinoIcons.back,
                         color: Colors.white54,
-                        size: 26,
+                        size: 26.r,
                       ),
                     ),
 
@@ -136,7 +137,7 @@ class _PanicModePgState extends State<PanicModePg> {
                         color: _showGuidanceCard
                             ? Colors.deepPurpleAccent
                             : Colors.grey,
-                        size: 24,
+                        size: 24.r,
                       ),
                     ),
                   ],
@@ -150,8 +151,8 @@ class _PanicModePgState extends State<PanicModePg> {
           // ==========================
           if (_showGuidanceCard && _guidanceText != null)
             Positioned(
-              left: 20,
-              right: 20,
+              left: 20.w,
+              right: 20.w,
               bottom: 0,
               child: SafeArea(
                 child: GuidanceCard(
@@ -253,13 +254,13 @@ class _SmoothBuildTextState extends State<SmoothBuildText> {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(20, 50, 20, 10),
+      padding: EdgeInsets.fromLTRB(20.w, 50.h, 20.w, 10.h),
       child: Align(
         alignment: Alignment.topLeft,
         child: Text(
           _displayedText,
           style: TextStyle(
-            fontSize: 26,
+            fontSize: 26.sp,
             height: 1.8,
             color: Color.fromRGBO(255, 255, 255, widget.opacity),
             fontWeight: FontWeight.w400,
@@ -285,44 +286,44 @@ class GuidanceCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
         decoration: BoxDecoration(
           color: Colors.grey.shade900,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16.r),
           border: Border.all(
             color: Colors.deepPurpleAccent.withOpacity(0.3),
-            width: 1,
+            width: 1.w,
           ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
+            Icon(
               Icons.lightbulb_outline,
               color: Colors.deepPurpleAccent,
-              size: 20,
+              size: 20.r,
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10.w),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'Guidance',
                     style: TextStyle(
                       color: Colors.deepPurpleAccent,
-                      fontSize: 14,
+                      fontSize: 14.sp,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6.h),
                   Text(
                     text,
                     softWrap: true,
                     style: TextStyle(
                       color: Colors.grey.shade300,
-                      fontSize: 13,
+                      fontSize: 13.sp,
                       height: 1.4,
                     ),
                   ),
@@ -331,7 +332,7 @@ class GuidanceCard extends StatelessWidget {
             ),
             IconButton(
               onPressed: onClose,
-              icon: const Icon(Icons.close, color: Colors.grey, size: 20),
+              icon: Icon(Icons.close, color: Colors.grey, size: 20.r),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),

@@ -1,18 +1,15 @@
 // ✅ FINAL PRODUCTION CHAT SCREEN ✅
-// No more setState after dispose ✅
-// Fully guarded async, stream, and timer operations ✅
-// Added streak badge display ✅
-// Updated report dialog ✅
+// Updated with flutter_screenutil for consistent sizing ✅
 
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:onlymens/core/globals.dart';
 import 'package:onlymens/features/betterwbro/chat/chat_service.dart';
-import 'package:onlymens/utilis/size_config.dart';
 
 class ChatScreen extends StatefulWidget {
   final String userId;
@@ -197,12 +194,13 @@ class _ChatScreenState extends State<ChatScreen> {
         title: Row(
           children: [
             CircleAvatar(
+              radius: 20.r,
               backgroundImage: NetworkImage(
                 widget.imageUrl ??
                     "https://cdn-icons-png.flaticon.com/512/2815/2815428.png",
               ),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10.w),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,38 +212,38 @@ class _ChatScreenState extends State<ChatScreen> {
                       Flexible(
                         child: Text(
                           widget.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 16.sp,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (widget.streaks > 0) ...[
-                        const SizedBox(width: 6),
+                        SizedBox(width: 6.w),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 6.w,
+                            vertical: 2.h,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.deepOrangeAccent.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(10.r),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const HugeIcon(
+                              HugeIcon(
                                 icon: HugeIcons.strokeRoundedFire02,
                                 color: Colors.deepOrangeAccent,
-                                size: 12,
+                                size: 12.sp,
                               ),
-                              const SizedBox(width: 3),
+                              SizedBox(width: 3.w),
                               Text(
                                 '${widget.streaks}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.deepOrangeAccent,
-                                  fontSize: 10,
+                                  fontSize: 10.sp,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -260,19 +258,16 @@ class _ChatScreenState extends State<ChatScreen> {
                       widget.distance! < 1
                           ? '${(widget.distance! * 1000).toStringAsFixed(0)}m away'
                           : '${widget.distance!.toStringAsFixed(1)}km away',
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 11,
-                      ),
+                      style: TextStyle(color: Colors.white54, fontSize: 11.sp),
                     ),
                 ],
               ),
             ),
             IconButton(
-              icon: const Icon(
+              icon: Icon(
                 CupertinoIcons.exclamationmark_triangle,
                 color: Colors.white70,
-                size: 18,
+                size: 18.sp,
               ),
               onPressed: _confirmBlockUser,
             ),
@@ -291,10 +286,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _messages() {
     if (_chatRoomId == null) {
-      return const Center(
+      return Center(
         child: Text(
           'Say Hi 👋',
-          style: TextStyle(color: Colors.white54, fontSize: 16),
+          style: TextStyle(color: Colors.white54, fontSize: 16.sp),
         ),
       );
     }
@@ -318,7 +313,7 @@ class _ChatScreenState extends State<ChatScreen> {
         return ListView.builder(
           controller: _scroll,
           itemCount: docs.length,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 14.h),
           itemBuilder: (_, i) {
             final m = docs[i].data() as Map;
             final isMe = m['senderId'] == auth.currentUser!.uid;
@@ -327,24 +322,24 @@ class _ChatScreenState extends State<ChatScreen> {
             return Align(
               alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
               child: Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.symmetric(vertical: 4),
+                padding: EdgeInsets.all(12.r),
+                margin: EdgeInsets.symmetric(vertical: 4.h),
                 decoration: BoxDecoration(
                   color: isMe ? Colors.deepPurple : Colors.grey.shade900,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16.r),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       m['message'] ?? '',
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: Colors.white, fontSize: 14.sp),
                     ),
                     if (t != null)
                       Text(
                         "${t.hour}:${t.minute.toString().padLeft(2, '0')}",
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 11.sp,
                           color: Colors.white.withOpacity(0.55),
                         ),
                       ),
@@ -359,69 +354,77 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _typingBubble() => Padding(
-        padding: const EdgeInsets.only(left: 16, bottom: 8),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade800,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              "Typing...",
-              style: TextStyle(color: Colors.white70),
-            ),
-          ),
+    padding: EdgeInsets.only(left: 16.w, bottom: 8.h),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade800,
+          borderRadius: BorderRadius.circular(20.r),
         ),
-      );
+        child: Text(
+          "Typing...",
+          style: TextStyle(color: Colors.white70, fontSize: 14.sp),
+        ),
+      ),
+    ),
+  );
 
   Widget _inputBox() => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: Container(
-            height: SizeConfig.blockHeight * 7,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.deepPurple),
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    focusNode: _focus,
-                    onChanged: (_) => _onTyping(),
-                    textCapitalization: TextCapitalization.sentences,
-                    style: const TextStyle(color: Colors.white),
-                    cursorColor: Colors.deepPurpleAccent,
-                    minLines: 1,
-                    maxLines: 5,
-                    decoration: const InputDecoration(
-                      hintText: 'Message...',
-                      hintStyle: TextStyle(color: Colors.grey),
-                      border: InputBorder.none,
-                      fillColor: Colors.transparent,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
+    child: Padding(
+      padding: EdgeInsets.all(10.r),
+      child: Container(
+        height: 56.h,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.deepPurple),
+          borderRadius: BorderRadius.circular(30.r),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _messageController,
+                focusNode: _focus,
+                onChanged: (_) => _onTyping(),
+                textCapitalization: TextCapitalization.sentences,
+                style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                cursorColor: Colors.deepPurpleAccent,
+                minLines: 1,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  hintText: 'Message...',
+                  hintStyle: TextStyle(color: Colors.grey, fontSize: 14.sp),
+                  border: InputBorder.none,
+                  fillColor: Colors.transparent,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 12.h,
                   ),
                 ),
-                FloatingActionButton(
-                  shape: const CircleBorder(),
-                  onPressed: _send,
-                  backgroundColor: Colors.deepPurple,
-                  child: const Icon(Icons.send_rounded, color: Colors.white),
-                ),
-              ],
+              ),
             ),
-          ),
+            Padding(
+              padding: EdgeInsets.only(right: 4.w),
+              child: FloatingActionButton(
+                shape: const CircleBorder(),
+                onPressed: _send,
+                backgroundColor: Colors.deepPurple,
+                mini: true,
+                child: Icon(
+                  Icons.send_rounded,
+                  color: Colors.white,
+                  size: 20.sp,
+                ),
+              ),
+            ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 
   Future<void> _confirmBlockUser() async {
     if (_isDisposed || !mounted) return;
@@ -432,12 +435,14 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF1C1C1E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        title: Text(
           'Report and Block User',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 18,
+            fontSize: 18.sp,
             color: Colors.white,
           ),
         ),
@@ -451,27 +456,33 @@ class _ChatScreenState extends State<ChatScreen> {
                 maxLines: 2,
                 decoration: InputDecoration(
                   hintText: 'Describe the issue (optional)...',
-                  hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  hintStyle: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14.sp,
+                  ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.r),
                     borderSide: BorderSide(color: Colors.grey[700]!),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.deepPurple, width: 2),
+                    borderRadius: BorderRadius.circular(8.r),
+                    borderSide: BorderSide(
+                      color: Colors.deepPurple,
+                      width: 2.w,
+                    ),
                   ),
                   filled: true,
                   fillColor: Colors.grey[900],
-                  contentPadding: const EdgeInsets.all(12),
+                  contentPadding: EdgeInsets.all(12.r),
                 ),
-                style: const TextStyle(fontSize: 14, color: Colors.white),
+                style: TextStyle(fontSize: 14.sp, color: Colors.white),
               ),
-              const SizedBox(height: 12),
-              const Text(
+              SizedBox(height: 12.h),
+              Text(
                 "If you find any inappropriate behavior or content, you can block this user and they will never appear again.",
                 style: TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFFEF9A9A),
+                  fontSize: 11.sp,
+                  color: const Color(0xFFEF9A9A),
                   height: 1.4,
                 ),
               ),
@@ -485,27 +496,27 @@ class _ChatScreenState extends State<ChatScreen> {
               Navigator.of(context).pop();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.grey[400]),
-            child: const Text('Cancel'),
+            child: Text('Cancel', style: TextStyle(fontSize: 14.sp)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF7F1019).withOpacity(0.5),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8.r),
               ),
             ),
             onPressed: () async {
               final message = reportController.text.trim();
               reportController.dispose();
               Navigator.of(context).pop();
-              
+
               await _blockUser(message);
             },
-            child: const Text(
+            child: Text(
               'Block User',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.sp),
             ),
           ),
         ],
@@ -525,9 +536,9 @@ class _ChatScreenState extends State<ChatScreen> {
           .collection('blocked')
           .doc(other)
           .set({
-        'blockedAt': FieldValue.serverTimestamp(),
-        'reportMessage': reportMessage.isNotEmpty ? reportMessage : null,
-      });
+            'blockedAt': FieldValue.serverTimestamp(),
+            'reportMessage': reportMessage.isNotEmpty ? reportMessage : null,
+          });
 
       // Clear unread count
       if (_chatRoomId != null) {
@@ -540,9 +551,12 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!_isDisposed && mounted) {
         context.pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("User blocked successfully ✅"),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text(
+              "User blocked successfully ✅",
+              style: TextStyle(fontSize: 14.sp),
+            ),
+            duration: const Duration(seconds: 2),
           ),
         );
       }

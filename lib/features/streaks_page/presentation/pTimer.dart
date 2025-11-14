@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_3d_controller/flutter_3d_controller.dart';
 import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:intl/intl.dart';
@@ -13,7 +14,6 @@ import 'package:onlymens/core/globals.dart';
 import 'package:onlymens/features/avatar/avatar_data.dart';
 import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
 import 'package:onlymens/utilis/page_indicator.dart';
-import 'package:onlymens/utilis/size_config.dart';
 import 'package:onlymens/utilis/snackbar.dart';
 
 // ✅ GLOBAL: Single source of truth for data state
@@ -28,16 +28,12 @@ class TimerComponents extends StatefulWidget {
   State<TimerComponents> createState() => _TimerComponentsState();
 }
 
-// paste into your TimerComponents file (replace the existing state implementation)
 class _TimerComponentsState extends State<TimerComponents> {
   bool _showSmallHeatmap = false;
   String _currentAvatarPath = AvatarManager.BUNDLED_LEVEL_1;
   bool _isLoadingAvatar = false;
   String _loadingMessage = '';
-  bool _hasPendingUpdate = false; // show small reload icon
-  int? _pendingRequiredLevel;
-  int? _pendingCurrentLevel;
-  int _avatarKeySalt = 0; // force RepaintBoundary / 3D viewer rebuild
+  int _avatarKeySalt = 0;
   late ConfettiController _confettiController;
 
   @override
@@ -52,12 +48,10 @@ class _TimerComponentsState extends State<TimerComponents> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Re-run check whenever refreshTrigger notifies new streak data (e.g. backend sync)
     refreshTrigger.addListener(_onGlobalRefresh);
   }
 
   void _onGlobalRefresh() {
-    // Timer/streak data refreshed → check avatar state again
     _initializeAvatar();
     _checkAvatarUpdate();
   }
@@ -69,9 +63,7 @@ class _TimerComponentsState extends State<TimerComponents> {
     super.dispose();
   }
 
-  /// Boot sequence: display current avatar quickly, then check for updates.
   Future<void> _bootAvatarLogic() async {
-    // 1) Show whatever local/bundled avatar we have first (fast)
     final initialPath = await AvatarManager.getCurrentAvatarPath(
       currentUser.uid,
     );
@@ -82,12 +74,10 @@ class _TimerComponentsState extends State<TimerComponents> {
       });
     }
 
-    // 2) Then run the check & auto-update flow
-    await _initializeAvatar(); // this checks & may auto-update
-    await _checkAvatarUpdate(); // second-check to set pending flags / messages
+    await _initializeAvatar();
+    await _checkAvatarUpdate();
   }
 
-  // rest of your helpers (heatmap toggles)
   void _toggleSmallHeatmap() =>
       setState(() => _showSmallHeatmap = !_showSmallHeatmap);
   void _hideSmallHeatmap() {
@@ -95,25 +85,23 @@ class _TimerComponentsState extends State<TimerComponents> {
   }
 
   Widget _buildAvatarLoadingState() => Column(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      const CupertinoActivityIndicator(color: Colors.white, radius: 12),
-      const SizedBox(height: 16),
-      Text(
-        _loadingMessage,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: Colors.white70,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    ],
-  );
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CupertinoActivityIndicator(color: Colors.white, radius: 12.r),
+          SizedBox(height: 16.h),
+          Text(
+            _loadingMessage,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      );
 
-  // --- helper: run upgrade effects (confetti + snackbar)
   void _onUpgrade(int newLevel) {
-    // short confetti burst and snackbar
     _confettiController.play();
     Utilis.showSnackBar(
       "🎉 Congrats! Avatar upgraded to Level $newLevel!",
@@ -121,8 +109,6 @@ class _TimerComponentsState extends State<TimerComponents> {
     );
   }
 
-  /// Initialize avatar: determine previous level, then run cloud check/update,
-  /// update UI and set pending flags correctly.
   Future<void> _initializeAvatar() async {
     if (!mounted) return;
 
@@ -132,11 +118,9 @@ class _TimerComponentsState extends State<TimerComponents> {
     });
 
     try {
-      // Get previous (current) level from Firestore doc so we can detect upgrades
       final info = await AvatarManager.getStorageInfo(currentUser.uid);
       final int previousLevel = info['current_level'] ?? 1;
 
-      // This call may auto-download if allowed
       final result = await AvatarManager.checkAndUpdateModelAfterFetch(
         uid: currentUser.uid,
         currentStreakDays: StreaksData.currentStreakDays,
@@ -144,7 +128,6 @@ class _TimerComponentsState extends State<TimerComponents> {
 
       if (!mounted) return;
 
-      // Update displayed path (always set whatever path the manager reports)
       setState(() {
         _currentAvatarPath = result.currentPath;
         _avatarKeySalt++;
@@ -152,28 +135,16 @@ class _TimerComponentsState extends State<TimerComponents> {
         _loadingMessage = '';
       });
 
-      // If manager performed an update, check whether it's an upgrade (level up)
       if (result.wasUpdated) {
         final int newLevel = result.currentLevel;
         if (newLevel > previousLevel) {
-          // Only play confetti/snackbar for upgrades
           _onUpgrade(newLevel);
         } else {
-          // If it's not an upgrade (e.g., fallback/downgrade), show the message as toast
           if (result.message != null) Utilis.showToast(result.message!);
         }
-        // clear pending flag on any successful update
-        setState(() => _hasPendingUpdate = false);
       }
 
-      // If the manager couldn't download because of limit -> show pending
       if (result.downloadLimitExceeded) {
-        _pendingRequiredLevel = AvatarManager.getLevelFromDays(
-          StreaksData.currentStreakDays,
-        );
-        _pendingCurrentLevel = result.currentLevel;
-        setState(() => _hasPendingUpdate = true);
-        // show one toast if allowed
         if (result.showLimitMessage && result.error != null) {
           Utilis.showToast(result.error!);
         }
@@ -189,8 +160,6 @@ class _TimerComponentsState extends State<TimerComponents> {
     }
   }
 
-  /// Secondary check: ensure UI shows pending state and current path is valid.
-  /// This keeps the viewer in sync without forcing an update.
   Future<void> _checkAvatarUpdate() async {
     try {
       final result = await AvatarManager.checkAndUpdateModelAfterFetch(
@@ -204,25 +173,15 @@ class _TimerComponentsState extends State<TimerComponents> {
         setState(() {
           _currentAvatarPath = result.currentPath;
           _avatarKeySalt++;
-          _hasPendingUpdate = result.downloadLimitExceeded;
         });
       }
 
-      if (result.downloadLimitExceeded) {
-        _pendingRequiredLevel = AvatarManager.getLevelFromDays(
-          StreaksData.currentStreakDays,
-        );
-        _pendingCurrentLevel = result.currentLevel;
-        setState(() => _hasPendingUpdate = true);
-      }
+      if (result.downloadLimitExceeded) {}
     } catch (e) {
       print('❌ Avatar check failed: $e');
     }
   }
 
-  /// Called when streak changes (Done/Skip/Relapse). If an update is needed:
-  /// - If canDownloadNow => perform update automatically and refresh UI.
-  /// - If cannot => mark pending and show hint (handled on Avatar page).
   Future<void> _handleStreakUpdate() async {
     try {
       final status = await AvatarManager.checkIfUpdateNeeded(
@@ -230,13 +189,11 @@ class _TimerComponentsState extends State<TimerComponents> {
         newStreakDays: StreaksData.currentStreakDays,
       );
 
-      // No update needed, but still re-check to ensure UI path is current.
       if (!status.needsUpdate) {
         await _checkAvatarUpdate();
         return;
       }
 
-      // If update is possible immediately, perform it automatically (no dialog)
       if (status.canDownloadNow) {
         if (!mounted) return;
         setState(() {
@@ -257,28 +214,20 @@ class _TimerComponentsState extends State<TimerComponents> {
         });
 
         if (res.success) {
-          // Immediately update UI with new path
           setState(() {
             _currentAvatarPath = res.path;
             _avatarKeySalt++;
-            _hasPendingUpdate = false;
-            _pendingRequiredLevel = null;
-            _pendingCurrentLevel = null;
           });
 
-          // Play confetti/snackbar only if it's an upgrade
           if (res.level > status.currentLevel) {
             _onUpgrade(res.level);
           } else {
             Utilis.showToast(res.message ?? 'Avatar updated');
           }
 
-          // Notify app listeners (if any) to refresh data
           refreshTrigger.value = refreshTrigger.value + 1;
         } else {
-          // If we failed due to download limit, mark pending for avatar page
           if (res.downloadLimitExceeded) {
-            setState(() => _hasPendingUpdate = true);
             await AvatarManager.markPendingUpdate(uid: currentUser.uid);
             Utilis.showSnackBar(
               'Server busy. Avatar will auto-update later.',
@@ -289,21 +238,14 @@ class _TimerComponentsState extends State<TimerComponents> {
           }
         }
       } else {
-        // Cannot download now (limit or other) — mark pending and show very small hint
         await AvatarManager.markPendingUpdate(uid: currentUser.uid);
-        setState(() {
-          _hasPendingUpdate = true;
-          _pendingRequiredLevel = status.requiredLevel;
-          _pendingCurrentLevel = status.currentLevel;
-        });
-        // keep quiet here (Avatar page will show reload icon and detailed dialog)
+        setState(() {});
       }
     } catch (e) {
       print('❌ handleStreakUpdate error: $e');
     }
   }
 
-  // BUILD
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
@@ -315,7 +257,7 @@ class _TimerComponentsState extends State<TimerComponents> {
               children: [
                 // App bar row
                 Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
+                  padding: EdgeInsets.only(top: 8.r),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -323,9 +265,10 @@ class _TimerComponentsState extends State<TimerComponents> {
                         builder: (context) {
                           return IconButton(
                             onPressed: () => Scaffold.of(context).openDrawer(),
-                            icon: const HugeIcon(
+                            icon: HugeIcon(
                               icon: HugeIcons.strokeRoundedSidebarLeft,
                               color: Colors.white,
+                              size: 30.sp,
                             ),
                           );
                         },
@@ -337,16 +280,18 @@ class _TimerComponentsState extends State<TimerComponents> {
                             children: [
                               IconButton(
                                 onPressed: _toggleSmallHeatmap,
-                                icon: const HugeIcon(
+                                icon: HugeIcon(
                                   icon: HugeIcons.strokeRoundedCalendar03,
                                   color: Colors.white,
+                                  size: 30.sp,
                                 ),
                               ),
                               IconButton(
                                 onPressed: () => context.push('/profile'),
-                                icon: const HugeIcon(
+                                icon: HugeIcon(
                                   icon: HugeIcons.strokeRoundedUserCircle,
                                   color: Colors.white,
+                                  size: 30.sp,
                                 ),
                               ),
                             ],
@@ -364,12 +309,11 @@ class _TimerComponentsState extends State<TimerComponents> {
                     Row(
                       children: [
                         SizedBox(
-                          height: 300,
-                          width: 200,
+                          height: 260.h,
+                          width: 200.w,
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
-                              // Key contains salt so it rebuilds when the path changes
                               if (!_isLoadingAvatar)
                                 RepaintBoundary(
                                   child: Flutter3DViewer(
@@ -390,7 +334,7 @@ class _TimerComponentsState extends State<TimerComponents> {
                       alignment: Alignment.topCenter,
                       child: ConfettiWidget(
                         confettiController: _confettiController,
-                        blastDirection: 3.14 / 2, // straight down
+                        blastDirection: 3.14 / 2,
                         blastDirectionality: BlastDirectionality.directional,
                         emissionFrequency: 0.03,
                         numberOfParticles: 20,
@@ -422,15 +366,15 @@ class _TimerComponentsState extends State<TimerComponents> {
                   behavior: HitTestBehavior.opaque,
                   onTap: _hideSmallHeatmap,
                   child: Padding(
-                    padding: const EdgeInsets.only(top: 60),
+                    padding: EdgeInsets.only(top: 60.r),
                     child: Align(
                       alignment: Alignment.topRight,
                       child: Material(
                         elevation: 10,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12.r),
                         child: Container(
-                          width: 260,
-                          padding: const EdgeInsets.all(8),
+                          width: 260.w,
+                          padding: EdgeInsets.all(8.r),
                           child: const CompactHeatMap(),
                         ),
                       ),
@@ -445,7 +389,6 @@ class _TimerComponentsState extends State<TimerComponents> {
   }
 }
 
-// ... (Rest of the widgets remain the same: CompactHeatMap, PornFreeTimerCompact, DaysList, _BottomSheetContent)zƒ
 class CompactHeatMap extends StatefulWidget {
   const CompactHeatMap({super.key});
 
@@ -456,14 +399,11 @@ class CompactHeatMap extends StatefulWidget {
 class _CompactHeatMapState extends State<CompactHeatMap> {
   @override
   Widget build(BuildContext context) {
-    // ✅ Use STRING-based data format that the package expects
     final heatmapData = StreaksData.getHeatmapData();
 
-    // Debug print to verify data
     print('🗓️ HeatMap rebuilding with ${heatmapData.length} entries');
 
     return HeatMapCalendar(
-      // ✅ Force complete widget recreation with unique key
       key: ValueKey(
         'heatmap_${DateTime.now().millisecondsSinceEpoch}_${heatmapData.length}',
       ),
@@ -473,18 +413,13 @@ class _CompactHeatMapState extends State<CompactHeatMap> {
       datasets: heatmapData,
       showColorTip: false,
       textColor: Colors.black54,
-      size: 30,
+      size: 25.sp,
       initDate: DateTime.now(),
       colorsets: const {
-        0: Color.fromARGB(
-          255,
-          237,
-          178,
-          181,
-        ), // Relapsed - Light Red for visibility
+        0: Color.fromARGB(255, 237, 178, 181),
         1: Color.fromARGB(255, 206, 202, 202),
         2: Color.fromARGB(255, 206, 202, 202),
-        3: Color.fromARGB(255, 198, 160, 255), //
+        3: Color.fromARGB(255, 198, 160, 255),
       },
     );
   }
@@ -505,53 +440,41 @@ class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
   Duration totalDoneDuration = Duration.zero;
   Duration currentDuration = Duration.zero;
 
-  // ------------------ NEW: keep reference to listener so we can remove it ------------------
   late VoidCallback _refreshListener;
 
   @override
   void initState() {
     super.initState();
 
-    // create listener
     _refreshListener = _onRefreshTriggered;
-    // subscribe to global refresh trigger
     refreshTrigger.addListener(_refreshListener);
 
     _initData();
   }
 
-  // ------------------ NEW: called when refreshTrigger.value changes ------------------
   void _onRefreshTriggered() {
-    // If already disposing or not mounted, ignore
     if (!mounted) return;
 
-    // Cancel existing timer and re-fetch data to update timer values
     _timer?.cancel();
 
-    // set a quick loading state so UI shows activity (optional)
     setState(() => isLoading = true);
 
-    // Re-init — this will fetch data and restart timer
     _initData();
   }
 
   Future<void> _initData() async {
     try {
-      // ✅ Wait for data to fully load
       final Duration d = await StreaksData.fetchData();
 
       if (mounted) {
-        // Update ValueNotifier used across app
         currentTimer.value = d;
 
         currentDuration = d;
         totalDoneDuration = StreaksData.getTotalDoneDaysAsDuration();
 
-        // Mark data loaded
         dataLoadedNotifier.value = true;
         setState(() => isLoading = false);
 
-        // restart timer (ensure only one timer)
         _timer?.cancel();
         _timer = Timer.periodic(const Duration(seconds: 1), (_) {
           if (mounted) {
@@ -559,8 +482,7 @@ class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
               currentDuration = currentDuration + const Duration(seconds: 1);
               totalDoneDuration =
                   totalDoneDuration + const Duration(seconds: 1);
-              currentTimer.value =
-                  currentDuration; // keep global notifier in sync
+              currentTimer.value = currentDuration;
             });
           }
         });
@@ -569,13 +491,12 @@ class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
       print('Error initializing data: $e');
       if (mounted) {
         setState(() => isLoading = false);
-        dataLoadedNotifier.value = true; // prevent blocking heatmap
+        dataLoadedNotifier.value = true;
       }
     }
   }
 
   Future<void> refreshData() async {
-    // wrapper used elsewhere — reuse same behavior
     _timer?.cancel();
     setState(() => isLoading = true);
     await _initData();
@@ -583,7 +504,6 @@ class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
 
   @override
   void dispose() {
-    // remove the listener to avoid leaks/crashes
     try {
       refreshTrigger.removeListener(_refreshListener);
     } catch (_) {}
@@ -597,32 +517,32 @@ class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
     return isLoading
         ? const Center(child: CupertinoActivityIndicator())
         : currentDuration == Duration.zero && totalDoneDuration == Duration.zero
-        ? Center(
-            child: Text(
-              'No data available',
-              style: TextStyle(color: Colors.grey),
-            ),
-          )
-        : Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                height: SizeConfig.screenHeight / 6,
-                width: SizeConfig.screenWidth / 2,
-                child: PageView(
-                  controller: _pageController,
-                  onPageChanged: (index) =>
-                      setState(() => _currentPage = index),
-                  children: [
-                    _buildTimerView("Currently", currentDuration),
-                    _buildTimerView("Total", totalDoneDuration),
-                  ],
+            ? Center(
+                child: Text(
+                  'No data available',
+                  style: TextStyle(color: Colors.grey, fontSize: 14.sp),
                 ),
-              ),
-              const SizedBox(height: 10),
-              SimplePageIndicator(currentPage: _currentPage, pageCount: 2),
-            ],
-          );
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    height: 120.h,
+                    width: 200.w,
+                    child: PageView(
+                      controller: _pageController,
+                      onPageChanged: (index) =>
+                          setState(() => _currentPage = index),
+                      children: [
+                        _buildTimerView("Currently", currentDuration),
+                        _buildTimerView("Total", totalDoneDuration),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 10.h),
+                  SimplePageIndicator(currentPage: _currentPage, pageCount: 2),
+                ],
+              );
   }
 
   Widget _buildTimerView(String title, Duration duration) {
@@ -637,32 +557,32 @@ class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
         Text(
           title,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 14.sp,
             fontWeight: FontWeight.w500,
             color: Colors.grey[400],
           ),
         ),
         Text(
           "You've been porn free for..",
-          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+          style: TextStyle(fontSize: 12.sp, color: Colors.grey[500]),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8.h),
         Text(
           "$days days  $hours hrs",
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
           maxLines: 1,
           softWrap: true,
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6.h),
         Text(
           "$minutes min  $seconds sec",
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w500,
-            color: Colors.grey[400],
-          ),
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[400],
+              ),
         ),
       ],
     );
@@ -683,7 +603,6 @@ class _DaysListState extends State<DaysList> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Rebuild when data changes
     return ValueListenableBuilder<int>(
       valueListenable: refreshTrigger,
       builder: (context, _, __) {
@@ -712,7 +631,7 @@ class _DaysListState extends State<DaysList> {
         }
 
         return SizedBox(
-          height: 70,
+          height: 70.h,
           child: ValueListenableBuilder<int?>(
             valueListenable: selectedDay,
             builder: (context, value, child) {
@@ -743,15 +662,14 @@ class _DaysListState extends State<DaysList> {
                         context: context,
                         isScrollControlled: true,
                         backgroundColor: Colors.grey[900],
-                        shape: const RoundedRectangleBorder(
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(20),
+                            top: Radius.circular(20.r),
                           ),
                         ),
                         builder: (context) => _BottomSheetContent(
                           date: date,
                           onUpdate: () {
-                            // ✅ Trigger global refresh
                             refreshTrigger.value++;
                             widget.onStreakUpdate?.call();
                             if (mounted) setState(() {});
@@ -761,28 +679,28 @@ class _DaysListState extends State<DaysList> {
                       );
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 4,
-                        horizontal: 5,
+                      padding: EdgeInsets.symmetric(
+                        vertical: 4.h,
+                        horizontal: 5.w,
                       ),
-                      margin: const EdgeInsets.all(4),
-                      constraints: BoxConstraints.tight(Size(50, 100)),
+                      margin: EdgeInsets.all(3.r),
+                      constraints: BoxConstraints.tight(Size(50.w, 100.h)),
                       decoration: BoxDecoration(
                         color: currentColor,
                         border: Border.all(
                           color: today != dateOnly
                               ? AppColors.primary.withValues(alpha: 0.5)
                               : const Color.fromARGB(255, 199, 133, 82),
-                          width: today != dateOnly ? 1 : 0.5,
+                          width: today != dateOnly ? 1.w : 0.5.w,
                         ),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(10.r),
                         boxShadow: isFutureDate || today == dateOnly
                             ? [
                                 BoxShadow(
                                   color: AppColors.primary.withValues(
                                     alpha: 0.5,
                                   ),
-                                  blurRadius: 6,
+                                  blurRadius: 6.r,
                                   offset: const Offset(0, 6),
                                 ),
                               ]
@@ -794,18 +712,18 @@ class _DaysListState extends State<DaysList> {
                         children: [
                           Text(
                             dayFormatter.format(date),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                              fontSize: 12.sp,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4.h),
                           Text(
                             dateFormatter.format(date),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white70,
-                              fontSize: 10,
+                              fontSize: 10.sp,
                             ),
                           ),
                         ],
@@ -850,65 +768,64 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
     bool canSkip = StreaksData.canSkipToday();
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20.r),
       decoration: BoxDecoration(
         color: Colors.grey[900],
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40,
-              height: 4,
-              margin: EdgeInsets.only(bottom: 20),
+              width: 40.w,
+              height: 4.h,
+              margin: EdgeInsets.only(bottom: 20.h),
               decoration: BoxDecoration(
                 color: Colors.grey[700],
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(2.r),
               ),
             ),
             Text(
               DateFormat('EEEE, MMM d').format(widget.date),
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
-
-            SizedBox(height: 20),
+            SizedBox(height: 20.h),
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 50.h,
               child: ElevatedButton(
                 onPressed: isRelapsedUpdating ? null : () => _handleRelapse(),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red[700],
                   disabledBackgroundColor: Colors.red[900],
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(10.r),
                   ),
                   shadowColor: Colors.red.withValues(alpha: 0.5),
                   elevation: 6,
                 ),
                 child: isRelapsedUpdating
-                    ? CupertinoActivityIndicator(color: Colors.white)
-                    : const Text(
+                    ? const CupertinoActivityIndicator(color: Colors.white)
+                    : Text(
                         "I Relapsed",
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 15,
+                          fontSize: 15.sp,
                           color: Colors.white,
                         ),
                       ),
               ),
             ),
-            const SizedBox(height: 15),
+            SizedBox(height: 15.h),
             Row(
               children: [
                 _buildSkipButton(remainingSkips, canSkip),
-                const SizedBox(width: 10),
+                SizedBox(width: 10.w),
                 _buildButton(
                   'Done',
                   () => widget.isToday
@@ -920,24 +837,24 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
             ),
             if (remainingSkips > 0)
               Padding(
-                padding: const EdgeInsets.only(top: 12),
+                padding: EdgeInsets.only(top: 12.h),
                 child: Text(
                   '$remainingSkips skip${remainingSkips == 1 ? '' : 's'} left this month',
                   style: TextStyle(
                     color: Colors.grey[400],
-                    fontSize: 12,
+                    fontSize: 12.sp,
                     fontStyle: FontStyle.italic,
                   ),
                 ),
               )
             else
               Padding(
-                padding: const EdgeInsets.only(top: 12),
+                padding: EdgeInsets.only(top: 12.h),
                 child: Text(
                   'No skips remaining this month',
                   style: TextStyle(
                     color: Colors.red[300],
-                    fontSize: 12,
+                    fontSize: 12.sp,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -950,23 +867,26 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
 
   Widget _buildTile(String txt, bool isChecked, Function(bool) onChanged) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.symmetric(vertical: 8.h),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: () => onChanged(!isChecked),
           splashColor: Colors.deepPurple.withValues(alpha: 0.3),
           highlightColor: Colors.deepPurple.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(10.r),
           child: Container(
             decoration: BoxDecoration(
               color: isChecked ? Colors.deepPurple : Colors.grey[850],
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.deepPurpleAccent, width: 0.2),
+              borderRadius: BorderRadius.circular(10.r),
+              border: Border.all(
+                color: Colors.deepPurpleAccent,
+                width: 0.2.w,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.deepPurple.withValues(alpha: 0.2),
-                  blurRadius: isChecked ? 10 : 4,
+                  blurRadius: isChecked ? 10.r : 4.r,
                   offset: const Offset(0, 6),
                 ),
               ],
@@ -975,11 +895,14 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
               trailing: Icon(
                 isChecked ? Icons.check_circle : Icons.circle_outlined,
                 color: isChecked ? Colors.orange : Colors.grey,
-                size: SizeConfig.iconMedium,
+                size: 24.sp,
               ),
-              title: Text(txt, style: TextStyle(color: Colors.white)),
+              title: Text(
+                txt,
+                style: TextStyle(color: Colors.white, fontSize: 14.sp),
+              ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10.r),
               ),
             ),
           ),
@@ -989,12 +912,11 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
   }
 
   Widget _buildSkipButton(int remainingSkips, bool canSkip) {
-    // ✅ FIX: For past dates, allow skip regardless of canSkipToday()
     bool canSkipThisDate = widget.isToday ? canSkip : true;
 
     return Expanded(
       child: SizedBox(
-        height: 50,
+        height: 50.h,
         child: ElevatedButton(
           onPressed: (isUpdatingSkip || !canSkipThisDate)
               ? null
@@ -1002,25 +924,24 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
                     ? _handleDoneAndSkip(StreaksData.SKIPPED)
                     : _updateForPastDate(StreaksData.SKIPPED),
           style: ElevatedButton.styleFrom(
-            backgroundColor: canSkipThisDate
-                ? Colors.grey[800]
-                : Colors.grey[900],
+            backgroundColor:
+                canSkipThisDate ? Colors.grey[800] : Colors.grey[900],
             disabledBackgroundColor: Colors.grey[850],
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(10.r),
             ),
           ),
           child: isUpdatingSkip
               ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CupertinoActivityIndicator(color: Colors.white),
+                  width: 20.w,
+                  height: 20.h,
+                  child: const CupertinoActivityIndicator(color: Colors.white),
                 )
               : Text(
                   widget.isToday ? 'Skip Today' : 'Skip',
                   style: TextStyle(
                     color: canSkipThisDate ? Colors.white : Colors.grey[600],
-                    fontSize: 14,
+                    fontSize: 14.sp,
                   ),
                 ),
         ),
@@ -1031,34 +952,34 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
   Widget _buildButton(String txt, Function fun, bool isUpdating, [Color? clr]) {
     return Expanded(
       child: SizedBox(
-        height: 50,
+        height: 50.h,
         child: ElevatedButton(
           onPressed: isUpdating ? null : () => fun(),
           style: ElevatedButton.styleFrom(
             backgroundColor: clr ?? Colors.deepPurple,
             disabledBackgroundColor: Colors.deepPurple[800],
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(10.r),
             ),
           ),
           child: isUpdating
               ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CupertinoActivityIndicator(color: Colors.white),
+                  width: 20.w,
+                  height: 20.h,
+                  child: const CupertinoActivityIndicator(color: Colors.white),
                 )
-              : Text(txt, style: TextStyle(color: Colors.white, fontSize: 14)),
+              : Text(
+                  txt,
+                  style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                ),
         ),
       ),
     );
   }
 
-  // ✅ FIX: This method now works for ALL statuses (Done, Skip, Relapse)
   Future<void> _updateForPastDate(int status) async {
-    // Prevent multiple simultaneous updates
     if (isUpdatingDone || isUpdatingSkip || isRelapsedUpdating) return;
 
-    // Set appropriate loading state based on status
     setState(() {
       if (status == StreaksData.BOTH_TILES) {
         isUpdatingDone = true;
@@ -1076,26 +997,21 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
         return;
       }
 
-      // Update the requested date (past or today) and await completion
       await StreaksData.updateStatusForDate(widget.date, status);
 
-      // Re-fetch authoritative data (recalculates everything)
       final Duration d = await StreaksData.fetchData();
 
-      // Update the global timer notifier so timer widgets update
       currentTimer.value = d;
 
-      // Notify global UI pieces to rebuild (heatmap, days list, etc.)
       refreshTrigger.value++;
 
       String statusText = status == StreaksData.BOTH_TILES
           ? 'Done'
           : status == StreaksData.SKIPPED
-          ? 'Skipped'
-          : 'Relapsed';
+              ? 'Skipped'
+              : 'Relapsed';
       Utilis.showToast('Day marked as $statusText');
 
-      // Close sheet and inform parent
       if (mounted) {
         Navigator.of(context).pop();
         widget.onUpdate?.call();
@@ -1113,17 +1029,14 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
     }
   }
 
-  // ✅ FIX: Now properly handles past dates too
   Future<void> _handleRelapse() async {
     if (isRelapsedUpdating) return;
 
-    // For past dates, use the common update method
     if (!widget.isToday) {
       await _updateForPastDate(StreaksData.RELAPSED);
       return;
     }
 
-    // For today, keep the original logic
     setState(() => isRelapsedUpdating = true);
 
     try {
@@ -1133,14 +1046,11 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
         return;
       }
 
-      // This updates today's entry and persists
       await StreaksData.updateRelapsed();
 
-      // Fetch fresh authoritative data
       final Duration d = await StreaksData.fetchData();
       currentTimer.value = d;
 
-      // Notify UI
       refreshTrigger.value++;
 
       Utilis.showToast('Streak reset. Don\'t give up!');
@@ -1184,14 +1094,11 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
         return;
       }
 
-      // Update today's entry (this method is authoritative for today)
       await StreaksData.updateDoneAndSkip(status);
 
-      // Fetch fresh data and update timer
       final Duration d = await StreaksData.fetchData();
       currentTimer.value = d;
 
-      // Notify UI
       refreshTrigger.value++;
 
       String message = isSkip

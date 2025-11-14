@@ -374,27 +374,6 @@ class _LevelGuideTipsWidgetState extends State<LevelGuideTipsWidget> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.tips_and_updates,
-                    color: Colors.amber,
-                    size: 28,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Quick Daily Tips',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
               Text(
                 'Days ${_guide!.dayRange}',
                 style: TextStyle(fontSize: 13, color: Colors.grey[500]),

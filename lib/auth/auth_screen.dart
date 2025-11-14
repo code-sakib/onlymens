@@ -1,19 +1,11 @@
-// Simplified auth_screen.dart - Production ready
-
-import 'package:email_validator/email_validator.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
+// auth_screen.dart - FIXED VERSION
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onlymens/auth/auth_service.dart';
 import 'package:onlymens/core/apptheme.dart';
-import 'package:onlymens/core/globals.dart';
 import 'package:onlymens/utilis/size_config.dart';
 import 'package:onlymens/utilis/snackbar.dart';
-
-enum AuthState { signIn, signUp }
-
-AuthState _authState = AuthState.signIn;
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -23,566 +15,181 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  void toggleState() => setState(() {});
+  bool _loadingApple = false;
+  bool _loadingGoogle = false;
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: SizeConfig.screenHPadding,
-            vertical: SizeConfig.screenVPadding,
-          ),
-          child: Builder(
-            builder: (context) {
-              switch (_authState) {
-                case AuthState.signIn:
-                  return SignIn(toggleState: toggleState);
-                case AuthState.signUp:
-                  return SignUp(toggleState: toggleState);
-              }
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Sign In Screen
-class SignIn extends StatefulWidget {
-  final VoidCallback toggleState;
-
-  const SignIn({super.key, required this.toggleState});
-  @override
-  _SignInState createState() => _SignInState();
-}
-
-class _SignInState extends State<SignIn> {
-  final _signInFormKey = GlobalKey<FormState>();
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
-  bool _isLoading = false;
-
-  @override
-  void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleSignIn() async {
-    if (!_signInFormKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      await AuthService.signInWithEmail(
-        emailController.text,
-        passwordController.text,
-      );  
-      Utilis.showSnackBar('Signed in successfully',);
-    } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        Utilis.showSnackBar(e.message ?? 'Sign in failed', isErr: true);
+  Future<void> _handleSuccessfulLogin(String method) async {
+    Utilis.showSnackBar("Signed in with $method");
+    
+    // Check if user has active subscription
+    final sub = await AuthService.fetchSubscriptionForCurrentUser();
+    if (sub != null) {
+      final expiresMs = sub['expiresDateMs'] ?? 0;
+      final isActive = expiresMs > DateTime.now().millisecondsSinceEpoch;
+      
+      if (isActive && mounted) {
+        print('✅ User has active subscription, navigating to /streaks');
+        context.go('/streaks');
+        return;
       }
-    } catch (e) {
-      if (mounted) {
-        Utilis.showSnackBar('An error occurred', isErr: true);
-        print(e.toString());
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    }
+    
+    // No active subscription, go to pricing
+    if (mounted) {
+      print('⚠️ No active subscription, navigating to /pricing');
+      context.go('/pricing');
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Form(
-      key: _signInFormKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Welcome Back', style: Theme.of(context).textTheme.titleLarge),
-          Text(
-            'Continue on your journey to your best self',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          SizedBox(height: SizeConfig.defaultHeight2),
-
-          AuthTextField(
-            label: 'Email *',
-            hint: 'Enter your email',
-            icon: Icons.email_outlined,
-            tFController: emailController,
-            validator: (email) =>
-                email != null && EmailValidator.validate(email)
-                ? null
-                : "Enter a valid email",
-          ),
-
-          AuthTextField(
-            label: 'Password *',
-            hint: 'Enter your password',
-            icon: Icons.lock_outline,
-            obscureFunc: true,
-            tFController: passwordController,
-            validator: (password) => password != null && password.length >= 6
-                ? null
-                : "Password must be at least 6 characters",
-          ),
-
-          SizedBox(height: SizeConfig.defaultHeight1),
-
-          authButton(
-            text: 'Sign In',
-            onPressed: _isLoading ? () {} : _handleSignIn,
-            isPrimary: true,
-            isLoading: _isLoading,
-          ),
-
-          SizedBox(height: SizeConfig.defaultHeight2),
-
-          authButton(
-            text: 'Continue as Guest',
-            isPrimary: false,
-            onPressed: () async {
-              isGuest = true;
-              await auth.signOut();
-              if (mounted) context.go('/streaks');
-            },
-          ),
-
-          SocialButtonsSec(),
-          SizedBox(height: SizeConfig.defaultHeight2),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                "Don't have an account? ",
-                style: TextStyle(fontSize: 16, color: Colors.grey[400]),
-              ),
-              GestureDetector(
-                onTap: () {
-                  _authState = AuthState.signUp;
-                  widget.toggleState();
-                },
-                child: const Text(
-                  'Sign Up',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.deepPurpleAccent,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          // Center(
-          //   child: TextButton(
-          //     onPressed: () => context.go('/onboarding'),
-          //     child: Text(
-          //       'Go to Onboarding',
-          //       style: TextStyle(color: Colors.deepPurple),
-          //     ),
-          //   ),
-          // ),
-        ],
-      ),
-    );
-  }
-}
-
-// Sign Up Screen
-class SignUp extends StatefulWidget {
-  final VoidCallback toggleState;
-
-  const SignUp({super.key, required this.toggleState});
-  @override
-  _SignUpState createState() => _SignUpState();
-}
-
-class _SignUpState extends State<SignUp> {
-  final _signUpFormKey = GlobalKey<FormState>();
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
-  bool _isLoading = false;
-
-  @override
-  void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleSignUp() async {
-    if (!_signUpFormKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
+  Future<void> _appleLogin() async {
+    setState(() => _loadingApple = true);
     try {
-      await AuthService.signUpWithEmail(
-        emailController.text,
-        passwordController.text,
-      );
-
-      // Mark onboarding as done (skip onboarding for now)
-      await prefs.setBool('onboarding_done', true);
-
-      if (mounted) {
-        // Router will automatically redirect to /streaks
-        // No need to manually navigate - just let the auth state change trigger it
-        Utilis.showSnackBar('Account created successfully!', isErr: false);
-      }
-    } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        Utilis.showSnackBar(e.message ?? 'Sign up failed', isErr: true);
-      }
+      await AuthService.signInWithApple();
+      await _handleSuccessfulLogin("Apple");
     } catch (e) {
-      if (mounted) {
-        Utilis.showSnackBar('An error occurred', isErr: true);
-        print(e.toString());
-      }
+      Utilis.showSnackBar("Apple Sign-In failed", isErr: true);
+      print("Apple error: $e");
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _loadingApple = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Form(
-      key: _signUpFormKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Create Account', style: Theme.of(context).textTheme.titleLarge),
-          Text(
-            'Join OnlyMens and unlock the best within you',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-
-          AuthTextField(
-            label: 'Email *',
-            hint: 'Enter your email',
-            icon: Icons.email_outlined,
-            tFController: emailController,
-            validator: (email) =>
-                email != null && EmailValidator.validate(email)
-                ? null
-                : "Enter a valid email",
-          ),
-
-          AuthTextField(
-            label: 'Password *',
-            hint: 'Enter your password',
-            icon: Icons.lock_outline,
-            tFController: passwordController,
-            obscureFunc: true,
-            validator: (password) => password != null && password.length >= 6
-                ? null
-                : "Password must be at least 6 characters",
-          ),
-
-          SizedBox(height: SizeConfig.defaultHeight2),
-
-          authButton(
-            text: 'Sign Up',
-            onPressed: _isLoading ? () {} : _handleSignUp,
-            isLoading: _isLoading,
-          ),
-
-          SizedBox(height: SizeConfig.defaultHeight2),
-
-          authButton(
-            text: 'Continue as Guest',
-            isPrimary: false,
-            onPressed: () async {
-              isGuest = true;
-              await auth.signOut();
-              if (mounted) context.go('/streaks');
-            },
-          ),
-
-          SocialButtonsSec(isNewUser: true),
-
-          SizedBox(height: SizeConfig.defaultHeight2),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                "Already have an account? ",
-                style: TextStyle(fontSize: 16, color: Colors.grey[400]),
-              ),
-              GestureDetector(
-                onTap: () {
-                  _authState = AuthState.signIn;
-                  widget.toggleState();
-                },
-                child: const Text(
-                  'Sign In',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.deepPurpleAccent,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Social Buttons Section
-class SocialButtonsSec extends StatelessWidget {
-  const SocialButtonsSec({this.isNewUser = false, super.key});
-
-  final bool isNewUser;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: EdgeInsets.symmetric(vertical: SizeConfig.screenVPadding),
-          child: Row(
-            children: [
-              SizedBox(width: SizeConfig.screenWidth / 4),
-              divider(),
-              const Text('    or    '),
-              divider(),
-            ],
-          ),
-        ),
-        _GoogleSignInButton(isNewUser: isNewUser),
-      ],
-    );
-  }
-
-  Widget divider() {
-    return SizedBox(
-      width: SizeConfig.screenWidth / 6,
-      child: const Divider(thickness: 1),
-    );
-  }
-}
-
-class _GoogleSignInButton extends StatefulWidget {
-  final bool isNewUser;
-
-  const _GoogleSignInButton({required this.isNewUser});
-
-  @override
-  State<_GoogleSignInButton> createState() => _GoogleSignInButtonState();
-}
-
-class _GoogleSignInButtonState extends State<_GoogleSignInButton> {
-  bool _isLoading = false;
-
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => _isLoading = true);
-
+  Future<void> _googleLogin() async {
+    setState(() => _loadingGoogle = true);
     try {
       await AuthService.signInWithGoogle();
-    } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        Utilis.showSnackBar(e.message ?? 'Google sign in failed', isErr: true);
-      }
+      await _handleSuccessfulLogin("Google");
     } catch (e) {
-      if (mounted) {
-        Utilis.showSnackBar('Sign in cancelled', isErr: true);
-      }
+      Utilis.showSnackBar("Google Sign-In failed", isErr: true);
+      print("Google error: $e");
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _loadingGoogle = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: SizeConfig.blockHeight * 5,
-      width: SizeConfig.screenHeight / 3,
-      child: OutlinedButton(
-        onPressed: _isLoading ? null : _handleGoogleSignIn,
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color.fromARGB(255, 85, 85, 85)),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    SizeConfig.init(context);
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: 22,
+            vertical: SizeConfig.screenVPadding,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: SizeConfig.screenHeight * 0.1),
+
+              // TITLE
+              Text(
+                "Welcome",
+                style: const TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              Text(
+                "Sign in to continue your journey.",
+                style: TextStyle(fontSize: 16, color: AppColors.textMuted),
+              ),
+
+              const SizedBox(height: 45),
+
+              // APPLE LOGIN BUTTON
+              _SignInButton(
+                text: "Continue with Apple ",
+                assetIcon: "assets/logos/apple_logo.png",
+                isLoading: _loadingApple,
+                onTap: _loadingApple ? null : _appleLogin,
+              ),
+
+              const SizedBox(height: 18),
+
+              // GOOGLE LOGIN BUTTON
+              _SignInButton(
+                text: "Continue with Google",
+                assetIcon: "assets/logos/google_logo.png",
+                isLoading: _loadingGoogle,
+                onTap: _loadingGoogle ? null : _googleLogin,
+              ),
+
+              const Spacer(),
+
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 22.0),
+                  child: Text(
+                    "By continuing, you agree to our Terms & Privacy Policy",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        child: _isLoading
+      ),
+    );
+  }
+}
+
+class _SignInButton extends StatelessWidget {
+  final String text;
+  final IconData? icon;
+  final String? assetIcon;
+  final VoidCallback? onTap;
+  final bool isLoading;
+
+  const _SignInButton({
+    required this.text,
+    this.icon,
+    this.assetIcon,
+    required this.onTap,
+    required this.isLoading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 56,
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Colors.white30, width: 1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: isLoading
             ? const CupertinoActivityIndicator(color: Colors.white)
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Image.asset(
-                      'assets/logos/google_logo.png',
-                      height: 24,
+                  if (icon != null) Icon(icon, size: 22, color: Colors.white),
+                  if (assetIcon != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Image.asset(assetIcon!, height: 22),
                     ),
-                  ),
+                  const SizedBox(width: 8),
                   Text(
-                    'Continue with Google',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[300],
+                    text,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
-      ),
-    );
-  }
-}
-
-// Auth Button with Loading State
-Widget authButton({
-  required String text,
-  required VoidCallback onPressed,
-  bool isPrimary = true,
-  bool isLoading = false,
-}) {
-  return SizedBox(
-    width: double.infinity,
-    height: 56,
-    child: isPrimary
-        ? ElevatedButton(
-            onPressed: onPressed,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            child: isLoading
-                ? const CupertinoActivityIndicator(
-                    color: Colors.white,
-                    radius: 12,
-                  )
-                : Text(
-                    text,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-          )
-        : OutlinedButton(
-            onPressed: onPressed,
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color.fromARGB(255, 85, 85, 85)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[300],
-              ),
-            ),
-          ),
-  );
-}
-
-// Auth Text Field
-class AuthTextField extends StatefulWidget {
-  final String label;
-  final String hint;
-  final IconData icon;
-  final bool obscureFunc;
-  final TextEditingController? tFController;
-  final String? Function(String?)? validator;
-
-  const AuthTextField({
-    super.key,
-    required this.label,
-    required this.hint,
-    required this.icon,
-    this.obscureFunc = false,
-    this.tFController,
-    this.validator,
-  });
-
-  @override
-  State<AuthTextField> createState() => _AuthTextFieldState();
-}
-
-class _AuthTextFieldState extends State<AuthTextField> {
-  bool _obscureText = true;
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(top: SizeConfig.paddingSmall),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(widget.label),
-          SizedBox(height: SizeConfig.blockHeight),
-          Form(
-            key: _formKey,
-            child: TextFormField(
-              controller: widget.tFController,
-              obscureText: widget.obscureFunc ? _obscureText : false,
-              keyboardType: widget.label.toLowerCase().contains('phone')
-                  ? TextInputType.phone
-                  : TextInputType.emailAddress,
-              onChanged: (_) => _formKey.currentState?.validate(),
-              validator: widget.validator,
-              decoration: InputDecoration(
-                hintText: widget.hint,
-                prefixIcon: Icon(widget.icon, color: Colors.grey),
-                suffixIcon: widget.obscureFunc
-                    ? IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _obscureText = !_obscureText;
-                          });
-                        },
-                        icon: _obscureText
-                            ? const Icon(
-                                Icons.visibility,
-                                color: AppColors.iconMuted,
-                              )
-                            : const Icon(
-                                Icons.visibility_off,
-                                color: AppColors.iconMuted,
-                              ),
-                      )
-                    : null,
-                filled: true,
-                fillColor: AppColors.surface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: AppColors.primary,
-                    width: 1,
-                  ),
-                ),
-                contentPadding: EdgeInsets.all(SizeConfig.paddingSmall),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

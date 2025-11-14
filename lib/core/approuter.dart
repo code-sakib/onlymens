@@ -1,242 +1,157 @@
-// COMPLETE FIXED approutes.dart
-
+// approutes.dart - FIXED VERSION
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lottie/lottie.dart';
-import 'package:onlymens/features/affirmations/affirmations_pg.dart';
-import 'package:onlymens/auth/auth_screen.dart';
+import 'package:onlymens/auth/auth_service.dart';
 import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/features/ai_model/game_mode.dart';
-import 'package:onlymens/features/ai_model/presentation/ai_mainpage.dart';
-import 'package:onlymens/features/betterwbro/chat/messages_page.dart';
-import 'package:onlymens/features/betterwbro/presentation/bwb_page.dart';
 import 'package:onlymens/features/onboarding_pgs/onboarding_pgs.dart';
+import 'package:onlymens/auth/auth_screen.dart';
 import 'package:onlymens/features/onboarding_pgs/pricing_pg.dart';
 import 'package:onlymens/features/streaks_page/presentation/streaks_page.dart';
-import 'package:onlymens/guides/blogs.dart';
-import 'package:onlymens/features/panic_mode/panic_mode_pg.dart';
-import 'package:onlymens/profile_page.dart';
-import 'package:onlymens/sound_pg.dart';
-import 'package:onlymens/userpost_pg.dart';
+import 'package:onlymens/features/ai_model/presentation/ai_mainpage.dart';
 import 'package:onlymens/utilis/bottom_appbar.dart';
-import 'package:onlymens/utilis/size_config.dart';
+import 'package:onlymens/features/betterwbro/presentation/bwb_page.dart';
+import 'package:onlymens/features/betterwbro/chat/messages_page.dart';
 
 final approutes = GoRouter(
   initialLocation: '/',
-  refreshListenable: GoRouterRefreshStream(auth.authStateChanges()),
-  redirect: (context, state) {
-    final isLoggedIn = auth.currentUser != null;
-    final isAuthRoute = state.matchedLocation == '/';
-    final isOnboardingRoute = state.matchedLocation == '/onboarding';
+  refreshListenable: GoRouterRefreshStream(AuthService.auth.authStateChanges()),
+  redirect: (context, state) async {
+    final loggedIn = AuthService.currentUser != null;
+    final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+    final loc = state.matchedLocation;
 
-    // Check if onboarding is completed
-    final bool onboardingDone = prefs.getBool('onboarding_done') ?? false;
+    print('🔄 Redirect: loc=$loc, loggedIn=$loggedIn, onboardingDone=$onboardingDone');
 
-    print(
-      '🔄 Redirect check: logged=$isLoggedIn, guest=$isGuest, route=${state.matchedLocation}, onboarding=$onboardingDone',
-    );
-
-    // GUEST MODE - Allow guest to access all routes except auth
-    if (isGuest) {
-      if (isAuthRoute) {
-        print('✅ Guest redirected to /streaks');
-        return '/streaks';
-      }
-      print('✅ Guest allowed to ${state.matchedLocation}');
-      return null; // Allow access to current route
-    }
-
+    // ==========================================
+    // STEP 1: First time users → Onboarding flow
+    // ==========================================
     if (!onboardingDone) {
+      // Allow: /onboarding, /pricing, /auth
+      if (loc == '/onboarding' || loc == '/pricing' || loc == '/') {
+        return '/onboarding'; // Stay on current route
+      }
+      // Redirect to onboarding for any other route
       return '/onboarding';
     }
 
-    // NOT LOGGED IN - Redirect to auth page
-    if (!isLoggedIn) {
-      if (!isAuthRoute) {
-        print('❌ Not logged in, redirecting to /');
-        return '/profile';
+    // ==========================================
+    // STEP 2: Onboarding completed, check subscription
+    // ==========================================
+    
+    // Check if user has valid subscription
+    Map<String, dynamic>? sub;
+    bool hasActiveSubscription = false;
+    
+    if (loggedIn) {
+      sub = await AuthService.fetchSubscriptionForCurrentUser();
+      if (sub != null) {
+        final expiresMs = sub['expiresDateMs'] ?? 0;
+        hasActiveSubscription = expiresMs > DateTime.now().millisecondsSinceEpoch;
+        print('📱 Subscription: active=$hasActiveSubscription, expiresMs=$expiresMs');
       }
-      print('✅ Show auth screen');
-      return null; // Stay on auth page
     }
 
-    // LOGGED IN USER
-    if (isLoggedIn) {
-      // If on auth page, decide where to go
-      if (isAuthRoute) {
-        // Check if onboarding is needed
-        if (!onboardingDone || obSelectedValues.isEmpty) {
-          print('✅ New user, redirecting to /onboarding');
-          return '/onboarding';
-        }
-        // Onboarding done or has data, go to streaks
-        print('✅ Logged in user redirected to /streaks');
-        return '/pricing';
-      }
+    // ==========================================
+    // STEP 3: Route logic based on auth + subscription
+    // ==========================================
 
-      // If trying to access onboarding but already completed
-      if (isOnboardingRoute && onboardingDone) {
-        print('✅ Onboarding done, redirecting to /streaks');
-        return '/pricing';
+    // --- Not logged in ---
+    if (!loggedIn) {
+      // Allow public routes
+      if (loc == '/' || loc == '/pricing') {
+        return null;
       }
-
-      print('✅ Logged in user allowed to ${state.matchedLocation}');
-      return null; // Allow access to requested route
+      // Redirect protected routes to auth
+      return '/';
     }
 
-    // Default: no redirect
+    // --- Logged in but NO active subscription ---
+    if (!hasActiveSubscription) {
+      // Allow: pricing page (to purchase), auth page
+      if (loc == '/pricing' || loc == '/') {
+        return null;
+      }
+      // Redirect to pricing for protected routes
+      return '/pricing';
+    }
+
+    // --- Logged in WITH active subscription ---
+    if (hasActiveSubscription) {
+      // If on auth or pricing, redirect to main app
+      if (loc == '/' || loc == '/pricing') {
+        return '/streaks';
+      }
+      // Allow access to all protected routes
+      return null;
+    }
+
     return null;
   },
   routes: [
-    // Auth route with loading wrapper
+    // Public routes
     GoRoute(
       path: '/',
-      builder: (context, state) => const AuthScreenWithLoading(),
+      builder: (_, __) => const AuthScreen(),
     ),
-
-    // Onboarding - standalone without bottom bar
     GoRoute(
       path: '/onboarding',
-      builder: (context, state) => const OnboardingScreen(),
+      builder: (_, __) => const OnboardingScreen(),
     ),
-
-    GoRoute(path: '/aimodel', builder: (context, state) => const AiMainpage()),
-
-    // Additional routes that also get bottom bar
-    GoRoute(path: '/profile', builder: (context, state) => ProfilePage()),
     GoRoute(
-      path: '/affirmations',
-      builder: (context, state) => const AffirmationsPage(),
-    ),
-    GoRoute(path: '/panicpg', builder: (context, state) => const PanicModePg()),
-    GoRoute(path: '/game1', builder: (context, state) => const PongGame()),
-    GoRoute(path: '/game2', builder: (context, state) => const QuickDrawGame()),
-    GoRoute(path: '/bwb', builder: (context, state) => BWBPage()),
-    GoRoute(path: '/messages', builder: (context, state) => MessagesPage()),
-    GoRoute(path: '/meditation', builder: (context, state) => RainScreen()),
-    GoRoute(path: '/userpostpg', builder: (context, state) => UserPostsPage()),
-    GoRoute(path: '/pricing', builder: (context, state) => PricingPage()),
-    GoRoute(path: '/fj', builder: (context, state) => Container()),
-    GoRoute(
-      path: '/blogdetail',
-      builder: (context, state) {
-        final data = state.extra as Map<String, dynamic>? ?? {};
-        return BlogDetailPage(blogData: data);
-      },
+      path: '/pricing',
+      builder: (_, __) => const PricingPage(),
     ),
 
-    // Shell route wraps all authenticated routes with bottom bar
+    // Protected routes (require subscription)
+    GoRoute(
+      path: '/aimodel',
+      builder: (_, __) => const AiMainpage(),
+    ),
+    GoRoute(
+      path: '/bwb',
+      builder: (_, __) => BWBPage(),
+    ),
+    GoRoute(
+      path: '/messages',
+      builder: (_, __) => MessagesPage(),
+    ),
+
+    // Shell route with bottom nav
     ShellRoute(
       builder: (context, state, child) {
-        SizeConfig.init(context);
-
         return Scaffold(
           body: child,
-          floatingActionButton: FloatingActionButton(
-            onPressed: () => context.go('/streaks'),
-            backgroundColor: Colors.transparent,
-            foregroundColor: Colors.transparent,
-            splashColor: Colors.transparent,
-            elevation: 0, // 🧨 Removes default shadow
-            highlightElevation: 0,
-            focusElevation: 0,
-            hoverElevation: 0,
-            shape: const CircleBorder(), // Prevents unwanted blur edges
-            materialTapTargetSize:
-                MaterialTapTargetSize.shrinkWrap, // keeps it tight
-            child: Lottie.asset(
-              'assets/lottie/fire.json',
-              width: SizeConfig.fireIconSize,
-            ),
-          ),
-
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerDocked,
           bottomNavigationBar: bottomAppBar(
             currentRoute: state.matchedLocation,
-            onChatPressed: () => context.go('/bwb'),
-            onAiPressed: () => context.go('/aimodel'),
             onHomePressed: () => context.go('/streaks'),
+            onAiPressed: () => context.go('/aimodel'),
+            onChatPressed: () => context.go('/bwb'),
           ),
         );
       },
       routes: [
-        // Main 3 routes with bottom bar
         GoRoute(
           path: '/streaks',
-          builder: (context, state) => const StreaksPage(),
+          builder: (_, __) => const StreaksPage(),
         ),
       ],
     ),
   ],
 );
 
-// Helper class to make GoRouter listen to auth state changes
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
-    notifyListeners();
-    _subscription = stream.asBroadcastStream().listen(
-      (dynamic _) => notifyListeners(),
-    );
+    _subscription = stream.listen((_) {
+      print('🔔 Auth state changed, refreshing routes');
+      notifyListeners();
+    });
   }
-
-  late final StreamSubscription<dynamic> _subscription;
-
+  late final StreamSubscription _subscription;
+  
   @override
   void dispose() {
     _subscription.cancel();
     super.dispose();
-  }
-}
-
-// Auth Screen Wrapper with Loading State
-class AuthScreenWithLoading extends StatelessWidget {
-  const AuthScreenWithLoading({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder(
-      stream: auth.authStateChanges(),
-      builder: (context, snapshot) {
-        // Show loading while checking auth state
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const AuthLoadingScreen();
-        }
-
-        // Show auth screen when state is determined
-        return const AuthScreen();
-      },
-    );
-  }
-}
-
-// Loading Screen shown during authentication
-class AuthLoadingScreen extends StatelessWidget {
-  const AuthLoadingScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CupertinoActivityIndicator(
-              radius: 20,
-              color: Colors.deepPurpleAccent,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Loading...',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge?.copyWith(color: Colors.grey[400]),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

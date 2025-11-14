@@ -7,27 +7,17 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:lottie/lottie.dart';
 import 'package:onlymens/features/ai_model/convo_history.dart';
 import 'package:onlymens/features/ai_model/model/model.dart';
-import 'package:onlymens/utilis/size_config.dart';
 import 'package:onlymens/utilis/snackbar.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 final List<ChannelItem> _channels = [
   ChannelItem(
     name: 'Chat Mode',
-    icon: HugeIcon(icon: HugeIcons.strokeRoundedAiMagic,size: 20,),
+    icon: HugeIcon(icon: HugeIcons.strokeRoundedAiMagic, size: 20.r),
     tobuild: ChatScreen(),
   ),
-  // ChannelItem(
-  //   name: 'Game Mode',
-  //   icon: HugeIcon(icon: HugeIcons.strokeRoundedAiGame),
-  //   tobuild: GameModeWidget(),
-  // ),
-  // ChannelItem(
-  //   name: 'Hard Mode',
-  //   icon: HugeIcon(icon: HugeIcons.strokeRoundedAiChat01),
-  //   tobuild: HardModeWidget(),
-  // ),
   ChannelItem(
     name: 'Voice Mode',
     icon: HugeIcon(icon: HugeIcons.strokeRoundedAiAudio),
@@ -45,7 +35,6 @@ class AiMainpage extends StatefulWidget {
 }
 
 class _AiMainpageState extends State<AiMainpage> {
-  // ✅ Add a key to force rebuild ChatScreen when session changes
   String? _activeChatSessionId;
 
   @override
@@ -65,12 +54,10 @@ class _AiMainpageState extends State<AiMainpage> {
                   ),
                 ),
               ),
-
               Text(
                 _channels[currentMode].name,
                 style: Theme.of(context).textTheme.labelMedium,
               ),
-
               IconButton(
                 onPressed: () => context.go('/streaks'),
                 icon: HugeIcon(
@@ -80,7 +67,6 @@ class _AiMainpageState extends State<AiMainpage> {
               ),
             ],
           ),
-          // ✅ Use key to rebuild ChatScreen when sessionId changes
           currentMode == 0
               ? ChatScreen(
                   key: ValueKey(_activeChatSessionId ?? 'new_chat'),
@@ -90,14 +76,13 @@ class _AiMainpageState extends State<AiMainpage> {
         ],
       ),
       drawer: Drawer(
-        width: SizeConfig.screenWidth / 2,
+        width: 0.5.sw,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         child: SideBar(
           changeMode: (int mode, String? sessionId) {
             setState(() {
               currentMode = mode;
               if (mode == 0) {
-                // ✅ Update session ID for chat mode
                 _activeChatSessionId = sessionId;
               }
             });
@@ -127,7 +112,6 @@ class _SideBarState extends State<SideBar> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // ✅ Start new chat button
               IconButton(
                 tooltip: 'New Session',
                 onPressed: () {
@@ -137,10 +121,9 @@ class _SideBarState extends State<SideBar> {
                 icon: HugeIcon(
                   icon: HugeIcons.strokeRoundedBubbleChatAdd,
                   color: Colors.white,
-                  size: 20,
+                  size: 20.r,
                 ),
               ),
-
               IconButton(
                 tooltip: 'Report Issue',
                 onPressed: () {
@@ -150,20 +133,17 @@ class _SideBarState extends State<SideBar> {
                 icon: Icon(
                   CupertinoIcons.exclamationmark_triangle,
                   color: Colors.white70,
-                  size: 18,
+                  size: 18.r,
                 ),
               ),
             ],
           ),
-
-          // Mode Selection List
           SizedBox(
-            height: SizeConfig.screenHeight / 8,
+            height: 0.125.sh,
             child: ListView.builder(
               itemBuilder: (context, i) {
                 return ListTile(
                   onTap: () {
-                    // ✅ When switching modes, reset to new chat
                     widget.changeMode(i, null);
                     Scaffold.of(context).closeDrawer();
                   },
@@ -180,15 +160,12 @@ class _SideBarState extends State<SideBar> {
               itemCount: _channels.length,
             ),
           ),
-
           divider(),
-          // Conversation History
           SizedBox(
-            height: 500,
+            height: 500.h,
             child: ConversationHistoryWidget(
               onConversationTap: (sessionId) {
-                print('Opening conversation: $sessionId'); // Debug
-                // ✅ Switch to chat mode with specific sessionId
+                print('Opening conversation: $sessionId');
                 widget.changeMode(0, sessionId);
                 Scaffold.of(context).closeDrawer();
               },
@@ -208,7 +185,7 @@ class _SideBarState extends State<SideBar> {
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: Text(
           'Report Issue',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -219,26 +196,26 @@ class _SideBarState extends State<SideBar> {
               maxLines: 2,
               decoration: InputDecoration(
                 hintText: 'Your Report Message..',
-                hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+                hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14.sp),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                   borderSide: BorderSide(color: Colors.grey[700]!),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                   borderSide: BorderSide(color: Colors.deepPurple, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.grey[900],
-                contentPadding: EdgeInsets.all(12),
+                contentPadding: EdgeInsets.all(12.r),
               ),
-              style: TextStyle(fontSize: 14),
+              style: TextStyle(fontSize: 14.sp),
             ),
-            SizedBox(height: 12),
+            SizedBox(height: 12.h),
             Text(
               "Sorry for the inconvenience! We'll fix this soon. ThankYou!",
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 11.sp,
                 color: const Color(0xFFEF9A9A),
                 height: 1.4,
               ),
@@ -255,9 +232,9 @@ class _SideBarState extends State<SideBar> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Color(0xFF7F1019).withValues(alpha: 0.5),
               foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8.r),
               ),
             ),
             onPressed: () async {
@@ -284,7 +261,7 @@ class _SideBarState extends State<SideBar> {
 
 divider() {
   return Padding(
-    padding: const EdgeInsets.all(12),
+    padding: EdgeInsets.all(12.r),
     child: Divider(thickness: 1, color: Colors.grey),
   );
 }
@@ -304,10 +281,6 @@ class ChannelItem {
     this.pgText = '',
   });
 }
-
-// ============================================
-// UPDATED CHAT SCREEN - OPTIMIZED VERSION
-// ============================================
 
 class ChatScreen extends StatefulWidget {
   final String? sessionId;
@@ -385,14 +358,10 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // ============================================
-  // ✅ UPDATED: Send message with context
-  // ============================================
   Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
 
-    // Add user message to UI immediately
     setState(() {
       _messages.add(MessageModel(role: 'user', text: message));
       _isLoading = true;
@@ -401,12 +370,10 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
 
     try {
-      // ✅ Pass recent messages for context (last 5 messages before current)
-      // Exclude the message we just added since it will be sent separately
       final recentMessages = _messages.length > 1
           ? _messages.sublist(
               _messages.length > 6 ? _messages.length - 6 : 0,
-              _messages.length - 1, // Exclude the message we just added
+              _messages.length - 1,
             )
           : <MessageModel>[];
 
@@ -415,10 +382,9 @@ class _ChatScreenState extends State<ChatScreen> {
       final response = await _aiService.sendMessage(
         message,
         sessionId: _currentSessionId,
-        recentMessages: recentMessages, // ✅ Pass context
+        recentMessages: recentMessages,
       );
 
-      // Update session ID if this was a new chat
       if (_currentSessionId == null) {
         _currentSessionId = _aiService.currentSessionId;
         print('New session created: $_currentSessionId');
@@ -472,10 +438,9 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: SizeConfig.screenHeight / 1.25,
+      height: 0.8.sh,
       child: Column(
         children: [
-          // Messages List
           Expanded(
             child: _messages.isEmpty
                 ? Center(
@@ -484,23 +449,23 @@ class _ChatScreenState extends State<ChatScreen> {
                       children: [
                         HugeIcon(
                           icon: HugeIcons.strokeRoundedAiMagic,
-                          size: 100,
+                          size: 100.r,
                           color: Colors.grey[850],
                         ),
-                        SizedBox(height: 16),
+                        SizedBox(height: 16.h),
                         Text(
                           "Hey! I'm your AI assistant.",
                           style: TextStyle(
                             color: Colors.grey[400],
-                            fontSize: 16,
+                            fontSize: 16.sp,
                           ),
                         ),
-                        SizedBox(height: 8),
+                        SizedBox(height: 8.h),
                         Text(
                           "How can I help you today?",
                           style: TextStyle(
                             color: Colors.grey[600],
-                            fontSize: 14,
+                            fontSize: 14.sp,
                           ),
                         ),
                       ],
@@ -508,7 +473,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   )
                 : ListView.builder(
                     controller: _scrollController,
-                    padding: EdgeInsets.all(16),
+                    padding: EdgeInsets.all(16.r),
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final message = _messages[index];
@@ -520,25 +485,25 @@ class _ChatScreenState extends State<ChatScreen> {
                             : Alignment.centerLeft,
                         child: Container(
                           margin: EdgeInsets.only(
-                            bottom: 12,
-                            left: isUser ? 64 : 0,
-                            right: isUser ? 0 : 64,
+                            bottom: 12.h,
+                            left: isUser ? 64.w : 0,
+                            right: isUser ? 0 : 64.w,
                           ),
                           padding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                            horizontal: 16.w,
+                            vertical: 12.h,
                           ),
                           decoration: BoxDecoration(
                             color: isUser
                                 ? Colors.deepPurple.withOpacity(0.3)
                                 : Colors.grey[800],
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(16.r),
                           ),
                           child: Text(
                             message.text,
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 15,
+                              fontSize: 15.sp,
                               height: 1.4,
                             ),
                           ),
@@ -547,33 +512,27 @@ class _ChatScreenState extends State<ChatScreen> {
                     },
                   ),
           ),
-
-          // Loading Indicator
           if (_isLoading)
             Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: EdgeInsets.all(8.r),
               child: Row(
                 children: [
-                  SizedBox(width: 16),
+                  SizedBox(width: 16.w),
                   CupertinoActivityIndicator(),
-                  SizedBox(width: 12),
+                  SizedBox(width: 12.w),
                   Text(
                     'Thinking...',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                    style: TextStyle(color: Colors.grey[500], fontSize: 14.sp),
                   ),
                 ],
               ),
             ),
-
-          // Input Field
           chatInput(_messageController, _sendMessage),
         ],
       ),
     );
   }
 }
-
-/// ------------------ CHAT INPUT ------------------
 
 Widget chatInput(
   TextEditingController controller,
@@ -582,12 +541,12 @@ Widget chatInput(
   VoidCallback? onChanged,
 ]) {
   return Padding(
-    padding: const EdgeInsets.all(10.0),
+    padding: EdgeInsets.all(10.r),
     child: Container(
-      height: SizeConfig.blockHeight * 7,
+      height: 56.h,
       decoration: BoxDecoration(
         border: Border.all(color: Colors.deepPurple),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(30.r),
       ),
       child: Row(
         children: [
@@ -596,21 +555,21 @@ Widget chatInput(
               controller: controller,
               enabled: isEnabled,
               textCapitalization: TextCapitalization.sentences,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.white, fontSize: 15.sp),
               cursorColor: Colors.deepPurpleAccent,
               minLines: 1,
               maxLines: 5,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Message...',
-                hintStyle: TextStyle(color: Colors.grey),
+                hintStyle: TextStyle(color: Colors.grey, fontSize: 15.sp),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 fillColor: Colors.transparent,
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                  horizontal: 16.w,
+                  vertical: 12.h,
                 ),
               ),
             ),
@@ -619,7 +578,7 @@ Widget chatInput(
             shape: const CircleBorder(),
             onPressed: isEnabled ? sendMessage : null,
             backgroundColor: isEnabled ? Colors.deepPurple : Colors.grey,
-            child: const Icon(Icons.send_rounded, color: Colors.white),
+            child: Icon(Icons.send_rounded, color: Colors.white, size: 20.r),
           ),
         ],
       ),
@@ -627,180 +586,6 @@ Widget chatInput(
   );
 }
 
-/// ------------------ HARD MODE (placeholder) ------------------
-///
-// List<Map<String, String>> hardModeMessages = [];
-
-// class HardModeWidget extends StatefulWidget {
-//   const HardModeWidget({super.key});
-
-//   static final controller = TextEditingController();
-
-//   @override
-//   State<HardModeWidget> createState() => _HardModeWidgetState();
-// }
-
-// class _HardModeWidgetState extends State<HardModeWidget> {
-//   final TextEditingController _controller = TextEditingController();
-
-//   final HardModeAIService _hardModeAIService = HardModeAIService();
-
-//   bool _isLoading = false;
-//   bool typerAnimationShowed = false;
-
-//   // User persona data - load this from SharedPreferences or pass from previous screen
-//   late Map<String, dynamic> userPersona;
-//   late int currentStreak;
-//   late int longestStreak;
-
-//   Future<void> _loadUserData() async {
-//     // Load from SharedPreferences or get from widget parameters
-//     setState(() {
-//       userPersona = {
-//         'usage': 'frequent',
-//         'effects': [
-//           'Impaired concentration',
-//           'Reduced creativity',
-//           'Sleep disturbances',
-//           'Apathy',
-//         ],
-//         'triggers': ['When alone', 'Under stress', 'Boredom', 'Anxiety'],
-//         'aspects': [
-//           'Strengthen self-discipline',
-//           'Develop mental resilience',
-//           'Cultivate inner peace',
-//         ],
-//       };
-//       currentStreak = 10;
-//       longestStreak = 15;
-//     });
-//   }
-
-//   void _sendMessage() async {
-//     final text = _controller.text.trim();
-//     if (text.isEmpty) return;
-
-//     setState(() {
-//       hardModeMessages.add({"role": "user", "text": text});
-//       _isLoading = true;
-//       typerAnimationShowed = true;
-//     });
-
-//     _controller.clear();
-
-//     final reply = await _hardModeAIService.sendHardModeMessage(
-//       userMessage: text,
-//       userPersona: userPersona,
-//       currentStreak: currentStreak,
-//       longestStreak: longestStreak,
-//     );
-
-//     setState(() {
-//       hardModeMessages.add({"role": "ai", "text": reply});
-//       _isLoading = false;
-//     });
-//   }
-
-//   @override
-//   void dispose() {
-//     _controller.dispose();
-//     super.dispose();
-//   }
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     _loadUserData();
-//     hardModeMessages.isEmpty
-//         ? hardModeMessages.add({
-//             "role": "ai",
-//             "text":
-//                 "Hey! How are you doing? Just want you to know I'm here for you whenever things get tough.",
-//           })
-//         : null;
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Column(
-//       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-
-//       children: [
-//         hardModeMessages.isNotEmpty
-//             ? SizedBox(
-//                 height: SizeConfig.screenHeight / 1.37,
-//                 child: ListView.builder(
-//                   padding: const EdgeInsets.all(12),
-//                   itemCount: hardModeMessages.length,
-//                   itemBuilder: (context, index) {
-//                     final msg = hardModeMessages[index];
-//                     final isUser = msg["role"] == "user";
-//                     return Align(
-//                       alignment: isUser
-//                           ? Alignment.topRight
-//                           : Alignment.topLeft,
-//                       child: Container(
-//                         margin: const EdgeInsets.symmetric(vertical: 6),
-//                         padding: const EdgeInsets.symmetric(
-//                           vertical: 10,
-//                           horizontal: 14,
-//                         ),
-//                         decoration: BoxDecoration(
-//                           color: isUser
-//                               ? Colors.deepPurple.withValues(alpha: 0.3)
-//                               : Colors.grey.shade800,
-//                           borderRadius: BorderRadius.circular(12),
-//                         ),
-//                         child: index != hardModeMessages.length - 1 || !isUser
-//                             ? Text(
-//                                 msg["text"] ?? "",
-//                                 style: const TextStyle(color: Colors.white),
-//                               )
-//                             : AnimatedTextKit(
-//                                 repeatForever: false,
-//                                 totalRepeatCount: 1,
-//                                 animatedTexts: [
-//                                   TypewriterAnimatedText(
-//                                     msg["text"] ?? "",
-//                                     textStyle: const TextStyle(
-//                                       color: Colors.white,
-//                                     ),
-//                                     speed: const Duration(milliseconds: 25),
-//                                   ),
-//                                 ],
-//                               ),
-//                       ),
-//                     );
-//                   },
-//                 ),
-//               )
-//             : Padding(
-//                 padding: EdgeInsets.symmetric(
-//                   vertical: SizeConfig.screenHeight / 3.4,
-//                 ),
-//                 child: Column(
-//                   mainAxisAlignment: MainAxisAlignment.center,
-//                   children: [
-//                     HugeIcon(
-//                       icon: HugeIcons.strokeRoundedAiChat01,
-//                       size: 100,
-//                       color: Colors.grey[850],
-//                     ),
-//                     Text(
-//                       "Let's brainstorm some hard questions. Ask me anything!",
-//                     ),
-//                   ],
-//                 ),
-//               ),
-//         if (_isLoading)
-//           const LinearProgressIndicator(color: Colors.deepPurple, minHeight: 2),
-//         chatInput(_controller, _sendMessage),
-//       ],
-//     );
-//   }
-// }
-
-// /// ------------------ GAME MODE (placeholder) ------------------
 class GameModeWidget extends StatelessWidget {
   const GameModeWidget({super.key});
 
@@ -810,11 +595,11 @@ class GameModeWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        SizedBox(height: SizeConfig.screenHeight / 8),
+        SizedBox(height: 0.125.sh),
         SizedBox(
-          height: SizeConfig.screenHeight / 3,
+          height: 0.33.sh,
           child: GridView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               childAspectRatio: 1,
@@ -843,13 +628,12 @@ class GameModeWidget extends StatelessWidget {
           ),
         ),
         Text("Let's see who wins. Choose or anyone starts in "),
-        const SizedBox(height: 10),
+        SizedBox(height: 10.h),
       ],
     );
   }
 }
 
-/// ------------------ VOICE MODE (with animated Lottie) ------------------
 class VoiceModeWidget extends StatefulWidget {
   const VoiceModeWidget({super.key});
 
@@ -905,7 +689,6 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget>
   }
 
   Future<void> _startListening() async {
-    // Ensure nothing is playing before starting to listen
     await _voiceAIService.stopSpeaking();
 
     bool available = await _speech.initialize(
@@ -984,7 +767,6 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget>
         _isProcessing = false;
       });
 
-      // Auto-selects between OpenAI TTS (premium) and Flutter TTS (free)
       await _voiceAIService.speakWithAI(
         reply,
         onStart: () {
@@ -1003,7 +785,6 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget>
             });
             _stopPulseAnimation();
 
-            // Clear AI response after 3 seconds
             Future.delayed(const Duration(seconds: 3), () {
               if (mounted) {
                 setState(() {
@@ -1048,34 +829,28 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget>
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: SizeConfig.paddingLarge),
+        padding: EdgeInsets.symmetric(vertical: 20.h),
         child: Column(
           children: [
-            SizedBox(height: SizeConfig.blockHeight * 2),
-
-            // Animated Lottie with Gradient Background
+            SizedBox(height: 0.02.sh),
             ScaleTransition(
               scale: _pulseAnimation,
               child: Lottie.network(
                 'https://lottie.host/b72fd15d-61a4-4510-ae8f-93936c32c857/xzLgoD2MQj.json',
-                width: 200,
-                height: 200,
+                width: 200.w,
+                height: 200.h,
                 fit: BoxFit.contain,
               ),
             ),
-
-            SizedBox(height: SizeConfig.blockHeight * 3),
-
-            SizedBox(height: SizeConfig.blockHeight * 23),
-
-            // Microphone Button
+            SizedBox(height: 0.03.sh),
+            SizedBox(height: 0.23.sh),
             GestureDetector(
               onTap: _isProcessing || _isSpeaking
                   ? null
                   : (_isListening ? _stopListening : _startListening),
               child: Container(
-                width: 70,
-                height: 70,
+                width: 70.r,
+                height: 70.r,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
@@ -1097,8 +872,8 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget>
                                   ? Colors.orange
                                   : Colors.deepPurple)
                               .withOpacity(0.3),
-                      blurRadius: 20,
-                      spreadRadius: _isListening ? 8 : 0,
+                      blurRadius: 20.r,
+                      spreadRadius: _isListening ? 8.r : 0,
                     ),
                   ],
                 ),
@@ -1111,10 +886,7 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget>
                 ),
               ),
             ),
-
-            SizedBox(height: SizeConfig.blockHeight * 2),
-
-            // Status Text
+            SizedBox(height: 0.02.sh),
             Text(
               _isListening
                   ? 'Listening...'
@@ -1124,13 +896,12 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget>
                   ? 'Processing...'
                   : '',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.w600,
                 color: Colors.grey.shade700,
               ),
             ),
-
-            SizedBox(height: SizeConfig.blockHeight * 1),
+            SizedBox(height: 0.01.sh),
           ],
         ),
       ),
@@ -1138,6 +909,6 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget>
   }
 
   voiceHugeIcons(icon) {
-    return HugeIcon(icon: icon, size: 30, color: Colors.white);
+    return HugeIcon(icon: icon, size: 30.r, color: Colors.white);
   }
 }

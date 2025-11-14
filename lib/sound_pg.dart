@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:onlymens/utilis/snackbar.dart';
 import 'package:video_player/video_player.dart';
 import 'package:just_audio/just_audio.dart';
@@ -86,7 +87,6 @@ class _RainScreenState extends State<RainScreen> {
   }
 
   Future<void> _initializeApp() async {
-    // Check internet FIRST and wait for it
     await _checkInternetConnection();
 
     if (mounted) {
@@ -95,7 +95,6 @@ class _RainScreenState extends State<RainScreen> {
       });
     }
 
-    // Listen to connectivity changes
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
       List<ConnectivityResult> results,
     ) {
@@ -105,20 +104,15 @@ class _RainScreenState extends State<RainScreen> {
           _hasInternet = hasInternet;
         });
 
-        // If internet came back, retry failed initializations
         if (hasInternet) {
           _retryFailedInitializations();
         }
       }
     });
 
-    // Initialize Rain video immediately
     await _initializeVideo(0);
-
-    // Fetch text in background (non-blocking)
     _fetchAmbientText(0);
 
-    // Preload other videos in background after delay
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted && _hasInternet) {
         _preloadNetworkVideos();
@@ -126,13 +120,11 @@ class _RainScreenState extends State<RainScreen> {
     });
   }
 
-  /// Check internet connection with actual network test
   Future<void> _checkInternetConnection() async {
     try {
       final results = await Connectivity().checkConnectivity();
       _hasInternet = !results.contains(ConnectivityResult.none);
 
-      // Double-check with a real network request for accuracy
       if (_hasInternet) {
         try {
           await FirebaseFirestore.instance
@@ -150,7 +142,6 @@ class _RainScreenState extends State<RainScreen> {
     }
   }
 
-  /// Retry failed network video initializations
   void _retryFailedInitializations() {
     for (int i = 0; i < _videos.length; i++) {
       if (_initializationFailed[i] == true && !_videos[i].isAsset) {
@@ -160,7 +151,6 @@ class _RainScreenState extends State<RainScreen> {
     }
   }
 
-  /// Preload network videos in background
   void _preloadNetworkVideos() {
     for (int i = 1; i < _videos.length; i++) {
       if (!_videos[i].isAsset && _controllers[i] == null) {
@@ -210,7 +200,6 @@ class _RainScreenState extends State<RainScreen> {
     }
   }
 
-  /// Fetch supportive text from Firestore (non-blocking)
   Future<void> _fetchAmbientText(int index) async {
     if (!_hasInternet) {
       if (mounted) {
@@ -277,13 +266,10 @@ class _RainScreenState extends State<RainScreen> {
   }
 
   Future<void> _initializeVideo(int index) async {
-    // Prevent multiple simultaneous initializations
     if (_isInitializing[index] == true) {
-      // Wait for current initialization to complete
       while (_isInitializing[index] == true) {
         await Future.delayed(const Duration(milliseconds: 100));
       }
-      // After waiting, play if ready
       if (_controllers[index]?.value.isInitialized == true) {
         await _controllers[index]!.play();
         await _playAudio(index);
@@ -296,7 +282,6 @@ class _RainScreenState extends State<RainScreen> {
     try {
       final video = _videos[index];
 
-      // If controller already exists and is initialized, just play it
       if (_controllers[index] != null &&
           _controllers[index]!.value.isInitialized) {
         await _controllers[index]!.play();
@@ -308,7 +293,6 @@ class _RainScreenState extends State<RainScreen> {
       VideoPlayerController controller;
 
       if (video.isAsset) {
-        // Asset video - initialize and play immediately
         controller = VideoPlayerController.asset(video.videoUrl);
         _controllers[index] = controller;
 
@@ -318,15 +302,11 @@ class _RainScreenState extends State<RainScreen> {
         controller.setLooping(true);
         controller.setVolume(0);
 
-        // Start playing immediately
         await controller.play();
-
-        // Play audio immediately after video starts
         await _playAudio(index);
 
         if (mounted) setState(() {});
       } else {
-        // Network video
         if (!_hasInternet) {
           _isInitializing[index] = false;
           _initializationFailed[index] = true;
@@ -334,7 +314,6 @@ class _RainScreenState extends State<RainScreen> {
           return;
         }
 
-        // Check if already initialized in background
         if (_controllers[index] != null &&
             _controllers[index]!.value.isInitialized) {
           await _controllers[index]!.play();
@@ -344,7 +323,6 @@ class _RainScreenState extends State<RainScreen> {
           return;
         }
 
-        // Fetch URLs from Firebase Storage
         final videoUrl = await _fetchFirestoreUrl(video.storagePath!);
         final audioUrl = await _fetchFirestoreUrl(video.audioStoragePath!);
 
@@ -372,15 +350,11 @@ class _RainScreenState extends State<RainScreen> {
         controller.setLooping(true);
         controller.setVolume(0);
 
-        // Start playing immediately
         await controller.play();
-
-        // Play audio immediately after video starts
         await _playAudio(index);
 
         if (mounted) setState(() {});
 
-        // Mark as successfully loaded
         _initializationFailed[index] = false;
       }
     } catch (e) {
@@ -424,7 +398,6 @@ class _RainScreenState extends State<RainScreen> {
         isErr: true,
       );
 
-      // Only return to Rain if not already there
       if (_currentIndex != 0) {
         _returnToRain();
       }
@@ -447,29 +420,23 @@ class _RainScreenState extends State<RainScreen> {
   Future<void> _switchVideo(int newIndex) async {
     if (newIndex == _currentIndex) return;
 
-    // Check internet for network videos
     if (!_videos[newIndex].isAsset && !_hasInternet) {
       _showNoInternetError();
       return;
     }
 
-    // Pause current video and audio
     if (_controllers[_currentIndex] != null) {
       await _controllers[_currentIndex]!.pause();
     }
     await _audioPlayer.pause();
 
-    // Update index immediately
     if (mounted) {
       setState(() {
         _currentIndex = newIndex;
       });
     }
 
-    // Fetch text in background (non-blocking)
     unawaited(_fetchAmbientText(newIndex));
-
-    // Initialize and play new video (this now plays audio too)
     await _initializeVideo(newIndex);
   }
 
@@ -488,9 +455,8 @@ class _RainScreenState extends State<RainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final itemWidth = 70.0;
-    final centerPadding = (screenWidth - itemWidth) / 2;
+    final itemWidth = 70.w;
+    final centerPadding = (1.sw - itemWidth) / 2;
     final isVideoReady =
         _controllers[_currentIndex] != null &&
         _controllers[_currentIndex]!.value.isInitialized;
@@ -511,9 +477,9 @@ class _RainScreenState extends State<RainScreen> {
                   )
                 : Container(
                     color: _videos[_currentIndex].color.withOpacity(0.3),
-                    child: const Center(
+                    child: Center(
                       child: CupertinoActivityIndicator(
-                        radius: 12,
+                        radius: 12.r,
                         color: Colors.white,
                       ),
                     ),
@@ -538,24 +504,20 @@ class _RainScreenState extends State<RainScreen> {
 
           // Cupertino Back Button
           Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 8,
+            top: MediaQuery.of(context).padding.top + 8.h,
+            left: 8.w,
             child: IconButton(
               padding: EdgeInsets.zero,
               onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(
-                CupertinoIcons.back,
-                color: Colors.white,
-                size: 28,
-              ),
+              icon: Icon(CupertinoIcons.back, color: Colors.white, size: 28.r),
             ),
           ),
 
-          // Animated Firestore Text (Bottom Center, above horizontal list)
+          // Animated Firestore Text
           Positioned(
-            bottom: 155,
-            left: 24,
-            right: 24,
+            bottom: 155.h,
+            left: 24.w,
+            right: 24.w,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -571,7 +533,7 @@ class _RainScreenState extends State<RainScreen> {
                           textAlign: TextAlign.center,
                           textStyle: TextStyle(
                             color: Colors.white.withOpacity(0.6),
-                            fontSize: 22,
+                            fontSize: 22.sp,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0.8,
                             height: 1.3,
@@ -589,15 +551,15 @@ class _RainScreenState extends State<RainScreen> {
 
           // Bottom Horizontal List
           Positioned(
-            bottom: 50,
+            bottom: 50.h,
             left: 0,
             right: 0,
             child: SizedBox(
-              height: 90,
+              height: 90.h,
               child: ListView.builder(
                 controller: _scrollController,
                 scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.only(left: centerPadding, right: 16),
+                padding: EdgeInsets.only(left: centerPadding, right: 16.w),
                 physics: const BouncingScrollPhysics(),
                 itemCount: _videos.length,
                 itemBuilder: (context, index) {
@@ -613,7 +575,6 @@ class _RainScreenState extends State<RainScreen> {
                         return;
                       }
 
-                      // Retry if failed
                       if (hasFailed && !video.isAsset) {
                         _initializationFailed[index] = false;
                       }
@@ -624,26 +585,26 @@ class _RainScreenState extends State<RainScreen> {
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
                       width: itemWidth,
-                      margin: const EdgeInsets.only(right: 12),
+                      margin: EdgeInsets.only(right: 12.w),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? Colors.white
                             : isAvailable
                             ? Colors.white.withOpacity(0.15)
                             : Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(18.r),
                         border: Border.all(
                           color: isSelected
                               ? video.color
                               : Colors.white.withOpacity(0.1),
-                          width: isSelected ? 2.5 : 1,
+                          width: isSelected ? 2.5.w : 1.w,
                         ),
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
                                   color: video.color.withOpacity(0.5),
-                                  blurRadius: 16,
-                                  spreadRadius: 1,
+                                  blurRadius: 16.r,
+                                  spreadRadius: 1.r,
                                 ),
                               ]
                             : [],
@@ -653,7 +614,7 @@ class _RainScreenState extends State<RainScreen> {
                         children: [
                           Icon(
                             video.icon,
-                            size: isSelected ? 32 : 28,
+                            size: isSelected ? 32.r : 28.r,
                             color: isSelected
                                 ? video.color
                                 : isAvailable
@@ -662,17 +623,17 @@ class _RainScreenState extends State<RainScreen> {
                           ),
                           if (!isAvailable || hasFailed)
                             Positioned(
-                              top: 6,
-                              right: 6,
+                              top: 6.h,
+                              right: 6.w,
                               child: Container(
-                                padding: const EdgeInsets.all(2),
+                                padding: EdgeInsets.all(2.r),
                                 decoration: BoxDecoration(
                                   color: Colors.black.withOpacity(0.5),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
                                   hasFailed ? Icons.refresh : Icons.cloud_off,
-                                  size: 12,
+                                  size: 12.r,
                                   color: hasFailed
                                       ? Colors.orange.shade300
                                       : Colors.red.shade300,

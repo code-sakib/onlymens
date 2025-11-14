@@ -1,70 +1,102 @@
-import 'dart:async';
+// auth_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/features/onboarding_pgs/onboarding_pgs.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
-/// Clean authentication service for production use
 class AuthService {
-  AuthService._();
+  static final FirebaseAuth auth = FirebaseAuth.instance;
+  static final FirebaseFirestore db = FirebaseFirestore.instance;
 
-  /// Stream of authentication state changes
-  static Stream<User?> get authStateChanges => auth.authStateChanges();
-
-  /// Current authenticated user
   static User? get currentUser => auth.currentUser;
 
-  /// Check if user is currently signed in
-  static bool get isSignedIn => auth.currentUser != null;
+  /// ----------------------
+  /// Google Sign-In
+  /// ----------------------
+  static Future<User?> signInWithGoogle() async {
+    final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+    final googleUser = await googleSignIn.authenticate();
 
-  /// Get current user's UID
-  static String? get currentUserId => auth.currentUser?.uid;
-
-  /// Get current user's email
-  static String? get currentUserEmail => auth.currentUser?.email;
-
-  /// Get current user's phone number
-  static String? get currentUserPhone => auth.currentUser?.phoneNumber;
-
-  /// Sign up with email and password
-  /// Throws FirebaseAuthException with built-in error messages
-  static Future<void> signUpWithEmail(String email, String password) async {
-    auth.createUserWithEmailAndPassword(
-      email: email.trim(),
-      password: password,
+    final gAuth = googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      idToken: gAuth.idToken,
+      accessToken: gAuth.idToken,
     );
+    final userCred = await auth.signInWithCredential(credential);
+    await _ensureUserDoc(userCred.user);
+    return userCred.user;
   }
 
-  /// Sign in with email and password
-  /// Throws FirebaseAuthException with built-in error messages
-  static Future<User> signInWithEmail(String email, String password) async {
-    final result = await auth
-        .signInWithEmailAndPassword(email: email.trim(), password: password)
-        .then((_) async {
-          await cloudDB.collection('users').doc('fj').set({
-            '1': 1,
-          }, SetOptions(merge: true));
-        });
-    return result.user!;
+  /// ----------------------
+  /// Apple Sign-In
+  /// ----------------------
+  static Future<User?> signInWithApple() async {
+    final appleCred = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+    );
+
+    final oauth = OAuthProvider("apple.com").credential(
+      idToken: appleCred.identityToken,
+      accessToken: appleCred.authorizationCode,
+    );
+
+    final userCred = await auth.signInWithCredential(oauth);
+    await _ensureUserDoc(userCred.user);
+
+    return userCred.user;
   }
 
-  /// Sign in with Google
-  /// Throws FirebaseAuthException with built-in error messages
-  static Future<User> signInWithGoogle() async {
-    final gUser = await GoogleSignIn.instance.authenticate().then((_) async {
-      await cloudDB
-          .collection('users')
-          .doc(auth.currentUser!.uid)
-          .set({'obvalues': obSelectedValues}, SetOptions(merge: true))
-          .onError((error, stackTrace) {
-            print('Error onboarding user: $error');
-          });
+  /// ----------------------
+  /// Ensure user document
+  /// ----------------------
+  static Future<void> _ensureUserDoc(User? user) async {
+    if (user == null) return;
+
+    final ref = db.collection('users').doc(user.uid);
+
+    await ref.set({
+      'email': user.email,
+      'name': user.displayName,
+      'lastLogin': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// ----------------------
+  /// Fetch subscription
+  /// ----------------------
+  static Future<Map<String, dynamic>?> fetchSubscriptionForCurrentUser() async {
+    final user = currentUser;
+    if (user == null) return null;
+
+    final snap = await db.collection('users').doc(user.uid).get();
+    final d = snap.data();
+    return d?['subscription'];
+  }
+
+  /// ----------------------
+  /// Validate + attach receipt
+  /// ----------------------
+  static Future<bool> claimReceiptForCurrentUser({
+    required String receiptData,
+    required String productId,
+  }) async {
+    final uid = currentUser?.uid;
+    if (uid == null) return false;
+
+    final callable = FirebaseFunctions.instance.httpsCallable(
+      'validateAppleReceipt',
+    );
+
+    final result = await callable.call({
+      'receiptData': receiptData,
+      'productId': productId,
+      'userId': uid,
     });
 
-    final gAuth = gUser.authentication;
-    final credential = GoogleAuthProvider.credential(idToken: gAuth.idToken);
-    final result = await auth.signInWithCredential(credential);
-    return result.user!;
+    return result.data['isValid'] == true;
   }
 }

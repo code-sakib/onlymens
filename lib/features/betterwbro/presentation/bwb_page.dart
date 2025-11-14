@@ -14,8 +14,8 @@ import 'package:onlymens/core/globals.dart' show auth, currentUser;
 import 'package:onlymens/features/avatar/avatar_data.dart';
 import 'package:onlymens/features/betterwbro/chat/chat_screen.dart';
 import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
-import 'package:onlymens/utilis/size_config.dart';
 import 'package:onlymens/utilis/snackbar.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class BWBPage extends StatefulWidget {
   const BWBPage({super.key});
@@ -28,7 +28,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
   final _firestore = FirebaseFirestore.instance;
   final ScrollController _feedScrollController = ScrollController();
 
-  // Community tab (existing)
   List<Map<String, dynamic>> users = [];
   bool isLoading = true;
   bool hasPermission = false;
@@ -36,17 +35,15 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
   Position? currentPosition;
   Set<String> blockedUsers = {};
 
-  // Feed tab (new)
   List<Map<String, dynamic>> posts = [];
   bool isLoadingPosts = true;
   bool isLoadingMorePosts = false;
   int _postLimit = 20;
-  final Set<String> _viewedPosts = {}; // Track viewed posts
+  final Set<String> _viewedPosts = {};
 
   StreamSubscription? _blockSub;
   bool _initialized = false;
 
-  // Tab controller
   late TabController _tabController;
   int _currentTabIndex = 0;
 
@@ -61,10 +58,8 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       }
     });
 
-    // Infinite scroll listener
     _feedScrollController.addListener(_onScroll);
 
-    // ✅ Live listen to blocked users
     _blockSub = FirebaseFirestore.instance
         .collection('users')
         .doc(auth.currentUser!.uid)
@@ -122,7 +117,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
 
     await fetchBlockedUsers();
     await loadDefaultUsers();
-    await loadPosts(); // Load posts for feed
+    await loadPosts();
 
     bool granted = await checkPermissionSilently();
     if (granted) {
@@ -334,11 +329,8 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     }
   }
 
-  // ===== FEED FUNCTIONS =====
-
   Future<String?> _getUserProfileImage(String userId, int? streaks) async {
     try {
-      // 1. Try to get user's custom profile image URL from Firestore
       final userDoc = await _firestore
           .collection('users')
           .doc(userId)
@@ -349,20 +341,17 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       if (userDoc.exists) {
         final profileData = userDoc.data()!;
 
-        // Check for custom avatar URL
         final customImg = profileData['customAvatarUrl'];
         if (customImg != null && customImg.toString().isNotEmpty) {
           return customImg;
         }
 
-        // Check for general img field
         final img = profileData['img'];
         if (img != null && img.toString().isNotEmpty) {
           return img;
         }
       }
 
-      // 2. Get streak-based avatar
       if (streaks != null) {
         final level = AvatarManager.getLevelFromDays(streaks);
         try {
@@ -377,7 +366,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         }
       }
 
-      // 3. Return null (will show default icon)
       return null;
     } catch (e) {
       debugPrint('Error getting user profile image: $e');
@@ -390,22 +378,19 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       final postId = post['postId'];
       final currentViews = post['viewCount'] ?? 0;
 
-      // Skip if it's user's own post
       if (post['isCurrentUser'] == true) return;
 
-      // Skip if post is too new (<2 minutes old)
       final timestamp = post['timestamp'];
       if (timestamp != null) {
         final postTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
         if (DateTime.now().difference(postTime).inMinutes < 2) return;
       }
 
-      // Don't increment if already viewed or if views >= 50
       if (_viewedPosts.contains(postId) || currentViews >= 50) return;
 
       _viewedPosts.add(postId);
 
-      final increment = 3 + Random().nextInt(3); // 3, 4, or 5
+      final increment = 3 + Random().nextInt(3);
       final newViews = min(currentViews + increment, 50);
 
       if (post['source'] == 'default') {
@@ -445,7 +430,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final currentUid = auth.currentUser!.uid;
 
-      // 1. Fetch ALL user posts from today (from all users)
       final userPostsSnap = await _firestore
           .collection('posts')
           .doc(today)
@@ -457,7 +441,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         final data = doc.data();
         if (blockedUsers.contains(data['userId'])) continue;
 
-        // Get fresh user profile data for each post
         final userProfile = await _firestore
             .collection('users')
             .doc(data['userId'])
@@ -471,7 +454,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           final updatedStreaks =
               profileData['currentStreak'] ?? data['streaks'];
 
-          // Get updated profile image
           final updatedDp = await _getUserProfileImage(
             data['userId'],
             updatedStreaks,
@@ -481,13 +463,12 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
             ...data,
             'postId': doc.id,
             'source': 'user',
-            'name': updatedName, // Use updated name
-            'dp': updatedDp, // Use updated DP
-            'streaks': updatedStreaks, // Use updated streak
+            'name': updatedName,
+            'dp': updatedDp,
+            'streaks': updatedStreaks,
             'isCurrentUser': data['userId'] == currentUid,
           });
         } else {
-          // Fallback if profile doesn't exist
           allPosts.add({
             ...data,
             'postId': doc.id,
@@ -497,7 +478,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         }
       }
 
-      // 2. If less than 10 posts, fetch from default posts
       if (allPosts.length < 10) {
         final now = DateTime.now();
 
@@ -527,13 +507,12 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         }
       }
 
-      // 3. Sort by timestamp descending (most recent first)
       allPosts.sort((a, b) {
         final aTime = a['timestamp'] ?? 0;
         final bTime = b['timestamp'] ?? 0;
         return bTime.compareTo(aTime);
       });
-      // 🌀 Blend current user's post randomly (not always on top)
+
       final currentUserPosts = allPosts
           .where((p) => p['isCurrentUser'] == true)
           .toList();
@@ -542,29 +521,8 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           .toList();
 
       if (otherPosts.isNotEmpty) {
-        otherPosts.shuffle(Random()); // Natural feed randomness
-
-        if (currentUserPosts.isNotEmpty) {
-          final insertIndex = min(2 + Random().nextInt(3), otherPosts.length);
-          otherPosts.insertAll(insertIndex, currentUserPosts);
-        }
-
-        allPosts = otherPosts;
-      }
-
-      // Move current user's post slightly down
-      if (allPosts.isNotEmpty) {
-        final currentUserPosts = allPosts
-            .where((p) => p['isCurrentUser'] == true)
-            .toList();
-        final otherPosts = allPosts
-            .where((p) => p['isCurrentUser'] != true)
-            .toList();
-
-        // Slight shuffle for natural randomness
         otherPosts.shuffle(Random());
 
-        // Interleave user post randomly between 2nd–5th position
         if (currentUserPosts.isNotEmpty) {
           final insertIndex = min(2 + Random().nextInt(3), otherPosts.length);
           otherPosts.insertAll(insertIndex, currentUserPosts);
@@ -594,7 +552,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final currentUid = auth.currentUser!.uid;
 
-      // Get user profile data
       final userProfileSnap = await _firestore
           .collection('users')
           .doc(currentUid)
@@ -606,7 +563,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       final name = userData['name'] ?? 'Anonymous';
       final streaks = userData['currentStreak'] ?? 0;
 
-      // Get user's profile image
       final dp = await _getUserProfileImage(currentUid, streaks);
 
       final postData = {
@@ -622,14 +578,12 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         'date': today,
       };
 
-      // Save to main posts collection (posts > today > userPosts)
       final postRef = await _firestore
           .collection('posts')
           .doc(today)
           .collection('userPosts')
           .add(postData);
 
-      // Save to user's personal posts collection (users > uid > posts)
       await _firestore
           .collection('users')
           .doc(currentUid)
@@ -637,7 +591,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           .doc(postRef.id)
           .set({...postData, 'postId': postRef.id});
 
-      // Reload posts
       await loadPosts();
 
       if (!mounted) return;
@@ -655,13 +608,11 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       final userId = post['userId'];
       final currentUid = auth.currentUser!.uid;
 
-      // Only allow deletion of own posts
       if (userId != currentUid) {
         _showSnackbar('You can only delete your own posts', Colors.red);
         return;
       }
 
-      // Delete from main posts collection
       final today =
           post['date'] ?? DateFormat('yyyy-MM-dd').format(DateTime.now());
       await _firestore
@@ -671,7 +622,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           .doc(postId)
           .delete();
 
-      // Delete from user's personal collection
       await _firestore
           .collection('users')
           .doc(currentUid)
@@ -679,7 +629,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           .doc(postId)
           .delete();
 
-      // Remove from local state
       setState(() {
         posts.removeWhere((p) => p['postId'] == postId);
       });
@@ -700,42 +649,50 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       context: context,
       builder: (_) => Dialog(
         backgroundColor: const Color(0xFF1C1C1E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(20.r),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Share with Community',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 18.sp,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
                 TextField(
                   controller: textController,
                   maxLines: 5,
                   maxLength: 300,
                   autofocus: true,
-                  style: const TextStyle(color: Colors.white, fontSize: 15),
+                  style: TextStyle(color: Colors.white, fontSize: 15.sp),
                   decoration: InputDecoration(
                     hintText: 'How are you feeling today?',
-                    hintStyle: const TextStyle(color: Colors.white38),
+                    hintStyle: TextStyle(
+                      color: Colors.white38,
+                      fontSize: 15.sp,
+                    ),
                     filled: true,
                     fillColor: Colors.black.withOpacity(0.3),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12.r),
                       borderSide: BorderSide.none,
                     ),
-                    counterStyle: const TextStyle(color: Colors.white38),
+                    counterStyle: TextStyle(
+                      color: Colors.white38,
+                      fontSize: 12.sp,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -743,12 +700,15 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                       onPressed: () {
                         Navigator.of(context).pop();
                       },
-                      child: const Text(
+                      child: Text(
                         'Cancel',
-                        style: TextStyle(color: Colors.white54),
+                        style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 14.sp,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12.w),
                     ElevatedButton(
                       onPressed: () async {
                         final text = textController.text.trim();
@@ -761,15 +721,15 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 24.w,
+                          vertical: 12.h,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(8.r),
                         ),
                       ),
-                      child: const Text('Post'),
+                      child: Text('Post', style: TextStyle(fontSize: 14.sp)),
                     ),
                   ],
                 ),
@@ -788,7 +748,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     try {
       final currentUid = auth.currentUser!.uid;
 
-      // Save to reported collection
       await _firestore
           .collection('posts')
           .doc('reported')
@@ -800,7 +759,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
             'reportMessage': reportMessage,
           });
 
-      // Remove from source
       if (post['source'] == 'default') {
         await _firestore
             .collection('posts')
@@ -818,7 +776,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
             .delete();
       }
 
-      // Reload posts
       await loadPosts();
 
       if (!mounted) return;
@@ -837,12 +794,14 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF1C1C1E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        title: Text(
           'Report Post',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 18,
+            fontSize: 18.sp,
             color: Colors.white,
           ),
         ),
@@ -856,13 +815,16 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                 maxLines: 2,
                 decoration: InputDecoration(
                   hintText: 'Your Report Message..',
-                  hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  hintStyle: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14.sp,
+                  ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.r),
                     borderSide: BorderSide(color: Colors.grey[700]!),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.r),
                     borderSide: const BorderSide(
                       color: Colors.deepPurple,
                       width: 2,
@@ -870,15 +832,15 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                   ),
                   filled: true,
                   fillColor: Colors.grey[900],
-                  contentPadding: const EdgeInsets.all(12),
+                  contentPadding: EdgeInsets.all(12.r),
                 ),
-                style: const TextStyle(fontSize: 14, color: Colors.white),
+                style: TextStyle(fontSize: 14.sp, color: Colors.white),
               ),
-              const SizedBox(height: 12),
-              const Text(
+              SizedBox(height: 12.h),
+              Text(
                 "Sorry for the inconvenience! We'll fix this soon. ThankYou!",
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 11.sp,
                   color: Color(0xFFEF9A9A),
                   height: 1.4,
                 ),
@@ -893,15 +855,15 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
               Navigator.of(context).pop();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.grey[400]),
-            child: const Text('Cancel'),
+            child: Text('Cancel', style: TextStyle(fontSize: 14.sp)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF7F1019).withOpacity(0.5),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8.r),
               ),
             ),
             onPressed: () async {
@@ -918,9 +880,9 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
 
               await reportPost(post, message);
             },
-            child: const Text(
+            child: Text(
               'Send',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.sp),
             ),
           ),
         ],
@@ -945,20 +907,29 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       builder: (_) => CupertinoAlertDialog(
         title: const Text('Better With Buddy'),
         content: Padding(
-          padding: const EdgeInsets.only(top: 16),
+          padding: EdgeInsets.only(top: 16.h),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Lottie.network(
                 'https://lottie.host/23a28cec-2969-4b3b-9b55-f8b7a9ce7fc7/1ZCeHcovAb.json',
-                height: SizeConfig.blockHeight * 15,
+                height: 120.h,
               ),
-              const SizedBox(height: 12),
-              const Text('• Find people who are on the same journey as you.'),
-              const SizedBox(height: 12),
-              const Text('• People support each other here.'),
-              const SizedBox(height: 12),
-              const Text('• Full control. Full privacy. Always.'),
+              SizedBox(height: 12.h),
+              Text(
+                '• Find people who are on the same journey as you.',
+                style: TextStyle(fontSize: 13.sp),
+              ),
+              SizedBox(height: 12.h),
+              Text(
+                '• People support each other here.',
+                style: TextStyle(fontSize: 13.sp),
+              ),
+              SizedBox(height: 12.h),
+              Text(
+                '• Full control. Full privacy. Always.',
+                style: TextStyle(fontSize: 13.sp),
+              ),
             ],
           ),
         ),
@@ -1033,13 +1004,11 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     final otherUserId = post['userId'] ?? '';
     if (otherUserId.isEmpty) return;
 
-    // Don't allow chat if it's current user's post
     if (post['isCurrentUser'] == true) {
       _showSnackbar("This is your post", Colors.orange);
       return;
     }
 
-    // Don't allow chat with default users
     if (post['isDefault'] == true) {
       _showSnackbar("This is a community post", Colors.orange);
       return;
@@ -1120,25 +1089,22 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         backgroundColor: Colors.black,
         elevation: 0,
         title: Container(
-          height: 36,
+          height: 36.h,
           decoration: BoxDecoration(
             color: const Color(0xFF1C1C1E),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(8.r),
           ),
           child: TabBar(
             controller: _tabController,
             indicator: BoxDecoration(
               color: Colors.deepPurple,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.r),
             ),
             indicatorSize: TabBarIndicatorSize.tab,
             dividerColor: Colors.transparent,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white54,
-            labelStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+            labelStyle: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600),
             tabs: const [
               Tab(text: 'Feed'),
               Tab(text: 'Community'),
@@ -1147,45 +1113,42 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_rounded, color: Colors.white54),
+            icon: Icon(Icons.info_rounded, color: Colors.white54, size: 20.r),
             onPressed: showInfoDialog,
           ),
           IconButton(
             onPressed: () => context.go('/streaks'),
-            icon: const HugeIcon(
+            icon: HugeIcon(
               icon: HugeIcons.strokeRoundedFire02,
               color: Colors.deepOrangeAccent,
+              size: 20.r,
             ),
           ),
           IconButton(
             onPressed: () => context.push('/messages'),
-            icon: const HugeIcon(
+            icon: HugeIcon(
               icon: HugeIcons.strokeRoundedMessage01,
               color: Colors.white12,
+              size: 20.r,
             ),
           ),
         ],
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          // FEED TAB
-          _buildFeedTab(),
-
-          // COMMUNITY TAB (existing)
-          _buildCommunityTab(nearbyCount),
-        ],
+        children: [_buildFeedTab(), _buildCommunityTab(nearbyCount)],
       ),
       floatingActionButton: _currentTabIndex == 0
           ? FloatingActionButton.extended(
               onPressed: showCreatePostDialog,
               backgroundColor: Colors.deepPurple,
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text(
+              icon: Icon(Icons.add, color: Colors.white, size: 20.r),
+              label: Text(
                 'Post',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
+                  fontSize: 14.sp,
                 ),
               ),
             )
@@ -1195,8 +1158,8 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
 
   Widget _buildFeedTab() {
     if (isLoadingPosts) {
-      return const Center(
-        child: CupertinoActivityIndicator(color: Colors.white24, radius: 12),
+      return Center(
+        child: CupertinoActivityIndicator(color: Colors.white24, radius: 12.r),
       );
     }
 
@@ -1205,33 +1168,30 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.article_outlined, size: 64, color: Colors.white24),
-            const SizedBox(height: 16),
-            const Text(
+            Icon(Icons.article_outlined, size: 64.r, color: Colors.white24),
+            SizedBox(height: 16.h),
+            Text(
               'No posts yet',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.w500,
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8.h),
+            Text(
               'Be the first to share!',
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(color: Colors.grey, fontSize: 14.sp),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 24.h),
             ElevatedButton.icon(
               onPressed: showCreatePostDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Create Post'),
+              icon: Icon(Icons.add, size: 18.r),
+              label: Text('Create Post', style: TextStyle(fontSize: 14.sp)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurple,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
               ),
             ),
           ],
@@ -1245,25 +1205,24 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       color: Colors.deepPurple,
       child: ListView.builder(
         controller: _feedScrollController,
-        padding: const EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 12,
-          bottom: 80,
+        padding: EdgeInsets.only(
+          left: 16.w,
+          right: 16.w,
+          top: 12.h,
+          bottom: 80.h,
         ),
         itemCount: posts.length + (isLoadingMorePosts ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == posts.length) {
-            return const Center(
+            return Center(
               child: Padding(
-                padding: EdgeInsets.all(16),
+                padding: EdgeInsets.all(16.r),
                 child: CupertinoActivityIndicator(color: Colors.white24),
               ),
             );
           }
           final post = posts[index];
 
-          // Increment view count when post becomes visible
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) incrementViewCount(post);
           });
@@ -1281,7 +1240,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           context: context,
           builder: (context) => CupertinoActionSheet(
             actions: [
-              // Show delete option only for current user's posts
               if (post['isCurrentUser'] == true)
                 CupertinoActionSheetAction(
                   isDestructiveAction: true,
@@ -1291,7 +1249,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                   },
                   child: const Text('Delete Post'),
                 ),
-              // Show report option for other users' posts
               if (post['isCurrentUser'] != true && post['isDefault'] != true)
                 CupertinoActionSheetAction(
                   onPressed: () {
@@ -1309,44 +1266,47 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(16),
+        margin: EdgeInsets.only(bottom: 16.h),
+        padding: EdgeInsets.all(16.r),
         decoration: BoxDecoration(
           color: const Color(0xFF1C1C1E),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16.r),
           border: Border.all(color: Colors.white.withOpacity(0.05), width: 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(
               children: [
                 GestureDetector(
                   onTap: () => handlePostUserTap(post),
                   child: CircleAvatar(
-                    radius: 22,
+                    radius: 22.r,
                     backgroundColor: Colors.grey[800],
                     child: post['dp'] != null
                         ? ClipOval(
                             child: Image.network(
                               post['dp'],
-                              width: 44,
-                              height: 44,
+                              width: 44.r,
+                              height: 44.r,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Icon(
                                   Icons.person,
-                                  size: 24,
+                                  size: 24.r,
                                   color: Colors.grey[400],
                                 );
                               },
                             ),
                           )
-                        : Icon(Icons.person, size: 24, color: Colors.grey[400]),
+                        : Icon(
+                            Icons.person,
+                            size: 24.r,
+                            color: Colors.grey[400],
+                          ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12.w),
                 Expanded(
                   child: GestureDetector(
                     onTap: () => handlePostUserTap(post),
@@ -1358,41 +1318,41 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                             Flexible(
                               child: Text(
                                 post['name'] ?? 'Anonymous',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 15,
+                                  fontSize: 15.sp,
                                   fontWeight: FontWeight.w600,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const SizedBox(width: 6),
+                            SizedBox(width: 6.w),
                             if (post['streaks'] != null && post['streaks'] > 0)
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8.w,
+                                  vertical: 2.h,
                                 ),
                                 decoration: BoxDecoration(
                                   color: Colors.deepOrangeAccent.withOpacity(
                                     0.2,
                                   ),
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(12.r),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const HugeIcon(
+                                    HugeIcon(
                                       icon: HugeIcons.strokeRoundedFire02,
                                       color: Colors.deepOrangeAccent,
-                                      size: 12,
+                                      size: 12.r,
                                     ),
-                                    const SizedBox(width: 4),
+                                    SizedBox(width: 4.w),
                                     Text(
                                       '${post['streaks']}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         color: Colors.deepOrangeAccent,
-                                        fontSize: 11,
+                                        fontSize: 11.sp,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -1401,12 +1361,12 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                               ),
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        SizedBox(height: 2.h),
                         Text(
                           _getTimeAgo(post['timestamp'] ?? 0),
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white38,
-                            fontSize: 12,
+                            fontSize: 12.sp,
                           ),
                         ),
                       ],
@@ -1415,32 +1375,28 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                 ),
               ],
             ),
-
-            // Post text
-            const SizedBox(height: 12),
+            SizedBox(height: 12.h),
             Text(
               post['postText'] ?? '',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 15,
+                fontSize: 15.sp,
                 height: 1.5,
               ),
             ),
-
-            // Stats
-            const SizedBox(height: 12),
+            SizedBox(height: 12.h),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                const HugeIcon(
+                HugeIcon(
                   icon: HugeIcons.strokeRoundedChart01,
-                  size: 14,
-                  color: Color.fromARGB(255, 202, 202, 202),
+                  size: 14.r,
+                  color: const Color.fromARGB(255, 202, 202, 202),
                 ),
-                const SizedBox(width: 4),
+                SizedBox(width: 4.w),
                 Text(
                   '${post['viewCount'] ?? 0} views',
-                  style: const TextStyle(color: Colors.white38, fontSize: 13),
+                  style: TextStyle(color: Colors.white38, fontSize: 13.sp),
                 ),
               ],
             ),
@@ -1452,28 +1408,31 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
 
   Widget _buildCommunityTab(int nearbyCount) {
     if (isLoading) {
-      return const Center(
-        child: CupertinoActivityIndicator(color: Colors.white24, radius: 12),
+      return Center(
+        child: CupertinoActivityIndicator(color: Colors.white24, radius: 12.r),
       );
     }
 
     if (users.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(CupertinoIcons.person_2, size: 64, color: Colors.white24),
-            SizedBox(height: 16),
+            Icon(CupertinoIcons.person_2, size: 64.r, color: Colors.white24),
+            SizedBox(height: 16.h),
             Text(
               'No users found',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.w500,
                 color: Colors.white,
               ),
             ),
-            SizedBox(height: 8),
-            Text('Check back later', style: TextStyle(color: Colors.grey)),
+            SizedBox(height: 8.h),
+            Text(
+              'Check back later',
+              style: TextStyle(color: Colors.grey, fontSize: 14.sp),
+            ),
           ],
         ),
       );
@@ -1482,16 +1441,16 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
           child: Row(
             children: [
               Text(
                 nearbyCount != 0
                     ? '$nearbyCount ${hasPermission ? 'users near you' : 'users'} on the same journey'
                     : 'Find people near you on the same journey',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white70,
-                  fontSize: 14,
+                  fontSize: 14.sp,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -1501,7 +1460,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         Expanded(
           child: ListView.builder(
             itemCount: users.length,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: 16.w),
             itemBuilder: (context, index) {
               final user = users[index];
               final distance = user['distance'] as double?;
@@ -1514,18 +1473,18 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
               }
 
               return Container(
-                margin: const EdgeInsets.only(bottom: 12),
+                margin: EdgeInsets.only(bottom: 12.h),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1C1C1E),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 8.h,
                   ),
                   leading: CircleAvatar(
-                    radius: 25,
+                    radius: 25.r,
                     backgroundImage: NetworkImage(
                       user['img'] ??
                           'https://cdn-icons-png.flaticon.com/512/2815/2815428.png',
@@ -1533,17 +1492,15 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                   ),
                   title: Text(
                     user['name'] ?? 'Unknown',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
+                      fontSize: 15.sp,
                     ),
                   ),
                   subtitle: Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Colors.deepPurple,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: Colors.deepPurple, fontSize: 13.sp),
                   ),
                   onTap: () => handleUserTap(user),
                 ),

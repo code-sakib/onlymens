@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:onlymens/core/globals.dart';
 import 'package:onlymens/features/avatar/avatar_data.dart';
 import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
@@ -31,7 +32,6 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
     } catch (_) {}
   }
 
-  /// Manual update trigger
   Future<void> _handleManualRetry() async {
     if (_isUpdating) return;
 
@@ -66,20 +66,20 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
     }
   }
 
-  /// Show info dialog
   void _showPendingInfoDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
-          children: const [
-            Icon(Icons.system_update_alt, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('Avatar update pending'),
+          children: [
+            Icon(Icons.system_update_alt, color: Colors.orange, size: 24.r),
+            SizedBox(width: 8.w),
+            Text('Avatar update pending', style: TextStyle(fontSize: 16.sp)),
           ],
         ),
-        content: const Text(
+        content: Text(
           'Server is temporarily busy. Avatar will auto-update soon.\n\nYou can retry manually now if you wish.',
+          style: TextStyle(fontSize: 14.sp),
         ),
         actions: [
           TextButton(
@@ -87,7 +87,7 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
               if (Navigator.canPop(context)) Navigator.pop(context);
               Utilis.showToast('Avatar will update later');
             },
-            child: const Text('Later'),
+            child: Text('Later', style: TextStyle(fontSize: 14.sp)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -95,7 +95,7 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
               _handleManualRetry();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
-            child: const Text('Try Update'),
+            child: Text('Try Update', style: TextStyle(fontSize: 14.sp)),
           ),
         ],
       ),
@@ -108,7 +108,7 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
     final currentLevel = AvatarManager.getLevelFromDays(currentStreakDays);
 
     return Drawer(
-      width: MediaQuery.of(context).size.width / 1.5,
+      width: 0.67.sw,
       child: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -129,28 +129,27 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
             children: [
               // HEADER
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: EdgeInsets.all(16.r),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Left text info
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Avatar Levels',
                           style: TextStyle(
-                            fontSize: 24,
+                            fontSize: 24.sp,
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4.h),
                         Text(
                           'Current: Level $currentLevel',
-                          style: const TextStyle(
-                            fontSize: 14,
+                          style: TextStyle(
+                            fontSize: 14.sp,
                             color: Colors.deepPurple,
                             fontWeight: FontWeight.w600,
                           ),
@@ -158,29 +157,29 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
                         Text(
                           '$currentStreakDays day${currentStreakDays == 1 ? '' : 's'} streak',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 12.sp,
                             color: Colors.grey[600],
                           ),
                         ),
                       ],
                     ),
 
-                    // Right side reload icon (if pending)
                     if (_hasPendingUpdate)
                       IconButton(
                         tooltip: 'Avatar update pending',
                         icon: _isUpdating
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
+                            ? SizedBox(
+                                width: 18.r,
+                                height: 18.r,
                                 child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                                  strokeWidth: 2.w,
                                   color: Colors.orange,
                                 ),
                               )
-                            : const Icon(
+                            : Icon(
                                 Icons.system_update_alt,
                                 color: Colors.orange,
+                                size: 24.r,
                               ),
                         onPressed: _isUpdating ? null : _showPendingInfoDialog,
                       ),
@@ -192,10 +191,7 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
               Expanded(
                 child: ListView.builder(
                   itemCount: 4,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
                   itemBuilder: (context, index) {
                     final levels = [
                       {
@@ -252,8 +248,7 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
                     } else if (levelNum == currentLevel + 1) {
                       final start = _getLevelStartDay(levelNum);
                       final remain = start - currentStreakDays;
-                      progressText =
-                          '$remain day${remain == 1 ? '' : 's'} to unlock';
+                      progressText = '$remain day${remain == 1 ? '' : 's'} to unlock';
                     }
 
                     return Column(
@@ -271,9 +266,9 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
                         ),
                         if (index < 3)
                           Container(
-                            height: 32,
-                            width: 3,
-                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            height: 32.h,
+                            width: 3.w,
+                            margin: EdgeInsets.symmetric(vertical: 4.h),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
@@ -346,29 +341,28 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
             : isUnlocked
             ? Colors.deepPurple.withOpacity(0.05)
             : Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
         border: isCurrent
-            ? Border.all(color: Colors.deepPurple, width: 2)
+            ? Border.all(color: Colors.deepPurple, width: 2.w)
             : isUnlocked
-            ? Border.all(color: Colors.deepPurple.withOpacity(0.3), width: 1)
-            : Border.all(color: Colors.grey[300]!, width: 1),
+            ? Border.all(color: Colors.deepPurple.withOpacity(0.3), width: 1.w)
+            : Border.all(color: Colors.grey[300]!, width: 1.w),
         boxShadow: [
           BoxShadow(
             color: isCurrent
                 ? Colors.deepPurple.withOpacity(0.2)
                 : Colors.black12,
-            blurRadius: isCurrent ? 8 : 4,
-            offset: const Offset(0, 2),
+            blurRadius: isCurrent ? 8.r : 4.r,
+            offset: Offset(0, 2.h),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: EdgeInsets.all(12.r),
         child: Row(
           children: [
-            // Avatar preview image
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.r),
               child: ColorFiltered(
                 colorFilter: isUnlocked
                     ? const ColorFilter.mode(
@@ -378,24 +372,19 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
                     : const ColorFilter.mode(Colors.grey, BlendMode.saturation),
                 child: Image.asset(
                   imagePath,
-                  width: 80,
-                  height: 80,
+                  width: 80.w,
+                  height: 80.h,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => Container(
-                    width: 80,
-                    height: 80,
+                    width: 80.w,
+                    height: 80.h,
                     color: Colors.grey[300],
-                    child: Icon(
-                      Icons.person,
-                      size: 40,
-                      color: Colors.grey[600],
-                    ),
+                    child: Icon(Icons.person, size: 40.r, color: Colors.grey[600]),
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 16),
-            // Avatar info
+            SizedBox(width: 16.w),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,44 +394,44 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
                       Text(
                         level,
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 18.sp,
                           fontWeight: FontWeight.bold,
                           color: isUnlocked ? Colors.black87 : Colors.grey[600],
                         ),
                       ),
                       if (isUnlocked && !isCurrent)
-                        const Padding(
-                          padding: EdgeInsets.only(left: 6),
+                        Padding(
+                          padding: EdgeInsets.only(left: 6.w),
                           child: Icon(
                             Icons.check_circle,
                             color: Colors.green,
-                            size: 16,
+                            size: 16.r,
                           ),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4.h),
                   Text(
                     days,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 14.sp, color: Colors.grey[600]),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4.h),
                   Text(
                     characteristic,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 16.sp,
                       fontWeight: FontWeight.w500,
                       color: isUnlocked ? Colors.blue[700] : Colors.grey[500],
                     ),
                   ),
                   if (progressText.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(top: 8),
+                      padding: EdgeInsets.only(top: 8.h),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(4.r),
                             child: LinearProgressIndicator(
                               value: progress,
                               backgroundColor: Colors.grey[300],
@@ -453,14 +442,14 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
                                     ? Colors.green
                                     : Colors.grey[400]!,
                               ),
-                              minHeight: 6,
+                              minHeight: 6.h,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4.h),
                           Text(
                             progressText,
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 11.sp,
                               color: isCurrent
                                   ? Colors.deepPurple
                                   : isUnlocked

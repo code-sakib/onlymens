@@ -40,10 +40,18 @@
 	<string>99850291815-nlhlh5jgg7rvsagev5ac8ii7p2t16oco.apps.googleusercontent.com</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSFamilyControlsUsageDescription</key>
+	<string>We need Screen Time access to block adult content</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We use your location to find people near you on the same journey.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We use your location to find people near you on the same journey.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>We need microphone access to hear your voice</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>We need access to speech recognition to communicate with your AI coach</string>
+	<key>SKAdNetworkItems</key>
+	<array/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -65,18 +73,5 @@
 	</array>
 	<key>io.flutter.embedded_views_preview</key>
 	<true/>
-	<!-- Location Permission (iOS) -->
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We use your location to find people near you on the same journey.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>We use your location to find people near you on the same journey.</string>
-	<key>NSFamilyControlsUsageDescription</key>
-	<string>We need Screen Time access to block adult content</string>
-
-	<!-- Storekit -->
-	<key>SKAdNetworkItems</key>
-	<array/>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>This app uses tracking for personalized subscriptions.</string>
 </dict>
 </plist>

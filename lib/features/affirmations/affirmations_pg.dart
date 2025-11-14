@@ -1,9 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:onlymens/features/affirmations/affirmations_data.dart';
 import 'package:onlymens/utilis/snackbar.dart';
+
+// Affirmations Page with ScreenUtil
 
 class AffirmationsPage extends StatefulWidget {
   const AffirmationsPage({super.key});
@@ -135,11 +138,13 @@ Peace and discipline guide my path.''',
       context: context,
       builder: (dialogContext) => Dialog(
         backgroundColor: Colors.grey[900],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.r),
+        ),
         child: Container(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(24.r),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(20.r),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -153,12 +158,12 @@ Peace and discipline guide my path.''',
               children: [
                 Row(
                   children: [
-                    const HugeIcon(
+                    HugeIcon(
                       icon: HugeIcons.strokeRoundedEdit02,
                       color: Colors.deepPurple,
-                      size: 28,
+                      size: 28.r,
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12.w),
                     Text(
                       'Create Your Affirmation',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -168,93 +173,104 @@ Peace and discipline guide my path.''',
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20.h),
                 TextField(
                   controller: titleController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.white, fontSize: 14.sp),
                   decoration: InputDecoration(
                     labelText: 'Title',
-                    labelStyle: TextStyle(color: Colors.grey[400]),
+                    labelStyle: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 14.sp,
+                    ),
                     filled: true,
                     fillColor: Colors.black26,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12.r),
                       borderSide: BorderSide(
                         color: Colors.deepPurple.withOpacity(0.3),
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12.r),
                       borderSide: BorderSide(
                         color: Colors.deepPurple.withOpacity(0.3),
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
+                      borderRadius: BorderRadius.circular(12.r),
+                      borderSide: BorderSide(
                         color: Colors.deepPurple,
-                        width: 2,
+                        width: 2.w,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
                 TextField(
                   controller: contentController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.white, fontSize: 14.sp),
                   maxLines: 8,
                   maxLength: 400,
                   decoration: InputDecoration(
                     labelText: 'Affirmation Content',
-                    labelStyle: TextStyle(color: Colors.grey[400]),
-
-                    hintStyle: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    labelStyle: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 14.sp,
+                    ),
+                    hintStyle: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12.sp,
+                    ),
                     filled: true,
                     fillColor: Colors.black26,
-                    counterStyle: TextStyle(color: Colors.grey[600]),
+                    counterStyle: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12.sp,
+                    ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12.r),
                       borderSide: BorderSide(
                         color: Colors.deepPurple.withOpacity(0.3),
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12.r),
                       borderSide: BorderSide(
                         color: Colors.deepPurple.withOpacity(0.3),
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
+                      borderRadius: BorderRadius.circular(12.r),
+                      borderSide: BorderSide(
                         color: Colors.deepPurple,
-                        width: 2,
+                        width: 2.w,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 24.h),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
                       onPressed: () => Navigator.of(dialogContext).pop(),
-                      child: const Text(
+                      child: Text(
                         'Cancel',
-                        style: TextStyle(color: Colors.grey, fontSize: 16),
+                        style: TextStyle(color: Colors.grey, fontSize: 16.sp),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12.w),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 24.w,
+                          vertical: 12.h,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(10.r),
                         ),
                       ),
                       onPressed: () async {
@@ -272,11 +288,11 @@ Peace and discipline guide my path.''',
                         Navigator.of(dialogContext).pop();
                         await _addCustomAffirmation(title, content);
                       },
-                      icon: const Icon(Icons.add, size: 20),
-                      label: const Text(
+                      icon: Icon(Icons.add, size: 20.r),
+                      label: Text(
                         'Add',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -302,12 +318,12 @@ Peace and discipline guide my path.''',
           return Dialog(
             backgroundColor: Colors.grey[900],
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(20.r),
             ),
             child: Container(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(24.r),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(20.r),
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -364,41 +380,41 @@ Peace and discipline guide my path.''',
                                 }
                               },
                         icon: isRegenerating
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
+                            ? SizedBox(
+                                width: 20.r,
+                                height: 20.r,
                                 child: CupertinoActivityIndicator(
                                   color: Colors.white,
-                                  radius: 8,
+                                  radius: 8.r,
                                 ),
                               )
-                            : const Icon(
+                            : Icon(
                                 Icons.refresh,
                                 color: Colors.white38,
-                                size: 24,
+                                size: 24.r,
                               ),
                         tooltip: 'Regenerate',
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20.h),
                   Container(
-                    constraints: const BoxConstraints(maxHeight: 300),
-                    padding: const EdgeInsets.all(16),
+                    constraints: BoxConstraints(maxHeight: 300.h),
+                    padding: EdgeInsets.all(16.r),
                     decoration: BoxDecoration(
                       color: Colors.black26,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12.r),
                       border: Border.all(
                         color: Colors.deepPurple.withOpacity(0.3),
-                        width: 1,
+                        width: 1.w,
                       ),
                     ),
                     child: SingleChildScrollView(
                       child: Text(
                         generatedText,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 16,
+                          fontSize: 16.sp,
                           height: 1.5,
                           fontWeight: FontWeight.w500,
                         ),
@@ -406,7 +422,7 @@ Peace and discipline guide my path.''',
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24.h),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -414,22 +430,22 @@ Peace and discipline guide my path.''',
                         onPressed: isRegenerating
                             ? null
                             : () => Navigator.of(dialogContext).pop(),
-                        child: const Text(
+                        child: Text(
                           'Cancel',
-                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                          style: TextStyle(color: Colors.grey, fontSize: 16.sp),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12.w),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.deepPurple,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 24.w,
+                            vertical: 12.h,
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(10.r),
                           ),
                         ),
                         onPressed: isRegenerating
@@ -438,11 +454,11 @@ Peace and discipline guide my path.''',
                                 Navigator.of(dialogContext).pop();
                                 await _addGeneratedAffirmation(generatedText);
                               },
-                        icon: const Icon(Icons.check, size: 20),
-                        label: const Text(
+                        icon: Icon(Icons.check, size: 20.r),
+                        label: Text(
                           'Done',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 16.sp,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -525,10 +541,10 @@ Peace and discipline guide my path.''',
                   fit: BoxFit.cover,
                 ),
               ),
-              child: const Center(
+              child: Center(
                 child: CupertinoActivityIndicator(
                   color: Colors.white,
-                  radius: 8,
+                  radius: 10.r,
                 ),
               ),
             ),
@@ -543,116 +559,105 @@ Peace and discipline guide my path.''',
                 fit: BoxFit.cover,
               ),
             ),
-            // inside Scaffold.body: (replace your current Center(...) block with this)
-            child: Container(
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage("assets/affirmations/base_img.jpg"),
-                  fit: BoxFit.cover,
-                ),
-              ),
-              child: SafeArea(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Top bar row (back, title, bookmark)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            onPressed: () => context.pop(),
-                            icon: const Icon(
-                              CupertinoIcons.back,
+            child: SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Top bar row (back, title, bookmark)
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8.w),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          onPressed: () => context.pop(),
+                          icon: Icon(
+                            CupertinoIcons.back,
+                            color: Colors.white,
+                            size: 24.r,
+                          ),
+                        ),
+                        Text(
+                          'Recite Your Affirmations',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        Builder(
+                          builder: (ctx) => IconButton(
+                            onPressed: () => Scaffold.of(ctx).openEndDrawer(),
+                            icon: HugeIcon(
+                              icon: HugeIcons.strokeRoundedBookmarkCheck01,
                               color: Colors.white,
+                              size: 24.r,
                             ),
                           ),
-                          Text(
-                            'Recite Your Affirmations',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          Builder(
-                            builder: (ctx) => IconButton(
-                              onPressed: () => Scaffold.of(ctx).openEndDrawer(),
-                              icon: const HugeIcon(
-                                icon: HugeIcons.strokeRoundedBookmarkCheck01,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Expandable scrollable content area
-                    Expanded(
-                      child: Padding(
-                        // reduce big vertical padding — use comfortable values
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 24.0,
                         ),
-                        child: Center(
-                          child: ValueListenableBuilder<List<Map<String, dynamic>>>(
-                            valueListenable: _affirmationsNotifier,
-                            builder: (context, affirmations, _) {
-                              return ValueListenableBuilder<int>(
-                                valueListenable: _currentAffNotifier,
-                                builder: (context, currentAff, _) {
-                                  final text = affirmations.isEmpty
-                                      ? 'Add your first affirmation to get started!'
-                                      : affirmations[currentAff]['subtitle'] ??
-                                            '';
+                      ],
+                    ),
+                  ),
 
-                                  return SingleChildScrollView(
-                                    physics: const BouncingScrollPhysics(),
-                                    child: Text(
-                                      text,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 22,
-                                        height: 1.6,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 0.5,
-                                        shadows: [
-                                          Shadow(
-                                            blurRadius: 12,
-                                            color: Colors.black54,
-                                            offset: Offset(2, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      softWrap: true,
+                  // Expandable scrollable content area
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16.w,
+                        vertical: 24.h,
+                      ),
+                      child: Center(
+                        child: ValueListenableBuilder<List<Map<String, dynamic>>>(
+                          valueListenable: _affirmationsNotifier,
+                          builder: (context, affirmations, _) {
+                            return ValueListenableBuilder<int>(
+                              valueListenable: _currentAffNotifier,
+                              builder: (context, currentAff, _) {
+                                final text = affirmations.isEmpty
+                                    ? 'Add your first affirmation to get started!'
+                                    : affirmations[currentAff]['subtitle'] ??
+                                          '';
+
+                                return SingleChildScrollView(
+                                  physics: const BouncingScrollPhysics(),
+                                  child: Text(
+                                    text,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 22.sp,
+                                      height: 1.6,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.5,
+                                      shadows: const [
+                                        Shadow(
+                                          blurRadius: 12,
+                                          color: Colors.black54,
+                                          offset: Offset(2, 2),
+                                        ),
+                                      ],
                                     ),
-                                  );
-                                },
-                              );
-                            },
-                          ),
+                                    textAlign: TextAlign.center,
+                                    softWrap: true,
+                                  ),
+                                );
+                              },
+                            );
+                          },
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
           endDrawer: Builder(
             builder: (drawerContext) {
-              final double drawerWidth =
-                  MediaQuery.of(drawerContext).size.width / 2;
-
               return Drawer(
-                width: drawerWidth,
+                width: 0.5.sw,
                 backgroundColor: Theme.of(
                   drawerContext,
                 ).scaffoldBackgroundColor,
                 child: Column(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.all(8.0),
+                      padding: EdgeInsets.all(8.r),
                       child: Text(
                         '- Your Affirmations -',
                         style: Theme.of(drawerContext).textTheme.labelSmall,
@@ -669,7 +674,7 @@ Peace and discipline guide my path.''',
                               return ListView.separated(
                                 itemCount: affirmations.length,
                                 separatorBuilder: (_, __) =>
-                                    const SizedBox(height: 4),
+                                    SizedBox(height: 4.h),
                                 itemBuilder: (_, index) {
                                   final currentItem = affirmations[index];
                                   final isDefault =
@@ -678,8 +683,9 @@ Peace and discipline guide my path.''',
                                   return ListTile(
                                     title: Text(
                                       currentItem['title'] ?? '',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.w700,
+                                        fontSize: 14.sp,
                                       ),
                                     ),
                                     tileColor: currentAff != index
@@ -689,6 +695,7 @@ Peace and discipline guide my path.''',
                                       currentItem['subtitle'] ?? '',
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(fontSize: 12.sp),
                                     ),
                                     onTap: () {
                                       _currentAffNotifier.value = index;
@@ -700,26 +707,29 @@ Peace and discipline guide my path.''',
                                           context: drawerContext,
                                           builder: (ctx) => AlertDialog(
                                             backgroundColor: Colors.grey[900],
-                                            title: const Text(
+                                            title: Text(
                                               'Delete Affirmation',
                                               style: TextStyle(
                                                 color: Colors.white,
+                                                fontSize: 18.sp,
                                               ),
                                             ),
                                             content: Text(
                                               'Are you sure you want to delete "${currentItem['title']}"?',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 color: Colors.white70,
+                                                fontSize: 14.sp,
                                               ),
                                             ),
                                             actions: [
                                               TextButton(
                                                 onPressed: () =>
                                                     Navigator.pop(ctx),
-                                                child: const Text(
+                                                child: Text(
                                                   'Cancel',
                                                   style: TextStyle(
                                                     color: Colors.white,
+                                                    fontSize: 14.sp,
                                                   ),
                                                 ),
                                               ),
@@ -735,7 +745,12 @@ Peace and discipline guide my path.''',
                                                     drawerContext,
                                                   );
                                                 },
-                                                child: const Text('Delete'),
+                                                child: Text(
+                                                  'Delete',
+                                                  style: TextStyle(
+                                                    fontSize: 14.sp,
+                                                  ),
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -750,15 +765,15 @@ Peace and discipline guide my path.''',
                         },
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8.h),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      padding: EdgeInsets.symmetric(horizontal: 8.w),
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey[800],
-                          minimumSize: const Size(double.infinity, 45),
+                          minimumSize: Size(double.infinity, 45.h),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(10.r),
                           ),
                         ),
                         onPressed: () {
@@ -772,46 +787,53 @@ Peace and discipline guide my path.''',
                           }
                           _showAddAffirmationDialog();
                         },
-                        icon: const Icon(Icons.add, color: Colors.white),
-                        label: const Text(
+                        icon: Icon(Icons.add, color: Colors.white, size: 20.r),
+                        label: Text(
                           'Add Custom',
-                          style: TextStyle(color: Colors.white),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14.sp,
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8.h),
                     Padding(
-                      padding: const EdgeInsets.all(8.0),
+                      padding: EdgeInsets.all(8.r),
                       child: ValueListenableBuilder<bool>(
                         valueListenable: _isGeneratingNotifier,
                         builder: (context, isGenerating, _) {
                           return ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.deepPurple,
-                              minimumSize: const Size(double.infinity, 45),
+                              minimumSize: Size(double.infinity, 45.h),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(10.r),
                               ),
                             ),
                             onPressed: isGenerating
                                 ? null
                                 : _generateAffirmation,
                             child: isGenerating
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
+                                ? SizedBox(
+                                    height: 20.h,
+                                    width: 20.w,
                                     child: CupertinoActivityIndicator(
                                       color: Colors.white,
-                                      radius: 8,
+                                      radius: 8.r,
                                     ),
                                   )
                                 : Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    children: const [
-                                      Text('Generate'),
-                                      SizedBox(width: 8),
+                                    children: [
+                                      Text(
+                                        'Generate',
+                                        style: TextStyle(fontSize: 14.sp),
+                                      ),
+                                      SizedBox(width: 8.w),
                                       HugeIcon(
                                         icon: HugeIcons.strokeRoundedAiEditing,
+                                        size: 20.r,
                                       ),
                                     ],
                                   ),

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:onlymens/core/globals.dart';
@@ -11,7 +12,6 @@ import 'package:onlymens/features/avatar/avatar_pg.dart';
 import 'package:onlymens/features/streaks_page/presentation/pTimer.dart';
 import 'package:onlymens/guides/blogs.dart';
 import 'package:onlymens/guides/guides_pg.dart';
-import 'package:onlymens/utilis/size_config.dart';
 import 'package:onlymens/utilis/snackbar.dart';
 
 import 'dart:io';
@@ -37,34 +37,23 @@ class _StreaksPageState extends State<StreaksPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(
-              height: SizeConfig.screenHeight / 1.9,
-              child: TimerComponents(),
-            ),
+            SizedBox(height: 400.h, child: TimerComponents()),
 
             secondRowButtons(context),
-            const SizedBox(height: 24),
+            SizedBox(height: 24.h),
 
-            // Daily Motivation Section
             const DailyMotivationWidget(),
-            const SizedBox(height: 24),
+            SizedBox(height: 24.h),
 
-            // // Progress Insights Section
-            // _buildProgressInsights(),
-            // const SizedBox(height: 24),
-
-            // Blog Articles Section
-            // Blog Articles Section
             FutureBuilder<List<BlogPost>>(
-              future:
-                  BlogManager.fetchTodayBlogs(), // ✅ fetches today's featured blogs
+              future: BlogManager.fetchTodayBlogs(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CupertinoActivityIndicator());
                 }
 
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return fallbackBlogs(context); // ✅ uses fallback blogs
+                  return fallbackBlogs(context);
                 }
 
                 final blogs = snapshot.data!;
@@ -72,25 +61,25 @@ class _StreaksPageState extends State<StreaksPage> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '  Latest Researches',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                    Padding(
+                      padding: EdgeInsets.only(left: 16.w),
+                      child: Text(
+                        'Latest Researches',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12.h),
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: blogs.length,
                       itemBuilder: (context, index) {
                         final blog = blogs[index];
-                        return blogCard(
-                          context,
-                          blog.toJson(),
-                        ); // ✅ pass as Map<String,dynamic>
+                        return blogCard(context, blog.toJson());
                       },
                     ),
                   ],
@@ -98,21 +87,31 @@ class _StreaksPageState extends State<StreaksPage> {
               },
             ),
 
-            const SizedBox(height: 24),
-
-            // // Community Support Section
-            // _buildCommunitySupportSection(),
-            const SizedBox(height: 24),
-
-            // Quick Tips Section
-            LevelGuideTipsWidget(),
-            const SizedBox(height: 40),
+            SizedBox(height: 24.h),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(left: 16.w),
+                  child: Text(
+                    'Level Tips',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 12.h),
+                LevelGuideTipsWidget(),
+              ],
+            ),
+            SizedBox(height: 40.h),
           ],
         ),
       ),
       drawer: AvatarLevelsDrawer(),
-      floatingActionButton: // In settings page or debug menu
-      ElevatedButton(
+      floatingActionButton: ElevatedButton(
         onPressed: () {
           showDialog(
             context: context,
@@ -127,13 +126,17 @@ class _StreaksPageState extends State<StreaksPage> {
 
 Widget _buildProgressInsights() {
   return Container(
-    margin: EdgeInsets.symmetric(horizontal: 16),
-    padding: EdgeInsets.all(20),
+    margin: EdgeInsets.symmetric(horizontal: 16.w),
+    padding: EdgeInsets.all(20.r),
     decoration: BoxDecoration(
       color: Colors.grey[850],
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(16.r),
       boxShadow: [
-        BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+        BoxShadow(
+          color: Colors.black26,
+          blurRadius: 4.r,
+          offset: Offset(0, 2.h),
+        ),
       ],
     ),
     child: Column(
@@ -142,12 +145,12 @@ Widget _buildProgressInsights() {
         Text(
           'Progress Insights',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 20.sp,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
         ),
-        SizedBox(height: 20),
+        SizedBox(height: 20.h),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
@@ -185,251 +188,42 @@ Widget _buildInsightCard(
   return Column(
     children: [
       Container(
-        padding: EdgeInsets.all(12),
+        padding: EdgeInsets.all(12.r),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12.r),
           border: Border.all(color: color.withValues(alpha: 0.5)),
         ),
-        child: Icon(icon, color: color, size: 28),
+        child: Icon(icon, color: color, size: 28.r),
       ),
-      SizedBox(height: 8),
+      SizedBox(height: 8.h),
       Text(
         value,
         style: TextStyle(
-          fontSize: 18,
+          fontSize: 18.sp,
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
       ),
-      SizedBox(height: 4),
+      SizedBox(height: 4.h),
       Text(
         label,
-        style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+        style: TextStyle(fontSize: 12.sp, color: Colors.grey[400]),
         textAlign: TextAlign.center,
       ),
     ],
   );
 }
 
-Widget _buildCommunitySupportSection() {
-  return Container(
-    margin: EdgeInsets.symmetric(horizontal: 16),
-    padding: EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      color: Colors.grey[850],
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: [
-        BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
-      ],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.group, color: Colors.deepPurple[300], size: 28),
-            SizedBox(width: 12),
-            Text(
-              'Community Support',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 16),
-        Text(
-          'You\'re not alone in this journey. Join thousands of others who are committed to positive change.',
-          style: TextStyle(fontSize: 14, color: Colors.grey[400], height: 1.5),
-        ),
-        SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(child: _buildSupportStat('1.2K', 'Active Members')),
-            SizedBox(width: 12),
-            Expanded(child: _buildSupportStat('850+', 'Success Stories')),
-          ],
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildSupportStat(String value, String label) {
-  return Container(
-    padding: EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.deepPurple.withValues(alpha: 0.2),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.3)),
-    ),
-    child: Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: Colors.deepPurple[300],
-          ),
-        ),
-        SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey[400]),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildQuickTipsSection() {
-  final tips = [
-    'Stay hydrated - drink 8 glasses of water daily',
-    'Exercise for 30 minutes to boost mood',
-    'Practice mindfulness meditation',
-    'Get 7-8 hours of quality sleep',
-  ];
-
-  return Container(
-    margin: EdgeInsets.symmetric(horizontal: 16),
-    padding: EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      color: Colors.grey[850],
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: [
-        BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
-      ],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.tips_and_updates, color: Colors.amber, size: 28),
-            SizedBox(width: 12),
-            Text(
-              'Quick Daily Tips',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 16),
-        ...tips.map(
-          (tip) => Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.check_circle, color: Colors.green[400], size: 20),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    tip,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[300],
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildAvatarCard({
-  required String imagePath,
-  required String level,
-  required String days,
-  required String characteristic,
-}) {
-  return Container(
-    decoration: BoxDecoration(
-      color: Colors.grey[100],
-      borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
-      ],
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              imagePath,
-              width: 80,
-              height: 80,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: 80,
-                  height: 80,
-                  color: Colors.grey[300],
-                  child: Icon(Icons.person, size: 40, color: Colors.grey[600]),
-                );
-              },
-            ),
-          ),
-          SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  level,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  days,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  characteristic,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.blue[700],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
 secondRowButtons(BuildContext context) {
   return Padding(
-    padding: const EdgeInsets.all(10.0),
+    padding: EdgeInsets.all(10.r),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         ElevatedButton.icon(
           onPressed: () => context.push('/affirmations'),
-          label: HugeIcon(icon: HugeIcons.strokeRoundedHandPrayer, size: 20),
+          label: HugeIcon(icon: HugeIcons.strokeRoundedBookEdit, size: 20.r),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.deepPurple[600],
             shape: const CircleBorder(),
@@ -440,7 +234,7 @@ secondRowButtons(BuildContext context) {
           onPressed: () async {
             context.push('/meditation');
           },
-          label: HugeIcon(icon: HugeIcons.strokeRoundedRelieved01),
+          label: HugeIcon(icon: HugeIcons.strokeRoundedRelieved01, size: 20.r),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.deepPurple[600],
             shape: const CircleBorder(),
@@ -450,8 +244,6 @@ secondRowButtons(BuildContext context) {
     ),
   );
 }
-
-// Replace the entire DaysList class with this:
 
 class PanicButton extends StatefulWidget {
   final VoidCallback onTriggered;
@@ -528,7 +320,7 @@ class _PanicButtonState extends State<PanicButton>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const borderRadius = 20.0;
+    final borderRadius = 20.r;
 
     return Center(
       child: GestureDetector(
@@ -538,7 +330,6 @@ class _PanicButtonState extends State<PanicButton>
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Animated glowing rectangular border
             AnimatedBuilder(
               animation: _timerController,
               builder: (context, _) {
@@ -550,8 +341,8 @@ class _PanicButtonState extends State<PanicButton>
                           color: Colors.redAccent.withAlpha(
                             (0.5 + _timerController.value * 0.5 * 255).toInt(),
                           ),
-                          blurRadius: 12,
-                          spreadRadius: 1.5,
+                          blurRadius: 12.r,
+                          spreadRadius: 1.5.r,
                         ),
                     ],
                   ),
@@ -561,13 +352,11 @@ class _PanicButtonState extends State<PanicButton>
                       color: Colors.redAccent,
                       borderRadius: borderRadius,
                     ),
-                    child: const SizedBox(width: 150, height: 50),
+                    child: SizedBox(width: 150.w, height: 50.h),
                   ),
                 );
               },
             ),
-
-            // Actual Panic button
             AnimatedScale(
               scale: _isPressed ? 0.97 : 1.0,
               duration: const Duration(milliseconds: 150),
@@ -578,11 +367,11 @@ class _PanicButtonState extends State<PanicButton>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color.fromARGB(255, 102, 25, 25),
                     foregroundColor: Colors.white,
-                    fixedSize: const Size(150, 50),
+                    fixedSize: Size(150.w, 50.h),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(borderRadius),
                     ),
-                    side: const BorderSide(color: Colors.red, width: 1.5),
+                    side: BorderSide(color: Colors.red, width: 1.5.w),
                     elevation: 0,
                   ),
                   child: Text(
@@ -590,6 +379,7 @@ class _PanicButtonState extends State<PanicButton>
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      fontSize: 14.sp,
                     ),
                   ),
                 ),
@@ -603,7 +393,7 @@ class _PanicButtonState extends State<PanicButton>
 }
 
 class _RectBorderPainter extends CustomPainter {
-  final double progress; // 0 → 1
+  final double progress;
   final Color color;
   final double borderRadius;
 
@@ -642,10 +432,8 @@ class _RectBorderPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-/// One-time migration and cleanup utility
-/// Run this once to clean up old avatar storage
+// Avatar Storage Cleanup classes remain the same but with ScreenUtil
 class AvatarStorageCleanup {
-  /// Main cleanup function - call this once from settings or debug menu
   static Future<CleanupResult> performCleanup() async {
     try {
       print('🧹 Starting Avatar Storage Cleanup...');
@@ -654,19 +442,16 @@ class AvatarStorageCleanup {
       double freedSpaceMB = 0.0;
       List<String> deletedFileNames = [];
 
-      // 1. Clean up Documents/avatars directory (old uncompressed files)
       final docsResult = await _cleanupDocumentsDirectory();
       deletedFiles += docsResult['count'] as int;
       freedSpaceMB += docsResult['size'] as double;
       deletedFileNames.addAll(docsResult['files'] as List<String>);
 
-      // 2. Clean up Application Support directory (old location)
       final supportResult = await _cleanupApplicationSupportDirectory();
       deletedFiles += supportResult['count'] as int;
       freedSpaceMB += supportResult['size'] as double;
       deletedFileNames.addAll(supportResult['files'] as List<String>);
 
-      // 3. Clean up any orphaned files
       final orphanResult = await _cleanupOrphanedFiles();
       deletedFiles += orphanResult['count'] as int;
       freedSpaceMB += orphanResult['size'] as double;
@@ -688,7 +473,6 @@ class AvatarStorageCleanup {
     }
   }
 
-  /// Clean up Documents/avatars directory
   static Future<Map<String, dynamic>> _cleanupDocumentsDirectory() async {
     int count = 0;
     double size = 0.0;
@@ -705,7 +489,6 @@ class AvatarStorageCleanup {
           if (entity is File) {
             final name = entity.path.split('/').last;
 
-            // Delete old uncompressed files (level_X.glb)
             if (name.startsWith('level_') && name.endsWith('.glb')) {
               final stat = await entity.stat();
               final fileSizeMB = stat.size / (1024 * 1024);
@@ -730,7 +513,6 @@ class AvatarStorageCleanup {
     return {'count': count, 'size': size, 'files': files};
   }
 
-  /// Clean up Application Support directory (old location)
   static Future<Map<String, dynamic>>
   _cleanupApplicationSupportDirectory() async {
     int count = 0;
@@ -762,7 +544,6 @@ class AvatarStorageCleanup {
           }
         }
 
-        // Delete empty directory
         if (avatarDir.listSync().isEmpty) {
           await avatarDir.delete();
           print('🗑️ Deleted empty AppSupport/avatars directory');
@@ -775,7 +556,6 @@ class AvatarStorageCleanup {
     return {'count': count, 'size': size, 'files': files};
   }
 
-  /// Clean up orphaned files (files that shouldn't exist)
   static Future<Map<String, dynamic>> _cleanupOrphanedFiles() async {
     int count = 0;
     double size = 0.0;
@@ -792,7 +572,6 @@ class AvatarStorageCleanup {
           if (entity is File) {
             final name = entity.path.split('/').last;
 
-            // Delete any file that's not a compressed avatar
             if (!name.startsWith('av_lv') || !name.endsWith('_comp.glb')) {
               final stat = await entity.stat();
               final fileSizeMB = stat.size / (1024 * 1024);
@@ -815,7 +594,6 @@ class AvatarStorageCleanup {
     return {'count': count, 'size': size, 'files': files};
   }
 
-  /// Get current storage usage
   static Future<StorageInfo> getStorageInfo() async {
     try {
       final Directory appDocs = await getApplicationDocumentsDirectory();
@@ -862,7 +640,6 @@ class AvatarStorageCleanup {
   }
 }
 
-// Result classes
 class CleanupResult {
   final bool success;
   final int deletedFiles;
@@ -905,7 +682,6 @@ class FileInfo {
   });
 }
 
-/// UI Widget to show cleanup options
 class AvatarCleanupDialog extends StatefulWidget {
   const AvatarCleanupDialog({super.key});
 
@@ -948,9 +724,9 @@ class _AvatarCleanupDialogState extends State<AvatarCleanupDialog> {
     return AlertDialog(
       title: Row(
         children: [
-          Icon(Icons.cleaning_services, color: Colors.blue),
-          SizedBox(width: 8),
-          Text('Avatar Storage Cleanup'),
+          Icon(Icons.cleaning_services, color: Colors.blue, size: 24.r),
+          SizedBox(width: 8.w),
+          Text('Avatar Storage Cleanup', style: TextStyle(fontSize: 16.sp)),
         ],
       ),
       content: SingleChildScrollView(
@@ -962,96 +738,49 @@ class _AvatarCleanupDialogState extends State<AvatarCleanupDialog> {
               Center(child: CircularProgressIndicator())
             else if (_cleanupResult != null) ...[
               if (_cleanupResult!.success) ...[
-                Icon(Icons.check_circle, color: Colors.green, size: 48),
-                SizedBox(height: 16),
+                Icon(Icons.check_circle, color: Colors.green, size: 48.r),
+                SizedBox(height: 16.h),
                 Text(
                   'Cleanup Successful!',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 18.sp,
                     fontWeight: FontWeight.bold,
                     color: Colors.green,
                   ),
                 ),
-                SizedBox(height: 8),
-                Text('Files deleted: ${_cleanupResult!.deletedFiles}'),
+                SizedBox(height: 8.h),
+                Text(
+                  'Files deleted: ${_cleanupResult!.deletedFiles}',
+                  style: TextStyle(fontSize: 14.sp),
+                ),
                 Text(
                   'Space freed: ${_cleanupResult!.freedSpaceMB.toStringAsFixed(2)} MB',
+                  style: TextStyle(fontSize: 14.sp),
                 ),
-                if (_cleanupResult!.deletedFileNames.isNotEmpty) ...[
-                  SizedBox(height: 12),
-                  Text(
-                    'Deleted files:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  ..._cleanupResult!.deletedFileNames.map(
-                    (name) => Padding(
-                      padding: EdgeInsets.only(left: 8, top: 4),
-                      child: Text(
-                        '• $name',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ),
-                  ),
-                ],
               ] else ...[
-                Icon(Icons.error, color: Colors.red, size: 48),
-                SizedBox(height: 16),
+                Icon(Icons.error, color: Colors.red, size: 48.r),
+                SizedBox(height: 16.h),
                 Text(
                   'Cleanup Failed',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 18.sp,
                     fontWeight: FontWeight.bold,
                     color: Colors.red,
                   ),
                 ),
-                SizedBox(height: 8),
-                Text(_cleanupResult!.error ?? 'Unknown error'),
+                SizedBox(height: 8.h),
+                Text(
+                  _cleanupResult!.error ?? 'Unknown error',
+                  style: TextStyle(fontSize: 14.sp),
+                ),
               ],
             ] else if (_storageInfo != null) ...[
               Text(
                 'Current Storage Usage',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 12),
+              SizedBox(height: 12.h),
               _buildStorageCard(),
-              SizedBox(height: 16),
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: Colors.orange,
-                          size: 20,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'What will be cleaned:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      '• Old uncompressed avatar files (level_X.glb)\n'
-                      '• Files from old Application Support location\n'
-                      '• Any orphaned or corrupted files',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ],
         ),
@@ -1063,23 +792,23 @@ class _AvatarCleanupDialogState extends State<AvatarCleanupDialog> {
               setState(() => _cleanupResult = null);
               _loadStorageInfo();
             },
-            child: Text('Back'),
+            child: Text('Back', style: TextStyle(fontSize: 14.sp)),
           )
         else
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            child: Text('Cancel', style: TextStyle(fontSize: 14.sp)),
           ),
         if (_cleanupResult == null)
           ElevatedButton(
             onPressed: _isLoading ? null : _performCleanup,
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-            child: Text('Clean Up'),
+            child: Text('Clean Up', style: TextStyle(fontSize: 14.sp)),
           )
         else if (_cleanupResult!.success)
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Done'),
+            child: Text('Done', style: TextStyle(fontSize: 14.sp)),
           ),
       ],
     );
@@ -1087,10 +816,10 @@ class _AvatarCleanupDialogState extends State<AvatarCleanupDialog> {
 
   Widget _buildStorageCard() {
     return Container(
-      padding: EdgeInsets.all(12),
+      padding: EdgeInsets.all(12.r),
       decoration: BoxDecoration(
         color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8.r),
       ),
       child: Column(
         children: [
@@ -1099,47 +828,28 @@ class _AvatarCleanupDialogState extends State<AvatarCleanupDialog> {
             children: [
               Text(
                 'Total Files:',
-                style: TextStyle(fontWeight: FontWeight.w500),
+                style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14.sp),
               ),
-              Text('${_storageInfo!.totalFiles}'),
+              Text(
+                '${_storageInfo!.totalFiles}',
+                style: TextStyle(fontSize: 14.sp),
+              ),
             ],
           ),
-          SizedBox(height: 4),
+          SizedBox(height: 4.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'Total Size:',
-                style: TextStyle(fontWeight: FontWeight.w500),
+                style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14.sp),
               ),
-              Text('${_storageInfo!.totalSizeMB.toStringAsFixed(2)} MB'),
+              Text(
+                '${_storageInfo!.totalSizeMB.toStringAsFixed(2)} MB',
+                style: TextStyle(fontSize: 14.sp),
+              ),
             ],
           ),
-          if (_storageInfo!.files.isNotEmpty) ...[
-            Divider(height: 16),
-            ..._storageInfo!.files.map(
-              (file) => Padding(
-                padding: EdgeInsets.only(top: 4),
-                child: Row(
-                  children: [
-                    Icon(
-                      file.isCompressed ? Icons.check_circle : Icons.warning,
-                      size: 16,
-                      color: file.isCompressed ? Colors.green : Colors.orange,
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(file.name, style: TextStyle(fontSize: 12)),
-                    ),
-                    Text(
-                      '${file.sizeMB.toStringAsFixed(2)} MB',
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );

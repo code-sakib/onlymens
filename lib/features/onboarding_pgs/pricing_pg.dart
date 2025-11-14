@@ -1,8 +1,12 @@
+// pricing_page.dart — FIXED VERSION
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:onlymens/auth/auth_service.dart';
 import 'package:onlymens/core/apptheme.dart';
+import 'package:onlymens/core/globals.dart';
 
 class PricingPage extends StatefulWidget {
   const PricingPage({super.key});
@@ -13,159 +17,240 @@ class PricingPage extends StatefulWidget {
 
 class _PricingPageState extends State<PricingPage> {
   final InAppPurchase _iap = InAppPurchase.instance;
-  late StreamSubscription<List<PurchaseDetails>> _subscription;
+  late final StreamSubscription<List<PurchaseDetails>> _listener;
 
-  bool _isAvailable = false;
-  bool _purchasePending = false;
+  bool _pending = false;
   List<ProductDetails> _products = [];
-  ProductDetails? _selectedProduct;
+  ProductDetails? _selected;
+
+  // Pending receipt if user is not logged in
+  String? _pendingReceipt;
+  String? _pendingProductId;
 
   @override
   void initState() {
     super.initState();
-    _initializeIAP();
-    _listenToPurchaseUpdates();
+    _listener = _iap.purchaseStream.listen(_handlePurchaseUpdates);
+    _initIAP();
+    _checkExistingSubscription(); // Check on page load
   }
 
   @override
   void dispose() {
-    _subscription.cancel();
+    _listener.cancel();
     super.dispose();
   }
 
-  // CRITICAL: Listen to purchase updates
-  void _listenToPurchaseUpdates() {
-    _subscription = _iap.purchaseStream.listen(
-      (purchases) {
-        _handlePurchaseUpdates(purchases);
-      },
-      onDone: () {
-        _subscription.cancel();
-      },
-      onError: (error) {
-        print('❌ Purchase stream error: $error');
-        if (mounted) {
-          setState(() => _purchasePending = false);
-          _showError('Purchase failed. Please try again.');
-        }
-      },
-    );
+  // --------------------------
+  // CHECK EXISTING SUBSCRIPTION
+  // --------------------------
+  Future<void> _checkExistingSubscription() async {
+    final user = AuthService.currentUser;
+    if (user == null) return;
+
+    final sub = await AuthService.fetchSubscriptionForCurrentUser();
+    if (sub != null) {
+      final expiresMs = sub['expiresDateMs'] ?? 0;
+      final isActive = expiresMs > DateTime.now().millisecondsSinceEpoch;
+
+      if (isActive && mounted) {
+        print('✅ Already has active subscription, redirecting to /streaks');
+        context.go('/streaks');
+      }
+    }
   }
 
+  // --------------------------
+  // INIT STORE
+  // --------------------------
+  Future<void> _initIAP() async {
+    final available = await _iap.isAvailable();
+    if (!mounted || !available) return;
+
+    final response = await _iap.queryProductDetails({
+      "cleanmind_premium_monthly_subs",
+      "cleanmind_premium_yearly",
+    });
+
+    if (!mounted) return;
+
+    if (response.productDetails.isNotEmpty) {
+      setState(() {
+        _products = response.productDetails;
+        _selected = _products.firstWhere(
+          (p) => p.id.contains("monthly"),
+          orElse: () => _products.first,
+        );
+      });
+    } else {
+      setState(() {
+        _products = [
+          ProductDetails(
+            id: "cleanmind_premium_monthly_subs",
+            title: "Monthly Plan",
+            description: "Billed monthly",
+            price: "\$6.99",
+            rawPrice: 6.99,
+            currencyCode: "USD",
+          ),
+          ProductDetails(
+            id: "cleanmind_premium_yearly",
+            title: "Yearly Plan",
+            description: "Billed annually (save 35%)",
+            price: "\$54.99",
+            rawPrice: 54.99,
+            currencyCode: "USD",
+          ),
+        ];
+        _selected = _products.first;
+      });
+    }
+  }
+
+  // --------------------------
+  // PURCHASE FLOW
+  // --------------------------
   Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
-    for (final purchase in purchases) {
-      print('📦 Purchase Status: ${purchase.status}');
+    for (final p in purchases) {
+      if (!mounted) continue;
 
-      if (purchase.status == PurchaseStatus.pending) {
-        setState(() => _purchasePending = true);
-      } else {
-        if (purchase.status == PurchaseStatus.purchased ||
-            purchase.status == PurchaseStatus.restored) {
-          // ✅ Purchase successful
-          print('✅ Purchase successful: ${purchase.productID}');
+      if (p.status == PurchaseStatus.pending) {
+        setState(() => _pending = true);
+      }
 
-          // TODO: Verify purchase with your backend here
-          // await _verifyPurchase(purchase);
+      if (p.status == PurchaseStatus.error) {
+        setState(() => _pending = false);
+        _showError("Purchase failed: ${p.error?.message ?? 'Unknown error'}");
+        continue;
+      }
 
-          if (mounted) {
-            setState(() => _purchasePending = false);
-            if (mounted) {
-              setState(() => _purchasePending = false);
-              context.go('/streaks'); // OR any page after subscription
-            }
+      if (p.status == PurchaseStatus.purchased ||
+          p.status == PurchaseStatus.restored) {
+        final receipt = p.verificationData.serverVerificationData;
+
+        _pendingReceipt = receipt;
+        _pendingProductId = p.productID;
+
+        final isLoggedIn = AuthService.currentUser != null;
+
+        if (!isLoggedIn) {
+          // User needs to log in first
+          print(
+            '⚠️ Purchase successful but user not logged in, prompting login',
+          );
+          final shouldLogin = await _askLoginDialog();
+          if (shouldLogin && mounted) {
+            // Navigate to auth screen
+            context.go('/');
+            // Note: After login, claimPendingIfNeeded will be called
           }
-        } else if (purchase.status == PurchaseStatus.error) {
-          // ❌ Purchase failed
-          print('❌ Purchase error: ${purchase.error}');
-          if (mounted) {
-            setState(() => _purchasePending = false);
-            print('Purchase failed: ${purchase.error?.message}');
-          }
-        } else if (purchase.status == PurchaseStatus.canceled) {
-          // User canceled
-          print('⚠️ Purchase canceled');
-          if (mounted) {
-            setState(() => _purchasePending = false);
-          }
+        } else {
+          // User is logged in, claim receipt immediately
+          await _claimReceipt();
         }
 
-        // CRITICAL: Complete the purchase
-        if (purchase.pendingCompletePurchase) {
-          await _iap.completePurchase(purchase);
+        if (p.pendingCompletePurchase) {
+          await _iap.completePurchase(p);
         }
       }
     }
   }
 
-  Future<void> _initializeIAP() async {
-    try {
-      final available = await _iap.isAvailable();
-      print('========== IAP INITIALIZATION ==========');
-      print('✅ IAP Available: $available');
-
-      if (!available) {
-        print('❌ IAP not available on this device');
-        setState(() => _isAvailable = false);
-        return;
-      }
-
-      setState(() => _isAvailable = available);
-
-      // CORRECTED Product IDs (removed 's' from monthly)
-      const ids = {
-        'cleanmind_premium_monthly_subs',
-        'cleanmind_premium_yearly',
-      };
-
-      print('🔍 Querying products: $ids');
-
-      final response = await _iap.queryProductDetails(ids);
-
-      print('✅ Products found: ${response.productDetails.length}');
-      print('❌ Products NOT found: ${response.notFoundIDs}');
-
-      if (response.notFoundIDs.isNotEmpty) {
-        print('⚠️ Missing Product IDs: ${response.notFoundIDs.join(", ")}');
-      }
-
-      for (var product in response.productDetails) {
-        print('📦 Product Details:');
-        print('   ID: ${product.id}');
-        print('   Title: ${product.title}');
-        print('   Price: ${product.price}');
-        print('   Description: ${product.description}');
-      }
-
-      setState(() => _products = response.productDetails);
-
-      if (_products.isNotEmpty) {
-        _selectedProduct = _products.first; // Default to first product
-        print('✅ Selected product: ${_selectedProduct?.id}');
-      } else {
-        print('❌ No products available');
-      }
-
-      print('========================================');
-    } catch (e, stackTrace) {
-      print('❌ IAP ERROR: $e');
-      print('Stack trace: $stackTrace');
+  // -------------------------
+  // CLAIM AFTER LOGIN
+  // -------------------------
+  Future<void> claimPendingIfNeeded() async {
+    print('🔍 Checking for pending receipt to claim...');
+    if (_pendingReceipt != null && _pendingProductId != null) {
+      print('📝 Found pending receipt, claiming now');
+      await _claimReceipt();
     }
   }
 
-  void _onBuy(ProductDetails product) {
-    if (_purchasePending) return;
+  Future<void> _claimReceipt() async {
+    if (!mounted ||
+        _pendingReceipt == null ||
+        _pendingProductId == null ||
+        AuthService.currentUser == null) {
+      print('❌ Cannot claim receipt: missing data or not logged in');
+      return;
+    }
 
-    print('🛒 Initiating purchase for: ${product.id}');
+    setState(() => _pending = true);
 
-    final purchaseParam = PurchaseParam(productDetails: product);
+    print('🔐 Claiming receipt for user: ${AuthService.currentUser!.uid}');
 
-    // Use buyNonConsumable for subscriptions
-    _iap.buyNonConsumable(purchaseParam: purchaseParam);
+    final ok = await AuthService.claimReceiptForCurrentUser(
+      receiptData: _pendingReceipt!,
+      productId: _pendingProductId!,
+    );
 
-    setState(() => _purchasePending = true);
+    if (!mounted) return;
+
+    if (ok) {
+      print('✅ Receipt claimed successfully');
+      _pendingReceipt = null;
+      _pendingProductId = null;
+      _success();
+    } else {
+      print('❌ Failed to validate purchase');
+      _showError("Unable to validate purchase. Please contact support.");
+    }
+
+    setState(() => _pending = false);
   }
 
-  void _showError(String message) {
+  // -------------------------
+  // UI HELPERS
+  // -------------------------
+  Future<bool> _askLoginDialog() async {
+    return (await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              "Sign in required",
+              style: TextStyle(
+                color: AppColors.text,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: const Text(
+              "Your purchase was successful! Please sign in to activate your subscription.",
+              style: TextStyle(color: AppColors.textMuted),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text(
+                  "Later",
+                  style: TextStyle(color: AppColors.textMuted),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
+                child: const Text(
+                  "Sign in now",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        )) ??
+        false;
+  }
+
+  void _showError(String msg) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -175,10 +260,7 @@ class _PricingPageState extends State<PricingPage> {
           'Purchase Failed',
           style: TextStyle(color: AppColors.text, fontWeight: FontWeight.bold),
         ),
-        content: Text(
-          message,
-          style: const TextStyle(color: AppColors.textMuted),
-        ),
+        content: Text(msg, style: const TextStyle(color: AppColors.textMuted)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -189,6 +271,37 @@ class _PricingPageState extends State<PricingPage> {
     );
   }
 
+  void _success() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("✅ Subscription activated successfully!"),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    // Navigate to main app
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) {
+        print('🚀 Navigating to /streaks after successful subscription');
+        context.go("/streaks");
+      }
+    });
+  }
+
+  void _buy() {
+    if (_selected == null) return;
+
+    print('💳 Starting purchase for: ${_selected!.id}');
+
+    final params = PurchaseParam(productDetails: _selected!);
+    _iap.buyNonConsumable(purchaseParam: params);
+    setState(() => _pending = true);
+  }
+
+  // -------------------------
+  // UI
+  // -------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -198,12 +311,19 @@ class _PricingPageState extends State<PricingPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, color: AppColors.text),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            // If user has completed onboarding, allow them to go back
+            final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+            if (onboardingDone) {
+              context.go('/');
+            } else {
+              context.go('/onboarding');
+            }
+          },
         ),
       ),
       body: Stack(
         children: [
-          // Scrollable content
           SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 100),
             child: Column(
@@ -219,7 +339,7 @@ class _PricingPageState extends State<PricingPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
+                const Text(
                   "Get full access to all premium features",
                   style: TextStyle(fontSize: 16, color: AppColors.textMuted),
                 ),
@@ -231,6 +351,26 @@ class _PricingPageState extends State<PricingPage> {
                 _buildTrialInfo(),
                 const SizedBox(height: 32),
                 _buildPriceBreakdown(),
+                const SizedBox(height: 20),
+                Center(
+                  child: TextButton(
+                    onPressed: () async {
+                      await context.push('/');
+                      // After returning from auth, try to claim pending receipt
+                      await claimPendingIfNeeded();
+                      // Check if subscription is now active
+                      await _checkExistingSubscription();
+                    },
+                    child: const Text(
+                      "Already have an account? Log in",
+                      style: TextStyle(
+                        decoration: TextDecoration.underline,
+                        color: AppColors.primary,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -243,9 +383,7 @@ class _PricingPageState extends State<PricingPage> {
             child: SizedBox(
               height: 56,
               child: ElevatedButton(
-                onPressed: _purchasePending || _selectedProduct == null
-                    ? null
-                    : () => _onBuy(_selectedProduct!),
+                onPressed: _pending || _selected == null ? null : _buy,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -254,7 +392,7 @@ class _PricingPageState extends State<PricingPage> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: _purchasePending
+                child: _pending
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: const [
@@ -363,7 +501,10 @@ class _PricingPageState extends State<PricingPage> {
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
@@ -373,28 +514,6 @@ class _PricingPageState extends State<PricingPage> {
   }
 
   Widget _buildPricingPlans() {
-    final displayProducts = _products.isNotEmpty
-        ? _products
-        : [
-            // Fallback products for display only
-            ProductDetails(
-              id: 'cleanmind_premium_monthly_subs',
-              title: 'Monthly Plan',
-              description: 'Billed monthly',
-              price: '\$6.99',
-              rawPrice: 6.99,
-              currencyCode: 'USD',
-            ),
-            ProductDetails(
-              id: 'cleanmind_premium_yearly',
-              title: 'Yearly Plan',
-              description: 'Billed annually (save 35%)',
-              price: '\$54.99',
-              rawPrice: 54.99,
-              currencyCode: 'USD',
-            ),
-          ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -407,15 +526,15 @@ class _PricingPageState extends State<PricingPage> {
           ),
         ),
         const SizedBox(height: 16),
-        ...displayProducts.map((p) => _buildPlanTile(p)),
+        ..._products.map((p) => _buildPlanTile(p)),
       ],
     );
   }
 
   Widget _buildPlanTile(ProductDetails p) {
-    final isSelected = _selectedProduct?.id == p.id;
+    final isSelected = _selected?.id == p.id;
     return GestureDetector(
-      onTap: () => setState(() => _selectedProduct = p),
+      onTap: () => setState(() => _selected = p),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(18),
@@ -431,7 +550,6 @@ class _PricingPageState extends State<PricingPage> {
         ),
         child: Row(
           children: [
-            // Radio indicator
             Container(
               width: 24,
               height: 24,
@@ -471,7 +589,10 @@ class _PricingPageState extends State<PricingPage> {
                   const SizedBox(height: 2),
                   Text(
                     p.description,
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
@@ -489,7 +610,10 @@ class _PricingPageState extends State<PricingPage> {
                 ),
                 Text(
                   p.id.contains('yearly') ? '/year' : '/month',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -519,7 +643,7 @@ class _PricingPageState extends State<PricingPage> {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             "Cancel anytime. No commitment.",
             style: TextStyle(color: AppColors.textMuted, fontSize: 13),
           ),
@@ -534,7 +658,7 @@ class _PricingPageState extends State<PricingPage> {
       children: [
         Row(
           children: [
-            Icon(
+            const Icon(
               Icons.account_balance_wallet_rounded,
               color: AppColors.primary,
               size: 22,
@@ -551,7 +675,7 @@ class _PricingPageState extends State<PricingPage> {
           ],
         ),
         const SizedBox(height: 4),
-        Text(
+        const Text(
           "Transparency of monthly costs",
           style: TextStyle(fontSize: 13, color: AppColors.textMuted),
         ),
@@ -621,7 +745,7 @@ class _PricingPageState extends State<PricingPage> {
           ),
         ),
         const SizedBox(height: 12),
-        Center(
+        const Center(
           child: Text(
             "You pay \$6.99/month • We operate on thin margins",
             style: TextStyle(
