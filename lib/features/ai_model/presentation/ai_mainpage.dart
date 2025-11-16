@@ -2,25 +2,40 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:onlymens/features/ai_model/model/model.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:lottie/lottie.dart';
 import 'package:onlymens/features/ai_model/convo_history.dart';
 import 'package:onlymens/features/ai_model/model/model.dart';
+import 'package:onlymens/features/avatar/avatar_data.dart';
+import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
 import 'package:onlymens/utilis/snackbar.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 final List<ChannelItem> _channels = [
   ChannelItem(
     name: 'Chat Mode',
-    icon: HugeIcon(icon: HugeIcons.strokeRoundedAiMagic, size: 20.r),
+    icon: HugeIcon(icon: HugeIcons.strokeRoundedAiMagic, size: 25.r),
     tobuild: ChatScreen(),
   ),
   ChannelItem(
+    name: 'Avatar Chat',
+    icon: AvatarChatIcon(), // <-- replaced HugeIcon with avatar image widget
+    tobuild: ChatScreen(isAvatarMode: true),
+  ),
+  ChannelItem(
     name: 'Voice Mode',
-    icon: HugeIcon(icon: HugeIcons.strokeRoundedAiAudio),
+    icon: HugeIcon(icon: HugeIcons.strokeRoundedAiAudio, size: 25.r),
     tobuild: VoiceModeWidget(),
   ),
 ];
@@ -36,6 +51,7 @@ class AiMainpage extends StatefulWidget {
 
 class _AiMainpageState extends State<AiMainpage> {
   String? _activeChatSessionId;
+  String? _activeAvatarSessionId;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +67,7 @@ class _AiMainpageState extends State<AiMainpage> {
                   icon: HugeIcon(
                     icon: HugeIcons.strokeRoundedSidebarLeft,
                     color: Colors.white,
+                    size: 25.sp,
                   ),
                 ),
               ),
@@ -63,16 +80,25 @@ class _AiMainpageState extends State<AiMainpage> {
                 icon: HugeIcon(
                   icon: HugeIcons.strokeRoundedFire02,
                   color: Colors.deepOrangeAccent,
+                  size: 25.sp,
                 ),
               ),
             ],
           ),
-          currentMode == 0
-              ? ChatScreen(
-                  key: ValueKey(_activeChatSessionId ?? 'new_chat'),
-                  sessionId: _activeChatSessionId,
-                )
-              : _channels[currentMode].tobuild,
+          Expanded(
+            child: currentMode == 0
+                ? ChatScreen(
+                    key: ValueKey(_activeChatSessionId ?? 'new_chat'),
+                    sessionId: _activeChatSessionId,
+                  )
+                : currentMode == 1
+                ? ChatScreen(
+                    key: ValueKey(_activeAvatarSessionId ?? 'new_avatar_chat'),
+                    sessionId: _activeAvatarSessionId,
+                    isAvatarMode: true,
+                  )
+                : _channels[currentMode].tobuild,
+          ),
         ],
       ),
       drawer: Drawer(
@@ -84,9 +110,12 @@ class _AiMainpageState extends State<AiMainpage> {
               currentMode = mode;
               if (mode == 0) {
                 _activeChatSessionId = sessionId;
+              } else if (mode == 1) {
+                _activeAvatarSessionId = sessionId;
               }
             });
           },
+          currentMode: currentMode,
         ),
       ),
     );
@@ -94,15 +123,77 @@ class _AiMainpageState extends State<AiMainpage> {
 }
 
 class SideBar extends StatefulWidget {
-  const SideBar({super.key, required this.changeMode});
+  const SideBar({
+    super.key,
+    required this.changeMode,
+    required this.currentMode,
+  });
 
   final Function(int, String?) changeMode;
+  final int currentMode;
 
   @override
   State<SideBar> createState() => _SideBarState();
 }
 
 class _SideBarState extends State<SideBar> {
+  String? _avatarImageUrl;
+  String? _customAvatarPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvatarImage();
+  }
+
+  Future<void> _loadAvatarImage() async {
+    try {
+      // Check for custom avatar first
+      final customPath = await _getCustomAvatarPath();
+      if (customPath != null && File(customPath).existsSync()) {
+        if (mounted) {
+          setState(() {
+            _customAvatarPath = customPath;
+          });
+        }
+        return;
+      }
+
+      // Load streak avatar from Firebase
+      final currentStreakDays = StreaksData.currentStreakDays;
+      final calculatedLevel = AvatarManager.getLevelFromDays(currentStreakDays);
+
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('avatarsImg')
+          .child('$calculatedLevel.png');
+
+      final downloadUrl = await storageRef.getDownloadURL();
+      if (mounted) {
+        setState(() {
+          _avatarImageUrl = downloadUrl;
+        });
+      }
+    } catch (e) {
+      print('Error loading avatar image: $e');
+      // Avatar will fallback to local asset
+    }
+  }
+
+  Future<String?> _getCustomAvatarPath() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final customAvatarPath = '${directory.path}/custom_avatar.png';
+
+      if (File(customAvatarPath).existsSync()) {
+        return customAvatarPath;
+      }
+    } catch (e) {
+      print('Error getting custom avatar path: $e');
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -115,13 +206,13 @@ class _SideBarState extends State<SideBar> {
               IconButton(
                 tooltip: 'New Session',
                 onPressed: () {
-                  widget.changeMode(currentMode, null);
+                  widget.changeMode(widget.currentMode, null);
                   Scaffold.of(context).closeDrawer();
                 },
                 icon: HugeIcon(
                   icon: HugeIcons.strokeRoundedBubbleChatAdd,
                   color: Colors.white,
-                  size: 20.r,
+                  size: 25.r,
                 ),
               ),
               IconButton(
@@ -138,8 +229,9 @@ class _SideBarState extends State<SideBar> {
               ),
             ],
           ),
+          // ✅ INCREASED HEIGHT - Now shows all 3 modes at once
           SizedBox(
-            height: 0.125.sh,
+            height: 0.18.sh, // Increased from 0.125.sh
             child: ListView.builder(
               itemBuilder: (context, i) {
                 return ListTile(
@@ -152,7 +244,7 @@ class _SideBarState extends State<SideBar> {
                     _channels[i].name,
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
-                  tileColor: currentMode == i
+                  tileColor: widget.currentMode == i
                       ? Colors.deepPurple
                       : Colors.transparent,
                 );
@@ -161,15 +253,24 @@ class _SideBarState extends State<SideBar> {
             ),
           ),
           divider(),
+          // Conversation history - different based on current mode
           SizedBox(
-            height: 500.h,
-            child: ConversationHistoryWidget(
-              onConversationTap: (sessionId) {
-                print('Opening conversation: $sessionId');
-                widget.changeMode(0, sessionId);
-                Scaffold.of(context).closeDrawer();
-              },
-            ),
+            height: 450.h,
+            child: widget.currentMode == 1
+                ? AvatarConversationHistoryWidget(
+                    onConversationTap: (sessionId) {
+                      print('Opening avatar conversation: $sessionId');
+                      widget.changeMode(1, sessionId);
+                      Scaffold.of(context).closeDrawer();
+                    },
+                  )
+                : ConversationHistoryWidget(
+                    onConversationTap: (sessionId) {
+                      print('Opening conversation: $sessionId');
+                      widget.changeMode(0, sessionId);
+                      Scaffold.of(context).closeDrawer();
+                    },
+                  ),
           ),
         ],
       ),
@@ -284,8 +385,9 @@ class ChannelItem {
 
 class ChatScreen extends StatefulWidget {
   final String? sessionId;
+  final bool isAvatarMode;
 
-  const ChatScreen({super.key, this.sessionId});
+  const ChatScreen({super.key, this.sessionId, this.isAvatarMode = false});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -299,12 +401,19 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = false;
   List<MessageModel> _messages = [];
   String? _currentSessionId;
+  String? _avatarImageUrl;
 
   @override
   void initState() {
     super.initState();
-    print('ChatScreen initState - sessionId: ${widget.sessionId}');
+    print(
+      'ChatScreen initState - sessionId: ${widget.sessionId}, avatarMode: ${widget.isAvatarMode}',
+    );
     _currentSessionId = widget.sessionId;
+
+    if (widget.isAvatarMode) {
+      _loadAvatarImage();
+    }
 
     if (widget.sessionId != null) {
       _loadConversation();
@@ -317,9 +426,16 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void didUpdateWidget(ChatScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.sessionId != widget.sessionId) {
-      print('Session changed: ${oldWidget.sessionId} -> ${widget.sessionId}');
+    if (oldWidget.sessionId != widget.sessionId ||
+        oldWidget.isAvatarMode != widget.isAvatarMode) {
+      print(
+        'Session changed: ${oldWidget.sessionId} -> ${widget.sessionId}, avatar: ${widget.isAvatarMode}',
+      );
       _currentSessionId = widget.sessionId;
+
+      if (widget.isAvatarMode) {
+        _loadAvatarImage();
+      }
 
       if (widget.sessionId != null) {
         _loadConversation();
@@ -332,11 +448,34 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _loadAvatarImage() async {
+    try {
+      final currentStreakDays = StreaksData.currentStreakDays;
+      final calculatedLevel = AvatarManager.getLevelFromDays(currentStreakDays);
+
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('avatarsImg')
+          .child('$calculatedLevel.png');
+
+      final downloadUrl = await storageRef.getDownloadURL();
+      if (mounted) {
+        setState(() {
+          _avatarImageUrl = downloadUrl;
+        });
+      }
+    } catch (e) {
+      print('Error loading avatar image: $e');
+      // Avatar will fallback to local asset
+    }
+  }
+
   Future<void> _loadConversation() async {
     print('Loading conversation: ${widget.sessionId}');
     try {
       final conversation = await _aiService.fetchConversation(
         widget.sessionId!,
+        isAvatarMode: widget.isAvatarMode,
       );
       if (conversation != null && mounted) {
         setState(() {
@@ -383,6 +522,7 @@ class _ChatScreenState extends State<ChatScreen> {
         message,
         sessionId: _currentSessionId,
         recentMessages: recentMessages,
+        isAvatarMode: widget.isAvatarMode,
       );
 
       if (_currentSessionId == null) {
@@ -437,98 +577,171 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 0.8.sh,
-      child: Column(
-        children: [
-          Expanded(
-            child: _messages.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        HugeIcon(
-                          icon: HugeIcons.strokeRoundedAiMagic,
-                          size: 100.r,
-                          color: Colors.grey[850],
+    return Column(
+      children: [
+        // Messages
+        Expanded(
+          child: _messages.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      widget.isAvatarMode
+                          ? _buildAvatarIcon(size: 100.r)
+                          : HugeIcon(
+                              icon: HugeIcons.strokeRoundedAiMagic,
+                              size: 100.r,
+                              color: Colors.grey[850],
+                            ),
+                      SizedBox(height: 16.h),
+                      Text(
+                        widget.isAvatarMode
+                            ? "We're in this together. Let's grow stronger!"
+                            : "How can I help you today?",
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 16.sp,
                         ),
-                        SizedBox(height: 16.h),
-                        Text(
-                          "Hey! I'm your AI assistant.",
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 16.sp,
-                          ),
-                        ),
-                        SizedBox(height: 8.h),
-                        Text(
-                          "How can I help you today?",
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14.sp,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: EdgeInsets.all(16.r),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final message = _messages[index];
-                      final isUser = message.isUser;
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  controller: _scrollController,
+                  padding: EdgeInsets.all(16.r),
+                  itemCount: _messages.length,
+                  itemBuilder: (context, index) {
+                    final message = _messages[index];
+                    final isUser = message.isUser;
 
-                      return Align(
-                        alignment: isUser
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        child: Container(
-                          margin: EdgeInsets.only(
-                            bottom: 12.h,
-                            left: isUser ? 64.w : 0,
-                            right: isUser ? 0 : 64.w,
-                          ),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 16.w,
-                            vertical: 12.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isUser
-                                ? Colors.deepPurple.withOpacity(0.3)
-                                : Colors.grey[800],
-                            borderRadius: BorderRadius.circular(16.r),
-                          ),
-                          child: Text(
-                            message.text,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15.sp,
-                              height: 1.4,
+                    return Align(
+                      alignment: isUser
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (!isUser) ...[
+                            widget.isAvatarMode
+                                ? _buildAvatarIcon(size: 32.r)
+                                : Container(
+                                    margin: EdgeInsets.only(
+                                      right: 8.w,
+                                      top: 4.h,
+                                    ),
+                                    child: HugeIcon(
+                                      icon: HugeIcons.strokeRoundedAiMagic,
+                                      size: 24.r,
+                                      color: Colors.deepPurple[300],
+                                    ),
+                                  ),
+                          ],
+                          Flexible(
+                            child: Container(
+                              margin: EdgeInsets.only(
+                                bottom: 12.h,
+                                left: isUser ? 64.w : 0,
+                                right: isUser ? 0 : 64.w,
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 16.w,
+                                vertical: 12.h,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isUser
+                                    ? Colors.deepPurple.withOpacity(0.3)
+                                    : Colors.grey[800],
+                                borderRadius: BorderRadius.circular(16.r),
+                              ),
+                              child: Text(
+                                message.text,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15.sp,
+                                  height: 1.4,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          if (_isLoading)
-            Padding(
-              padding: EdgeInsets.all(8.r),
-              child: Row(
-                children: [
-                  SizedBox(width: 16.w),
-                  CupertinoActivityIndicator(),
-                  SizedBox(width: 12.w),
-                  Text(
-                    'Thinking...',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 14.sp),
-                  ),
-                ],
-              ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+
+        if (_isLoading)
+          Padding(
+            padding: EdgeInsets.all(8.r),
+            child: Row(
+              children: [
+                SizedBox(width: 16.w),
+                widget.isAvatarMode
+                    ? _buildAvatarIcon(size: 24.r)
+                    : HugeIcon(
+                        icon: HugeIcons.strokeRoundedAiMagic,
+                        size: 24.r,
+                        color: Colors.deepPurple[300],
+                      ),
+                SizedBox(width: 12.w),
+                CupertinoActivityIndicator(),
+                SizedBox(width: 12.w),
+                Text(
+                  'Thinking...',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 14.sp),
+                ),
+              ],
             ),
-          chatInput(_messageController, _sendMessage),
-        ],
+          ),
+
+        // Chat Input always bottom
+        chatInput(_messageController, _sendMessage),
+      ],
+    );
+  }
+
+  Widget _buildAvatarIcon({required double size}) {
+    final currentStreakDays = StreaksData.currentStreakDays;
+    final calculatedLevel = AvatarManager.getLevelFromDays(currentStreakDays);
+
+    if (_avatarImageUrl != null) {
+      return Container(
+        width: size,
+        height: size,
+        margin: EdgeInsets.only(right: size > 50 ? 0 : 8.w, top: 4.h),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.deepPurple[300]!, width: 2),
+        ),
+        child: ClipOval(
+          child: Image.network(
+            _avatarImageUrl!,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Image.asset(
+                'assets/3d/lvl$calculatedLevel.png',
+                fit: BoxFit.cover,
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: size,
+      height: size,
+      margin: EdgeInsets.only(right: size > 50 ? 0 : 8.w, top: 4.h),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.deepPurple[300]!, width: 2),
+      ),
+      child: ClipOval(
+        child: Image.asset(
+          'assets/3d/lvl$calculatedLevel.png',
+          fit: BoxFit.cover,
+        ),
       ),
     );
   }
@@ -541,7 +754,7 @@ Widget chatInput(
   VoidCallback? onChanged,
 ]) {
   return Padding(
-    padding: EdgeInsets.all(10.r),
+    padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 20.r),
     child: Container(
       height: 56.h,
       decoration: BoxDecoration(
@@ -584,54 +797,6 @@ Widget chatInput(
       ),
     ),
   );
-}
-
-class GameModeWidget extends StatelessWidget {
-  const GameModeWidget({super.key});
-
-  static final gameMode = ['bounce-ball', 'snatch-it'];
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(height: 0.125.sh),
-        SizedBox(
-          height: 0.33.sh,
-          child: GridView.builder(
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 1,
-            ),
-            itemBuilder: (context, index) {
-              return Card(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple.withValues(alpha: 0.4),
-                  ),
-                  onPressed: () {
-                    index == 0
-                        ? context.push('/game1')
-                        : context.push('/game2');
-                  },
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(gameMode[index], textAlign: TextAlign.center),
-                    ],
-                  ),
-                ),
-              );
-            },
-            itemCount: 2,
-          ),
-        ),
-        Text("Let's see who wins. Choose or anyone starts in "),
-        SizedBox(height: 10.h),
-      ],
-    );
-  }
 }
 
 class VoiceModeWidget extends StatefulWidget {
@@ -835,8 +1000,8 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget>
             SizedBox(height: 0.02.sh),
             ScaleTransition(
               scale: _pulseAnimation,
-              child: Lottie.network(
-                'https://lottie.host/b72fd15d-61a4-4510-ae8f-93936c32c857/xzLgoD2MQj.json',
+              child: Lottie.asset(
+                'assets/lottie/voice.json',
                 width: 200.w,
                 height: 200.h,
                 fit: BoxFit.contain,
@@ -910,5 +1075,83 @@ class _VoiceModeWidgetState extends State<VoiceModeWidget>
 
   voiceHugeIcons(icon) {
     return HugeIcon(icon: icon, size: 30.r, color: Colors.white);
+  }
+}
+
+// ============================================
+// AVATAR CONVERSATION HISTORY WIDGET
+// (Separate from normal AI chat history)
+// ============================================
+class AvatarChatIcon extends StatefulWidget {
+  const AvatarChatIcon({super.key});
+
+  @override
+  State<AvatarChatIcon> createState() => _AvatarChatIconState();
+}
+
+class _AvatarChatIconState extends State<AvatarChatIcon> {
+  String? _avatarImageUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLevelAvatar();
+  }
+
+  Future<void> _loadLevelAvatar() async {
+    try {
+      final currentStreakDays = StreaksData.currentStreakDays;
+      final calculatedLevel = AvatarManager.getLevelFromDays(currentStreakDays);
+
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('avatarsImg')
+          .child('$calculatedLevel.png');
+
+      final url = await storageRef.getDownloadURL();
+      if (mounted) setState(() => _avatarImageUrl = url);
+    } catch (e) {
+      // ignore, fallback will work
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double size = 30.r; // 🔥 made larger
+
+    // to know fallback level asset
+    final currentStreakDays = StreaksData.currentStreakDays;
+    final calculatedLevel = AvatarManager.getLevelFromDays(currentStreakDays);
+
+    Widget avatar;
+
+    if (_avatarImageUrl != null) {
+      avatar = Image.network(
+        _avatarImageUrl!,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Image.asset(
+          'assets/3d/lvl$calculatedLevel.png',
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+        ),
+      );
+    } else {
+      avatar = Image.asset(
+        'assets/3d/lvl$calculatedLevel.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+      );
+    }
+
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.centerLeft,
+      child: ClipOval(child: avatar),
+    );
   }
 }

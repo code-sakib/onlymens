@@ -149,10 +149,9 @@ class _SignInButton extends StatelessWidget {
 
   const _SignInButton({
     required this.text,
-    this.icon,
     this.assetIcon,
     required this.onTap,
-    required this.isLoading,
+    required this.isLoading, this.icon,
   });
 
   @override

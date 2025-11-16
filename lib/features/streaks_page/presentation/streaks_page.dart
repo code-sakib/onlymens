@@ -375,7 +375,7 @@ class _PanicButtonState extends State<PanicButton>
                     elevation: 0,
                   ),
                   child: Text(
-                    _isProcessing ? 'Processing...' : 'Panic Mode',
+                    _isProcessing ? 'Activating...' : 'Relapsing?',
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,

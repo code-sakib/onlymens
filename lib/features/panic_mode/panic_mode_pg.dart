@@ -75,7 +75,7 @@ class _PanicModePgState extends State<PanicModePg> {
   }
 
   void _handleBack() {
-    Utilis.showSnackBar('You did great. Keep going 💪');
+    Utilis.showSnackBar('Keep going strong..💪');
     context.pop();
   }
 

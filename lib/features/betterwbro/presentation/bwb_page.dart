@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -13,7 +12,6 @@ import 'package:lottie/lottie.dart';
 import 'package:onlymens/core/globals.dart' show auth, currentUser;
 import 'package:onlymens/features/avatar/avatar_data.dart';
 import 'package:onlymens/features/betterwbro/chat/chat_screen.dart';
-import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
 import 'package:onlymens/utilis/snackbar.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 

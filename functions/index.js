@@ -1,10 +1,4 @@
-// functions/index.js
-// Option A1 — Full backend for OnlyMens
-// - Single admin.initializeApp()
-// - Option A1 flow: allow purchase while not signed in; client calls validateAppleReceipt after sign-in to claim
-// - Store subscription at users/{uid}.subscription and map originalTransactionId -> uid for App Store notifications
-// - Includes AI helper callables (chat, voice, TTS), onboarding report, panic mode, affirmations, and usage limits
-
+// functions/index.js - ENHANCED with emotional support and avatar mode
 const {
   onCall,
   HttpsError,
@@ -12,16 +6,15 @@ const {
 } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
-const fetch = require("node-fetch"); // keep for older Node runtimes; optional if native fetch available
+const fetch = require("node-fetch");
 
-// initialize once
 admin.initializeApp();
 
-// Secrets (create these in your environment)
+// Secrets
 const OPENAI_KEY = defineSecret("OPENAI_API_KEY");
 const APPLE_SHARED_SECRET = defineSecret("APPLE_SHARED_SECRET");
 
-// Limits / constants
+// Limits
 const CHAT_HOURLY_LIMIT = 20;
 const CHAT_DAILY_LIMIT = 200;
 const VOICE_DAILY_LIMIT = 50;
@@ -49,49 +42,272 @@ function isDeepQuestion(message) {
     "tempted",
     "feeling weak",
     "can't resist",
+    "want to give up",
     "about to",
     "edge",
     "edging",
     "craving",
+    "jerk",
+    "feeling to",
+    "want to watch",
     "lonely",
     "stressed",
     "anxious",
     "depressed",
+    "hopeless",
+    "failing",
     "help",
     "addiction",
     "overcome",
     "improve",
     "how to",
     "what should",
+    "why do",
+    "feel like",
     "can't stop",
+    "weak",
     "giving up",
+    "hard",
+    "difficult",
+    "challenge",
+    "temptation",
+    "resist",
     "fight",
   ];
-  const lower = message.toLowerCase();
-  return deepKeywords.some((k) => lower.includes(k));
+
+  const lowerMessage = message.toLowerCase();
+  return deepKeywords.some((k) => lowerMessage.includes(k));
 }
 
 function getStreakContext(current, longest) {
-  if (!current || current === 0) return `Starting fresh today.`;
-  if (current === longest && current > 0) return `NEW RECORD: ${current} days.`;
-  if (longest > 0 && current >= longest * 0.7)
-    return `Approaching your record — ${longest - current} days to beat it.`;
-  if (current >= 7) return `Building momentum at ${current} days.`;
-  if (current >= 3) return `Early phase — day ${current}.`;
-  return `Day ${current}. Every day counts.`;
+  if (!current || current === 0) {
+    return `You're starting fresh today. You've hit ${longest} days before - you know you can do this.`;
+  } else if (current === longest && current > 0) {
+    return `NEW RECORD: ${current} days. This is uncharted territory for you - stay sharp.`;
+  } else if (longest > 0 && current >= longest * 0.7) {
+    return `Approaching your record. Just ${
+      longest - current
+    } days to beat your best.`;
+  } else if (current >= 7) {
+    return `Building real momentum at ${current} days. The foundation is there.`;
+  } else if (current >= 3) {
+    return `Early phase - day ${current}. This is often the hardest part. Push through.`;
+  } else if (current >= 1) {
+    return `Day ${current}. Every single day counts. Stay focused.`;
+  }
+  return "Starting fresh today.";
 }
 
 // ============================================
-// OpenAI chat function
+// Build system prompt with emotional support
+// ============================================
+function buildSystemPrompt(
+  isDeep,
+  currentStreak,
+  longestStreak,
+  hasConversationHistory,
+  isAvatarMode = false
+) {
+  // Base identity
+  let identity = isAvatarMode
+    ? "You are the user's current avatar in OnlyMens - a personified representation of their progress and growth"
+    : "You are OnlyMens, a supportive AI companion";
+
+  // Streak context
+  const streakContext = getStreakContext(currentStreak, longestStreak);
+
+  if (!isDeep) {
+    return `${identity} for men overcoming pornography addiction.
+
+USER'S PROGRESS:
+Current Streak: ${currentStreak} days
+Longest Streak: ${longestStreak} days
+${streakContext}
+
+${
+  isAvatarMode
+    ? `
+AVATAR IDENTITY:
+- You ARE their progress personified - speak as "I am you at your best"
+- Reference their ${currentStreak}-day journey as your shared journey
+- Be proud of what they've (you've) accomplished together
+- When they ask "who are you?", remind them you're their current avatar - their progress made visible
+`
+    : ""
+}
+
+${
+  hasConversationHistory
+    ? `
+CONVERSATION CONTEXT:
+- You are CONTINUING an ongoing conversation
+- Reference what was discussed before naturally
+- Don't repeat yourself or give the same advice again
+- Be conversational, not formal
+- If they're asking follow-up questions, answer directly without full structured format
+- If they tried something you suggested, acknowledge it and build on it
+`
+    : ""
+}
+
+RESPONSE STYLE:
+- For casual greetings: Respond naturally and warmly like a supportive friend
+- For follow-up questions: Answer directly, referencing previous discussion
+- For simple questions: Keep it brief and friendly
+- Be kind, empathetic, and genuine. Don't be overly formal or preachy
+- NEVER start with "Hey there!" or "Hey again!" if you've already greeted them
+- Focus on their current question/situation
+- Show emotional intelligence - validate feelings before offering solutions
+
+Keep responses concise and natural. No need for structured format unless it's a new deep question.`;
+  }
+
+  // Deep question prompt with emotional support
+  return `${identity} for men overcoming pornography addiction - you are an advanced AI coach specializing in emotional support and addiction recovery.
+
+USER'S PROGRESS:
+Current Streak: ${currentStreak} days
+Longest Streak: ${longestStreak} days
+${streakContext}
+
+${
+  isAvatarMode
+    ? `
+AVATAR IDENTITY:
+- You represent their progress and potential - speak as "we" and "our journey"
+- You've been with them for ${currentStreak} days - acknowledge this bond
+- You ARE their strength made visible
+- When they struggle, remind them you're here because they chose to create you through their efforts
+`
+    : ""
+}
+
+${
+  hasConversationHistory
+    ? `
+⚠️ CONVERSATION CONTEXT:
+- This conversation has history - check previous messages
+- Don't repeat advice you've already given
+- Reference what they've tried before
+- Build on the conversation naturally
+- If they're in crisis, acknowledge the escalation
+`
+    : ""
+}
+
+YOUR RESPONSE STRUCTURE (STRICT):
+
+1. EMOTIONAL ACKNOWLEDGMENT (2-3 sentences):
+   - VALIDATE their feelings first - don't minimize their struggle
+   - Recognize their specific emotion (anxiety, stress, loneliness, temptation)
+   - Acknowledge their courage in reaching out
+   ${
+     currentStreak >= 2
+       ? `- Note their ${currentStreak}-day streak shows they HAVE the strength`
+       : ""
+   }
+   ${
+     hasConversationHistory
+       ? "- Reference what they shared before if relevant"
+       : ""
+   }
+   - Be warm and human, not clinical
+
+2. CORE ANSWER (3-5 sentences):
+   - Address their emotional need first, practical advice second
+   - Be specific and actionable - not vague motivational talk
+   - Reference real techniques: breathing, environment change, physical activity
+   - Explain WHY these work (brain science, dopamine, neural pathways)
+   - Be supportive but honest - don't sugar-coat recovery
+
+3. ASK YOURSELF THIS (3 questions):
+   Create 3 emotionally intelligent questions based on their EXACT situation:
+   - Analyze what emotion is driving this moment
+   - Questions should be SHORT (one line each) and empathetic
+   - Examples by emotional state:
+     * Loneliness: "When did you last connect with someone who makes you feel valued?"
+     * Stress: "What's the real pressure you're running from right now?"
+     * Boredom: "What creative thing have you been putting off that could fill this void?"
+     * Shame: "What would you tell a friend in your situation right now?"
+     * Anxiety: "What's the worst that happens if you just sit with this feeling?"
+     * Past failure: "What's different about you today compared to when you last struggled?"
+   - Always customize based on their message's emotional tone
+
+4. BRAIN HACKS (3 most relevant):
+   Choose from this complete toolkit based on their emotional state:
+   
+   **For Urges/Temptation:**
+   1. **5-minute suffering challenge**: Set timer, choose to suffer through urge. Most peak at 15min and fade.
+   2. **Physical shock**: 20 pushups, cold water face splash, cold shower. Break the mental loop.
+   3. **Leave immediately**: Move to public space. Make acting on urges impossible.
+   
+   **For Loneliness/Isolation:**
+   4. **Call someone NOW**: Text or call friend/family/accountability partner. Isolation feeds urges.
+   5. **Opposite action**: Urge says "isolate"? Go be social. Do the opposite.
+   
+   **For Boredom/Restlessness:**
+   6. **Change environment NOW**: Different room or go outside. Brain links locations to habits.
+   7. **10-minute distraction timer**: Do something completely different. Outlast the urge.
+   
+   **For Anxiety/Stress:**
+   8. **Name the emotion**: Write exactly what you're feeling. Naming reduces power.
+   9. **Voice the urge out loud**: Say "I want to relapse" out loud. Makes it real and less appealing.
+   
+   **For Nighttime Triggers:**
+   10. **Bed = sleep ONLY rule**: Never use bed for anything but sleep. Break the association.
+   11. **Physical discomfort**: Stand against wall, hold plank, sit on floor. Disrupt physical state.
+   
+   **For Shame/Failure:**
+   12. **Future self visualization**: Picture tomorrow morning. Proud or regretful? Choose.
+   
+   Format as:
+   1. [Tactic name]: [One sentence explaining why this works for their emotional state]
+   2. [Tactic name]: [One sentence explaining why this works for their emotional state]
+   3. [Tactic name]: [One sentence explaining why this works for their emotional state]
+
+5. EMPATHETIC CLOSING (1-2 sentences):
+   - Remind them this feeling is temporary
+   - Ask ONE caring question about their current emotional state
+   - End with genuine support, not empty motivation
+
+TONE & EMOTIONAL INTELLIGENCE:
+- Lead with empathy, follow with action
+- Validate feelings before challenging them
+- Be like a wise older brother who's been there
+- Acknowledge pain authentically - don't toxic-positivity it away
+- Use "I hear you", "That makes sense", "It's okay to feel this"
+- Show you understand the EMOTIONAL weight, not just the behavioral pattern
+
+CRITICAL RULES:
+- Never minimize their emotions or struggles
+- No generic phrases without emotional context
+- Always connect advice to their current streak and emotional state
+- Be concise - quality over quantity
+- Focus on IMMEDIATE emotional regulation, then action
+- NEVER repeat the same Brain Hacks from previous messages
+- Choose tactics based on their EMOTIONAL state RIGHT NOW
+- If they're in crisis, prioritize calming/grounding over long-term strategy`;
+}
+
+// ============================================
+// Enhanced chat function with emotional support
 // ============================================
 exports.sendChatMessage = onCall({ secrets: [OPENAI_KEY] }, async (req) => {
-  if (!req.auth)
+  console.log("sendChatMessage called", {
+    uid: req.auth ? req.auth.uid : null,
+    hasData: !!req.data,
+  });
+
+  if (!req.auth) {
     throw new HttpsError("unauthenticated", "You must be logged in.");
+  }
+
   const uid = req.auth.uid;
   const userMessage = req.data?.message;
   const conversationHistory = req.data?.conversationHistory || [];
   const currentStreak = req.data?.currentStreak || 0;
   const longestStreak = req.data?.longestStreak || 0;
+  const isAvatarMode = req.data?.isAvatarMode || false; // ✅ NEW
   const isDeep =
     req.data?.isDeep !== undefined
       ? req.data.isDeep
@@ -104,7 +320,7 @@ exports.sendChatMessage = onCall({ secrets: [OPENAI_KEY] }, async (req) => {
     throw new HttpsError("invalid-argument", "Message too long (max 1000).");
   }
 
-  // Rate limiting (basic)
+  // Rate limiting
   const now = new Date();
   const hourKey = `${now.getFullYear()}-${
     now.getMonth() + 1
@@ -126,25 +342,30 @@ exports.sendChatMessage = onCall({ secrets: [OPENAI_KEY] }, async (req) => {
     daily = (d.daily && d.daily[dayKey]) || 0;
   }
   if (hourly >= CHAT_HOURLY_LIMIT)
-    throw new HttpsError("resource-exhausted", "Hourly chat limit reached.");
+    throw new HttpsError(
+      "resource-exhausted",
+      "Hourly limit reached (20 messages). Take a short break! 🧘‍♂️"
+    );
   if (daily >= CHAT_DAILY_LIMIT)
-    throw new HttpsError("resource-exhausted", "Daily chat limit reached.");
+    throw new HttpsError(
+      "resource-exhausted",
+      "Daily limit reached (200 messages). See you tomorrow! 💪"
+    );
 
-  // Build system prompt
-  const hasHistory =
-    Array.isArray(conversationHistory) && conversationHistory.length > 0;
-  const systemPrompt = isDeep
-    ? `You are OnlyMens, an advanced coach. Current streak: ${currentStreak}, longest: ${longestStreak}. ${getStreakContext(
-        currentStreak,
-        longestStreak
-      )}`
-    : `You are OnlyMens, a friendly AI coach. Current streak: ${currentStreak}, longest: ${longestStreak}. Keep answers concise.`;
-
-  // Call OpenAI
   const apiKey = OPENAI_KEY.value();
   if (!apiKey) throw new HttpsError("internal", "AI service not configured.");
 
   try {
+    const hasHistory =
+      Array.isArray(conversationHistory) && conversationHistory.length > 0;
+    const systemPrompt = buildSystemPrompt(
+      isDeep,
+      currentStreak,
+      longestStreak,
+      hasHistory,
+      isAvatarMode
+    );
+
     const messages = [
       { role: "system", content: systemPrompt },
       ...conversationHistory,
@@ -160,7 +381,7 @@ exports.sendChatMessage = onCall({ secrets: [OPENAI_KEY] }, async (req) => {
       body: JSON.stringify({
         model: "gpt-4o-mini",
         messages,
-        max_tokens: isDeep ? 500 : 200,
+        max_tokens: isDeep ? 600 : 250,
         temperature: isDeep ? 0.85 : 0.8,
       }),
     });
@@ -176,26 +397,33 @@ exports.sendChatMessage = onCall({ secrets: [OPENAI_KEY] }, async (req) => {
       json.choices?.[0]?.message?.content?.trim() ||
       "Sorry, something went wrong.";
 
-    // Save conversation and increment usage
+    // Save conversation to appropriate collection
     const batch = admin.firestore().batch();
     const chatDocId = req.data.sessionId || new Date().toISOString();
+
+    // ✅ NEW: Use different collection based on avatar mode
+    const collectionName = isAvatarMode ? "aiAvatarChat" : "aiModelData";
     const chatRef = admin
       .firestore()
       .collection("users")
       .doc(uid)
-      .collection("aiModelData")
+      .collection(collectionName)
       .doc(chatDocId);
-    batch.set(
-      chatRef,
-      {
-        msgs: admin.firestore.FieldValue.arrayUnion(
-          { role: "user", text: userMessage },
-          { role: "ai", text: aiReply }
-        ),
-        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+
+    const updateData = {
+      msgs: admin.firestore.FieldValue.arrayUnion(
+        { role: "user", text: userMessage },
+        { role: "ai", text: aiReply }
+      ),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      isAvatarMode: isAvatarMode, // ✅ Track mode
+    };
+
+    if (req.data.title) {
+      updateData.title = req.data.title;
+    }
+
+    batch.set(chatRef, updateData, { merge: true });
     batch.set(
       usageRef,
       {
@@ -219,7 +447,7 @@ exports.sendChatMessage = onCall({ secrets: [OPENAI_KEY] }, async (req) => {
 });
 
 // ============================================
-// Voice chat (short responses)
+// Voice chat (keeping original)
 // ============================================
 exports.sendVoiceMessage = onCall({ secrets: [OPENAI_KEY] }, async (req) => {
   if (!req.auth) throw new HttpsError("unauthenticated", "Login required.");
@@ -229,7 +457,6 @@ exports.sendVoiceMessage = onCall({ secrets: [OPENAI_KEY] }, async (req) => {
     throw new HttpsError("invalid-argument", "Message required.");
   }
 
-  // Daily limit
   const today = getTodayDate();
   const voiceUsageRef = admin
     .firestore()
@@ -240,7 +467,10 @@ exports.sendVoiceMessage = onCall({ secrets: [OPENAI_KEY] }, async (req) => {
   const doc = await voiceUsageRef.get();
   const count = doc.exists ? doc.data().messageCount || 0 : 0;
   if (count >= VOICE_DAILY_LIMIT)
-    throw new HttpsError("resource-exhausted", "Daily voice limit reached.");
+    throw new HttpsError(
+      "resource-exhausted",
+      "Daily voice limit reached (50 messages). Try again tomorrow! 🎤"
+    );
 
   const apiKey = OPENAI_KEY.value();
   if (!apiKey) throw new HttpsError("internal", "AI service not configured.");
@@ -258,7 +488,10 @@ exports.sendVoiceMessage = onCall({ secrets: [OPENAI_KEY] }, async (req) => {
           {
             role: "system",
             content:
-              "You are OnlyMens Voice Coach. Keep responses short, warm and direct.",
+              "You are OnlyMens Voice Coach, a supportive AI companion for men overcoming pornography addiction. " +
+              "You're speaking out loud, so keep responses conversational, warm, and natural. " +
+              "Be empathetic, direct, and motivating. Keep answers concise (2-4 sentences max) since this is voice. " +
+              "Speak like a trusted friend who understands their struggle.",
           },
           { role: "user", content: userMessage },
         ],
@@ -291,7 +524,7 @@ exports.sendVoiceMessage = onCall({ secrets: [OPENAI_KEY] }, async (req) => {
 });
 
 // ============================================
-// TTS generation (returns base64 audio)
+// TTS generation (FIXED model name)
 // ============================================
 exports.generateTTS = onCall({ secrets: [OPENAI_KEY] }, async (req) => {
   if (!req.auth) throw new HttpsError("unauthenticated", "Login required.");
@@ -327,7 +560,7 @@ exports.generateTTS = onCall({ secrets: [OPENAI_KEY] }, async (req) => {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini-tts",
+        model: "tts-1", // ✅ FIXED: Correct OpenAI TTS model
         voice: "fable",
         input: text,
         speed: 1.0,
@@ -762,12 +995,12 @@ exports.generateOnboardingReport = onCall(
 // - validateAppleReceipt callable: client calls after sign-in (or can pass userId)
 // - when userId provided, write users/{uid}.subscription and map originalTransactionId -> uid
 // ============================================
-async function verifyReceiptWithApple(receiptData) {
+async function verifyReceiptWithApple(receiptData, sharedSecret) {
   const productionUrl = "https://buy.itunes.apple.com/verifyReceipt";
   const sandboxUrl = "https://sandbox.itunes.apple.com/verifyReceipt";
   const payload = {
     "receipt-data": receiptData,
-    password: APPLE_SHARED_SECRET.value(),
+    password: sharedSecret, // ✅ FIXED: Pass as parameter
     "exclude-old-transactions": true,
   };
 
@@ -783,6 +1016,7 @@ async function verifyReceiptWithApple(receiptData) {
   let json = await postTo(productionUrl);
   // 21007: sandbox receipt used in production endpoint
   if (json && json.status === 21007) {
+    console.log("Detected sandbox receipt, retrying with sandbox endpoint");
     json = await postTo(sandboxUrl);
     json._appleEndpoint = "sandbox";
   } else {
@@ -791,80 +1025,148 @@ async function verifyReceiptWithApple(receiptData) {
   return json;
 }
 
-exports.validateAppleReceipt = onCall(async (req) => {
-  const receiptData = req.data?.receiptData;
-  const productId = req.data?.productId;
-  const userId = req.data?.userId || (req.auth ? req.auth.uid : null); // optional userId or from auth
+exports.validateAppleReceipt = onCall(
+  { secrets: [APPLE_SHARED_SECRET] },
+  async (req) => {
+    const receiptData = req.data?.receiptData;
+    const productId = req.data?.productId;
+    const userId = req.data?.userId || (req.auth ? req.auth.uid : null);
 
-  if (!receiptData) return { isValid: false, message: "Missing receiptData" };
+    console.log("validateAppleReceipt called:", {
+      hasReceiptData: !!receiptData,
+      productId,
+      userId,
+      hasAuth: !!req.auth,
+    });
 
-  try {
-    const json = await verifyReceiptWithApple(receiptData);
-    if (!json || json.status !== 0) {
-      console.warn("Apple verify failed", json);
+    if (!receiptData) return { isValid: false, message: "Missing receiptData" };
+
+    try {
+      const sharedSecret = APPLE_SHARED_SECRET.value();
+      if (!sharedSecret) {
+        console.error("APPLE_SHARED_SECRET not configured");
+        return {
+          isValid: false,
+          message: "Server configuration error",
+        };
+      }
+
+      // ✅ FIXED: Pass shared secret to verification function
+      const json = await verifyReceiptWithApple(receiptData, sharedSecret);
+
+      if (!json || json.status !== 0) {
+        console.warn("Apple verify failed", {
+          status: json?.status,
+          endpoint: json?._appleEndpoint,
+        });
+        return {
+          isValid: false,
+          message: `Apple verify failed: status ${json ? json.status : "null"}`,
+          appleStatus: json?.status,
+        };
+      }
+
+      console.log("Apple verification successful:", {
+        endpoint: json._appleEndpoint,
+        hasLatestReceipt: !!(json.latest_receipt_info || json.in_app),
+      });
+
+      // ✅ IMPROVED: Better parsing of subscription data
+      const latestInfo = json.latest_receipt_info || json.in_app || [];
+      let relevant = latestInfo;
+
+      // Filter by productId if provided
+      if (productId && latestInfo.length > 0) {
+        const filtered = latestInfo.filter((t) => t.product_id === productId);
+        if (filtered.length > 0) {
+          relevant = filtered;
+        }
+      }
+
+      // Sort by expiration date (most recent first)
+      relevant = relevant.sort(
+        (a, b) =>
+          Number(b.expires_date_ms || 0) - Number(a.expires_date_ms || 0)
+      );
+
+      const entry = relevant[0];
+      if (!entry) {
+        console.warn("No subscription entry found in receipt");
+        return {
+          isValid: false,
+          message: "No valid subscription found in receipt",
+        };
+      }
+
+      const expiresMs = Number(entry.expires_date_ms || 0);
+      const now = Date.now();
+      const isActive = expiresMs > now;
+
+      console.log("Subscription details:", {
+        productId: entry.product_id,
+        expiresMs,
+        isActive,
+        timeUntilExpiry: isActive ? expiresMs - now : 0,
+      });
+
+      const subscription = {
+        productId: entry.product_id,
+        originalTransactionId: entry.original_transaction_id,
+        transactionId: entry.transaction_id,
+        purchaseDateMs: Number(entry.purchase_date_ms || 0),
+        expiresDateMs: expiresMs,
+        isActive: isActive,
+        isTrialPeriod: entry.is_trial_period === "true",
+        isInIntroOfferPeriod: entry.is_in_intro_offer_period === "true",
+        autoRenewStatus: json.auto_renew_status || null,
+        environment: json._appleEndpoint,
+        lastValidatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      // ✅ IMPROVED: Save subscription to user if userId provided
+      if (userId) {
+        console.log("Saving subscription to user:", userId);
+        const userRef = admin.firestore().collection("users").doc(userId);
+        await userRef.set({ subscription }, { merge: true });
+
+        // Map originalTransactionId -> userId for server notifications
+        if (subscription.originalTransactionId) {
+          await admin
+            .firestore()
+            .collection("apple_subscriptions_map")
+            .doc(subscription.originalTransactionId)
+            .set(
+              {
+                userId,
+                productId: subscription.productId,
+                expiresDateMs: subscription.expiresDateMs,
+                isActive: subscription.isActive,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            );
+          console.log(
+            "Saved subscription mapping:",
+            subscription.originalTransactionId
+          );
+        }
+      }
+
+      return {
+        isValid: true,
+        subscription,
+        message: isActive ? "Active subscription" : "Subscription expired",
+      };
+    } catch (err) {
+      console.error("validateAppleReceipt error:", err);
       return {
         isValid: false,
-        message: `Apple verify failed: status ${json ? json.status : "null"}`,
+        message: "Server error during receipt validation",
+        error: err.message,
       };
     }
-
-    // Apple may return subscription history in latest_receipt_info or in_app
-    const latestInfo = json.latest_receipt_info || json.in_app || [];
-    // prefer entries that match productId
-    let relevant = latestInfo;
-    if (productId) {
-      relevant = latestInfo.filter((t) => t.product_id === productId);
-    }
-    relevant = relevant.sort(
-      (a, b) => Number(b.expires_date_ms || 0) - Number(a.expires_date_ms || 0)
-    );
-    const entry = relevant[0] || latestInfo[0];
-
-    const subscription = {
-      productId: entry ? entry.product_id : productId,
-      originalTransactionId: entry ? entry.original_transaction_id : null,
-      transactionId: entry ? entry.transaction_id : null,
-      purchaseDateMs: entry ? Number(entry.purchase_date_ms || 0) : null,
-      expiresDateMs: entry ? Number(entry.expires_date_ms || 0) : null,
-      isTrialPeriod: entry ? entry.is_trial_period === "true" : false,
-      isInIntroOfferPeriod: entry
-        ? entry.is_in_intro_offer_period === "true"
-        : false,
-      autoRenewStatus: json.auto_renew_status || null,
-      raw: json,
-      lastValidatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-
-    // If userId provided, attach subscription to user and save mapping
-    if (userId) {
-      const userRef = admin.firestore().collection("users").doc(userId);
-      await userRef.set({ subscription }, { merge: true });
-      if (subscription.originalTransactionId) {
-        // map originalTransactionId -> userId for server notifications
-        await admin
-          .firestore()
-          .collection("apple_subscriptions_map")
-          .doc(subscription.originalTransactionId)
-          .set(
-            {
-              userId,
-              productId: subscription.productId,
-              lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
-      }
-    }
-
-    return { isValid: true, subscription };
-  } catch (err) {
-    console.error("validateAppleReceipt error", err);
-    return {
-      isValid: false,
-      message: "Server error during receipt validation",
-    };
   }
-});
+);
 
 // ============================================
 // App Store Server Notification endpoint (HTTP)
@@ -873,9 +1175,10 @@ exports.validateAppleReceipt = onCall(async (req) => {
 // ============================================
 exports.appStoreNotification = onRequest(async (req, res) => {
   try {
+    console.log("Received App Store notification");
     const body = req.body || {};
-    // Newer notifications include signedPayload (JWT). For production, verify signature using Apple's public key.
-    // For simplicity: if signedPayload exists, decode payload (NO verification) — replace with real JWT verification in prod.
+
+    // Decode signedPayload if present (production should verify JWT signature)
     let payload = body;
     if (body.signedPayload) {
       try {
@@ -885,17 +1188,18 @@ exports.appStoreNotification = onRequest(async (req, res) => {
           payload = JSON.parse(decoded);
         }
       } catch (err) {
-        console.warn("Failed to decode signedPayload", err);
-        payload = body; // fallback
+        console.warn("Failed to decode signedPayload:", err);
+        payload = body;
       }
     }
 
-    // Attempt to derive originalTransactionId and latest_receipt_info
+    // Extract transaction info
     const unified = payload.unifiedReceipt || payload || {};
     const latestInfo = unified.latest_receipt_info || unified.in_app || [];
     let originalTransactionId = null;
     let productId = null;
     let expiresDateMs = null;
+    let notificationType = null;
 
     if (Array.isArray(latestInfo) && latestInfo.length) {
       const latest = latestInfo[latestInfo.length - 1];
@@ -909,8 +1213,18 @@ exports.appStoreNotification = onRequest(async (req, res) => {
       originalTransactionId = payload.originalTransactionId;
     }
 
+    notificationType =
+      payload.notification_type || payload.notificationType || "UNKNOWN";
+
+    console.log("Notification details:", {
+      type: notificationType,
+      originalTransactionId,
+      productId,
+      expiresDateMs,
+    });
+
     if (!originalTransactionId) {
-      console.warn("No originalTransactionId in notification", body);
+      console.warn("No originalTransactionId in notification");
       return res.status(200).send("ok");
     }
 
@@ -920,9 +1234,10 @@ exports.appStoreNotification = onRequest(async (req, res) => {
       .collection("apple_subscriptions_map")
       .doc(originalTransactionId);
     const mapDoc = await mapRef.get();
+
     if (!mapDoc.exists) {
       console.warn(
-        "No mapping found for originalTransactionId",
+        "No mapping found for originalTransactionId:",
         originalTransactionId
       );
       return res.status(200).send("ok");
@@ -930,29 +1245,33 @@ exports.appStoreNotification = onRequest(async (req, res) => {
 
     const { userId } = mapDoc.data();
     if (!userId) {
-      console.warn("Mapping exists but no userId", originalTransactionId);
+      console.warn("Mapping exists but no userId");
       return res.status(200).send("ok");
     }
 
+    // Update user subscription
     const userRef = admin.firestore().collection("users").doc(userId);
     const updateData = {
       "subscription.rawNotification": payload,
       "subscription.lastNotifiedAt":
         admin.firestore.FieldValue.serverTimestamp(),
+      "subscription.lastNotificationType": notificationType,
     };
-    if (expiresDateMs) updateData["subscription.expiresDateMs"] = expiresDateMs;
-    if (payload.notification_type || payload.notificationType)
-      updateData["subscription.lastNotificationType"] =
-        payload.notification_type || payload.notificationType;
+
+    if (expiresDateMs) {
+      updateData["subscription.expiresDateMs"] = expiresDateMs;
+      updateData["subscription.isActive"] = expiresDateMs > Date.now();
+    }
 
     await userRef.set(updateData, { merge: true });
+    console.log("Updated user subscription for notification:", userId);
+
     return res.status(200).send("ok");
   } catch (err) {
-    console.error("appStoreNotification error", err);
+    console.error("appStoreNotification error:", err);
     return res.status(500).send("error");
   }
 });
-
 // ============================================
 // Simple testAuth callable (useful for client debug)
 // ============================================

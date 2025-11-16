@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:onlymens/core/apptheme.dart';
-import 'package:onlymens/utilis/size_config.dart';
 
 Widget bottomAppBar({
   required String currentRoute,
@@ -21,24 +20,34 @@ Widget bottomAppBar({
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
         // AI Model Button (Left)
-        IconButton(
-          onPressed: onAiPressed,
-          icon: HugeIcon(
-            icon: HugeIcons.strokeRoundedAiBrain03,
-
-            color: currentRoute == '/aimodel'
-                ? AppColors.primary
-                : Colors.white,
+        SizedBox(
+          width: 40.w,
+          height: 40.h,
+          child: IconButton(
+            onPressed: onAiPressed,
+            padding: EdgeInsets.zero,
+            icon: HugeIcon(
+              icon: HugeIcons.strokeRoundedAiBrain03,
+              size: 20.sp, // smaller + clean
+              color: currentRoute == '/aimodel'
+                  ? AppColors.primary
+                  : Colors.white,
+            ),
           ),
         ),
 
         // Better with Bro Button (Right)
-        IconButton(
-          onPressed: onChatPressed,
-          icon: HugeIcon(
-            icon: HugeIcons.strokeRoundedAgreement01,
-            color: currentRoute == '/bwb' ? AppColors.primary : Colors.white,
-            size: 30,
+        SizedBox(
+          width: 40.w,
+          height: 40.h,
+          child: IconButton(
+            onPressed: onChatPressed,
+            padding: EdgeInsets.zero,
+            icon: HugeIcon(
+              icon: HugeIcons.strokeRoundedAgreement01,
+              size: 20.sp, // smaller + clean
+              color: currentRoute == '/bwb' ? AppColors.primary : Colors.white,
+            ),
           ),
         ),
       ],

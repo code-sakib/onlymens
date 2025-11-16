@@ -268,7 +268,7 @@ class _TimerComponentsState extends State<TimerComponents> {
                             icon: HugeIcon(
                               icon: HugeIcons.strokeRoundedSidebarLeft,
                               color: Colors.white,
-                              size: 30.sp,
+                              size: 25.sp,
                             ),
                           );
                         },
@@ -283,7 +283,7 @@ class _TimerComponentsState extends State<TimerComponents> {
                                 icon: HugeIcon(
                                   icon: HugeIcons.strokeRoundedCalendar03,
                                   color: Colors.white,
-                                  size: 30.sp,
+                                  size: 25.sp,
                                 ),
                               ),
                               IconButton(
@@ -291,7 +291,7 @@ class _TimerComponentsState extends State<TimerComponents> {
                                 icon: HugeIcon(
                                   icon: HugeIcons.strokeRoundedUserCircle,
                                   color: Colors.white,
-                                  size: 30.sp,
+                                  size: 25.sp,
                                 ),
                               ),
                             ],

@@ -1,4 +1,4 @@
-// pricing_page.dart — FIXED VERSION
+// pricing_page.dart — FINAL CLEAN VERSION
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -23,7 +23,6 @@ class _PricingPageState extends State<PricingPage> {
   List<ProductDetails> _products = [];
   ProductDetails? _selected;
 
-  // Pending receipt if user is not logged in
   String? _pendingReceipt;
   String? _pendingProductId;
 
@@ -32,7 +31,7 @@ class _PricingPageState extends State<PricingPage> {
     super.initState();
     _listener = _iap.purchaseStream.listen(_handlePurchaseUpdates);
     _initIAP();
-    _checkExistingSubscription(); // Check on page load
+    _checkExistingSubscription();
   }
 
   @override
@@ -41,9 +40,6 @@ class _PricingPageState extends State<PricingPage> {
     super.dispose();
   }
 
-  // --------------------------
-  // CHECK EXISTING SUBSCRIPTION
-  // --------------------------
   Future<void> _checkExistingSubscription() async {
     final user = AuthService.currentUser;
     if (user == null) return;
@@ -54,21 +50,17 @@ class _PricingPageState extends State<PricingPage> {
       final isActive = expiresMs > DateTime.now().millisecondsSinceEpoch;
 
       if (isActive && mounted) {
-        print('✅ Already has active subscription, redirecting to /streaks');
         context.go('/streaks');
       }
     }
   }
 
-  // --------------------------
-  // INIT STORE
-  // --------------------------
   Future<void> _initIAP() async {
     final available = await _iap.isAvailable();
     if (!mounted || !available) return;
 
     final response = await _iap.queryProductDetails({
-      "cleanmind_premium_monthly_subs",
+      "cleanmind_premium_monthly_users",
       "cleanmind_premium_yearly",
     });
 
@@ -86,7 +78,7 @@ class _PricingPageState extends State<PricingPage> {
       setState(() {
         _products = [
           ProductDetails(
-            id: "cleanmind_premium_monthly_subs",
+            id: "cleanmind_premium_monthly_users",
             title: "Monthly Plan",
             description: "Billed monthly",
             price: "\$6.99",
@@ -107,9 +99,6 @@ class _PricingPageState extends State<PricingPage> {
     }
   }
 
-  // --------------------------
-  // PURCHASE FLOW
-  // --------------------------
   Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
     for (final p in purchases) {
       if (!mounted) continue;
@@ -134,18 +123,11 @@ class _PricingPageState extends State<PricingPage> {
         final isLoggedIn = AuthService.currentUser != null;
 
         if (!isLoggedIn) {
-          // User needs to log in first
-          print(
-            '⚠️ Purchase successful but user not logged in, prompting login',
-          );
           final shouldLogin = await _askLoginDialog();
           if (shouldLogin && mounted) {
-            // Navigate to auth screen
             context.go('/');
-            // Note: After login, claimPendingIfNeeded will be called
           }
         } else {
-          // User is logged in, claim receipt immediately
           await _claimReceipt();
         }
 
@@ -156,13 +138,8 @@ class _PricingPageState extends State<PricingPage> {
     }
   }
 
-  // -------------------------
-  // CLAIM AFTER LOGIN
-  // -------------------------
   Future<void> claimPendingIfNeeded() async {
-    print('🔍 Checking for pending receipt to claim...');
     if (_pendingReceipt != null && _pendingProductId != null) {
-      print('📝 Found pending receipt, claiming now');
       await _claimReceipt();
     }
   }
@@ -172,13 +149,10 @@ class _PricingPageState extends State<PricingPage> {
         _pendingReceipt == null ||
         _pendingProductId == null ||
         AuthService.currentUser == null) {
-      print('❌ Cannot claim receipt: missing data or not logged in');
       return;
     }
 
     setState(() => _pending = true);
-
-    print('🔐 Claiming receipt for user: ${AuthService.currentUser!.uid}');
 
     final ok = await AuthService.claimReceiptForCurrentUser(
       receiptData: _pendingReceipt!,
@@ -188,21 +162,16 @@ class _PricingPageState extends State<PricingPage> {
     if (!mounted) return;
 
     if (ok) {
-      print('✅ Receipt claimed successfully');
       _pendingReceipt = null;
       _pendingProductId = null;
-      _success();
+      await _success();
     } else {
-      print('❌ Failed to validate purchase');
       _showError("Unable to validate purchase. Please contact support.");
     }
 
     setState(() => _pending = false);
   }
 
-  // -------------------------
-  // UI HELPERS
-  // -------------------------
   Future<bool> _askLoginDialog() async {
     return (await showDialog<bool>(
           context: context,
@@ -271,37 +240,34 @@ class _PricingPageState extends State<PricingPage> {
     );
   }
 
-  void _success() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("✅ Subscription activated successfully!"),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 2),
-      ),
-    );
+  Future<void> _success() async {
+    await prefs.setBool('onboarding_done', true);
 
-    // Navigate to main app
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        print('🚀 Navigating to /streaks after successful subscription');
-        context.go("/streaks");
-      }
-    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("✅ Subscription activated successfully!"),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) {
+          context.go("/streaks");
+        }
+      });
+    }
   }
 
   void _buy() {
     if (_selected == null) return;
-
-    print('💳 Starting purchase for: ${_selected!.id}');
 
     final params = PurchaseParam(productDetails: _selected!);
     _iap.buyNonConsumable(purchaseParam: params);
     setState(() => _pending = true);
   }
 
-  // -------------------------
-  // UI
-  // -------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -311,15 +277,7 @@ class _PricingPageState extends State<PricingPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, color: AppColors.text),
-          onPressed: () {
-            // If user has completed onboarding, allow them to go back
-            final onboardingDone = prefs.getBool('onboarding_done') ?? false;
-            if (onboardingDone) {
-              context.go('/');
-            } else {
-              context.go('/onboarding');
-            }
-          },
+          onPressed: () => context.go('/onboarding'),
         ),
       ),
       body: Stack(
@@ -356,9 +314,7 @@ class _PricingPageState extends State<PricingPage> {
                   child: TextButton(
                     onPressed: () async {
                       await context.push('/');
-                      // After returning from auth, try to claim pending receipt
                       await claimPendingIfNeeded();
-                      // Check if subscription is now active
                       await _checkExistingSubscription();
                     },
                     child: const Text(
@@ -375,7 +331,7 @@ class _PricingPageState extends State<PricingPage> {
             ),
           ),
 
-          // Pinned continue button
+          // Continue Button
           Positioned(
             left: 20,
             right: 20,

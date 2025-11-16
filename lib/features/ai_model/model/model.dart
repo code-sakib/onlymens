@@ -15,24 +15,32 @@ class AIModelDataService {
     region: 'us-central1',
   );
 
-  // Track current active session
+  // Track current active sessions
   String? currentSessionId;
+  String? currentAvatarSessionId;
+
+  // ✅ NEW: Get collection name based on mode
+  String _getCollectionName(bool isAvatarMode) {
+    return isAvatarMode ? 'aiAvatarChat' : 'aiModelData';
+  }
 
   // ============================================
-  // 1. SEND MESSAGE (Enhanced with context)
+  // 1. SEND MESSAGE (Enhanced with separate collections)
   // ============================================
   Future<String> sendMessage(
     String userMessage, {
     String? sessionId,
-    List<MessageModel>? recentMessages, // ✅ NEW: Pass recent messages
+    List<MessageModel>? recentMessages,
+    bool isAvatarMode = false,
   }) async {
     final user = auth.currentUser;
     if (user == null) {
       return 'Please log in to use the chat feature.';
     }
 
-    // Use provided session or current session or create new
-    final activeSession = sessionId ?? currentSessionId;
+    // Use appropriate session based on mode
+    final activeSession = sessionId ??
+        (isAvatarMode ? currentAvatarSessionId : currentSessionId);
     final currentStreak = glbCurrentStreakDays;
     final longestStreak = glbTotalDoneDays;
 
@@ -60,18 +68,28 @@ class AIModelDataService {
         // ✅ Pass streak data to Cloud Function
         'currentStreak': currentStreak,
         'longestStreak': longestStreak,
-        // ✅ NEW: Pass conversation context
+        // ✅ Pass conversation context
         'isDeep': isDeep,
         'conversationHistory': conversationHistory,
+        // ✅ Pass avatar mode flag
+        'isAvatarMode': isAvatarMode,
       });
 
       final data = result.data as Map<String, dynamic>;
 
       // Store the sessionId returned by Cloud Function
       if (data.containsKey('sessionId')) {
-        currentSessionId = data['sessionId'] as String;
+        if (isAvatarMode) {
+          currentAvatarSessionId = data['sessionId'] as String;
+        } else {
+          currentSessionId = data['sessionId'] as String;
+        }
       } else if (activeSession != null) {
-        currentSessionId = activeSession;
+        if (isAvatarMode) {
+          currentAvatarSessionId = activeSession;
+        } else {
+          currentSessionId = activeSession;
+        }
       }
 
       return data['reply'] as String;
@@ -151,12 +169,15 @@ class AIModelDataService {
   // ============================================
   // 2. GET ALL CONVERSATIONS (For History List)
   // ============================================
-  Future<List<ConversationModel>> fetchAllConversations() async {
+  Future<List<ConversationModel>> fetchAllConversations({
+    bool isAvatarMode = false,
+  }) async {
     try {
+      final collectionName = _getCollectionName(isAvatarMode);
       final snapshot = await cloudDB
           .collection('users')
           .doc(auth.currentUser!.uid)
-          .collection('aiModelData')
+          .collection(collectionName)
           .orderBy('lastUpdated', descending: true)
           .get();
 
@@ -185,12 +206,16 @@ class AIModelDataService {
   // ============================================
   // 3. GET SPECIFIC CONVERSATION (For Chat View)
   // ============================================
-  Future<ConversationModel?> fetchConversation(String sessionId) async {
+  Future<ConversationModel?> fetchConversation(
+    String sessionId, {
+    bool isAvatarMode = false,
+  }) async {
     try {
+      final collectionName = _getCollectionName(isAvatarMode);
       final doc = await cloudDB
           .collection('users')
           .doc(auth.currentUser!.uid)
-          .collection('aiModelData')
+          .collection(collectionName)
           .doc(sessionId)
           .get();
 
@@ -215,11 +240,15 @@ class AIModelDataService {
   // ============================================
   // 4. STREAM CONVERSATION (Real-time Updates)
   // ============================================
-  Stream<ConversationModel?> streamConversation(String sessionId) {
+  Stream<ConversationModel?> streamConversation(
+    String sessionId, {
+    bool isAvatarMode = false,
+  }) {
+    final collectionName = _getCollectionName(isAvatarMode);
     return cloudDB
         .collection('users')
         .doc(auth.currentUser!.uid)
-        .collection('aiModelData')
+        .collection(collectionName)
         .doc(sessionId)
         .snapshots()
         .map((doc) {
@@ -241,31 +270,49 @@ class AIModelDataService {
   // ============================================
   // 5. START NEW CONVERSATION
   // ============================================
-  void startNewConversation() {
-    currentSessionId = null;
+  void startNewConversation({bool isAvatarMode = false}) {
+    if (isAvatarMode) {
+      currentAvatarSessionId = null;
+    } else {
+      currentSessionId = null;
+    }
   }
 
   // ============================================
   // 6. CONTINUE EXISTING CONVERSATION
   // ============================================
-  void continueConversation(String sessionId) {
-    currentSessionId = sessionId;
+  void continueConversation(String sessionId, {bool isAvatarMode = false}) {
+    if (isAvatarMode) {
+      currentAvatarSessionId = sessionId;
+    } else {
+      currentSessionId = sessionId;
+    }
   }
 
   // ============================================
   // 7. DELETE CONVERSATION
   // ============================================
-  Future<void> deleteConversation(String sessionId) async {
+  Future<void> deleteConversation(
+    String sessionId, {
+    bool isAvatarMode = false,
+  }) async {
     try {
+      final collectionName = _getCollectionName(isAvatarMode);
       await cloudDB
           .collection('users')
           .doc(auth.currentUser!.uid)
-          .collection('aiModelData')
+          .collection(collectionName)
           .doc(sessionId)
           .delete();
 
-      if (currentSessionId == sessionId) {
-        currentSessionId = null;
+      if (isAvatarMode) {
+        if (currentAvatarSessionId == sessionId) {
+          currentAvatarSessionId = null;
+        }
+      } else {
+        if (currentSessionId == sessionId) {
+          currentSessionId = null;
+        }
       }
     } catch (e) {
       print('Error deleting conversation: $e');
@@ -372,27 +419,21 @@ class VoiceModeAIService {
   }
 
   /// Speaks text using OpenAI TTS (premium) or Flutter TTS (free)
-  /// Automatically selects based on daily usage via Cloud Function
   Future<void> speakWithAI(
     String text, {
     required Function() onStart,
     required Function() onComplete,
     required Function(String) onTextUpdate,
   }) async {
-    // Stop any ongoing speech first
     await stopSpeaking();
 
     try {
       _isCurrentlySpeaking = true;
-
-      // Update text immediately
       onTextUpdate(text);
 
-      // Check if premium TTS is available
       final canUsePremium = await _canUsePremiumTTS();
 
       if (canUsePremium) {
-        // Try OpenAI TTS via Cloud Function
         final success = await _speakWithOpenAI(
           text,
           onStart: onStart,
@@ -402,7 +443,6 @@ class VoiceModeAIService {
           },
         );
 
-        // If OpenAI TTS fails, fallback to Flutter TTS
         if (!success) {
           await _speakWithFlutterTTS(
             text,
@@ -414,7 +454,6 @@ class VoiceModeAIService {
           );
         }
       } else {
-        // Use Flutter TTS (free)
         await _speakWithFlutterTTS(
           text,
           onStart: onStart,
@@ -427,7 +466,6 @@ class VoiceModeAIService {
     } catch (e) {
       print('Speak error: $e');
       _isCurrentlySpeaking = false;
-      // Fallback to Flutter TTS on any error
       await _speakWithFlutterTTS(
         text,
         onStart: onStart,
@@ -439,7 +477,6 @@ class VoiceModeAIService {
     }
   }
 
-  /// Check if user can use premium TTS today
   Future<bool> _canUsePremiumTTS() async {
     if (_auth.currentUser == null) return false;
 
@@ -454,7 +491,6 @@ class VoiceModeAIService {
     }
   }
 
-  /// Get remaining premium TTS seconds
   Future<Map<String, int>> getPremiumTTSStatus() async {
     if (_auth.currentUser == null) {
       return {'remainingSeconds': 0, 'maxSeconds': 180};
@@ -475,7 +511,6 @@ class VoiceModeAIService {
     }
   }
 
-  /// OpenAI TTS via Cloud Function (Premium)
   Future<bool> _speakWithOpenAI(
     String text, {
     required Function() onStart,
@@ -492,17 +527,14 @@ class VoiceModeAIService {
 
       final data = result.data as Map<String, dynamic>;
 
-      // Check if we should use fallback
       if (data['useFallback'] == true) {
         print('TTS: ${data['message']}');
-        return false; // Signal to use Flutter TTS
+        return false;
       }
 
-      // Decode base64 audio
       final audioBase64 = data['audioBase64'] as String;
       final audioBytes = base64Decode(audioBase64);
 
-      // Save to temp file
       final tempDir = await getTemporaryDirectory();
       final audioFile = File(
         '${tempDir.path}/tts_${DateTime.now().millisecondsSinceEpoch}.mp3',
@@ -511,7 +543,6 @@ class VoiceModeAIService {
 
       onStart();
 
-      // Play audio with proper state handling
       StreamSubscription? subscription;
       subscription = _audioPlayer.playerStateStream.listen((state) {
         if (state.processingState == ProcessingState.completed) {
@@ -526,14 +557,13 @@ class VoiceModeAIService {
       await _audioPlayer.setFilePath(audioFile.path);
       await _audioPlayer.play();
 
-      return true; // Success
+      return true;
     } catch (e) {
       print('OpenAI TTS Exception: $e');
-      return false; // Fallback to Flutter TTS
+      return false;
     }
   }
 
-  /// Flutter TTS (Free)
   Future<void> _speakWithFlutterTTS(
     String text, {
     required Function() onStart,
@@ -560,14 +590,11 @@ class VoiceModeAIService {
     }
   }
 
-  /// Estimate text duration in seconds
   int _estimateTextDuration(String text) {
-    // Average: ~150 words/min = 2.5 words/sec
     final wordCount = text.split(RegExp(r'\s+')).length;
     return (wordCount / 2.5).ceil();
   }
 
-  /// Stop any playing audio
   Future<void> stopSpeaking() async {
     if (_isCurrentlySpeaking) {
       await _audioPlayer.stop();
@@ -576,12 +603,12 @@ class VoiceModeAIService {
     }
   }
 
-  /// Dispose resources
   void dispose() {
     _audioPlayer.dispose();
     _flutterTts.stop();
   }
 }
+
 // ============================================
 // Reporting Issue Service
 // ============================================

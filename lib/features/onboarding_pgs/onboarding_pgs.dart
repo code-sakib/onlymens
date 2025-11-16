@@ -10,7 +10,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
 import 'package:onlymens/core/apptheme.dart';
-import 'package:onlymens/core/globals.dart';
 import 'package:uuid/uuid.dart';
 
 // ============================================================================
@@ -150,12 +149,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ReportPage(
               pageIndex: 5,
               onNext: () async {
-                // Mark onboarding as complete
-                await prefs.setBool('onboarding_done', true);
+                // ❌ REMOVE THIS LINE:
+                // await prefs.setBool('onboarding_done', true);
 
-                // Navigate directly to pricing page
+                // ✅ Just navigate to pricing, don't set the flag yet
                 if (context.mounted) {
-                  context.go('/pricing'); // or context.push('/pricing')
+                  context.go('/pricing');
                 }
               },
               onBack: _previousPage,
