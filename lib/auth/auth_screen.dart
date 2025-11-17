@@ -20,20 +20,20 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _handleSuccessfulLogin(String method) async {
     Utilis.showSnackBar("Signed in with $method");
-    
+
     // Check if user has active subscription
     final sub = await AuthService.fetchSubscriptionForCurrentUser();
     if (sub != null) {
       final expiresMs = sub['expiresDateMs'] ?? 0;
       final isActive = expiresMs > DateTime.now().millisecondsSinceEpoch;
-      
+
       if (isActive && mounted) {
         print('✅ User has active subscription, navigating to /streaks');
         context.go('/streaks');
         return;
       }
     }
-    
+
     // No active subscription, go to pricing
     if (mounted) {
       print('⚠️ No active subscription, navigating to /pricing');
@@ -151,7 +151,8 @@ class _SignInButton extends StatelessWidget {
     required this.text,
     this.assetIcon,
     required this.onTap,
-    required this.isLoading, this.icon,
+    required this.isLoading,
+    this.icon,
   });
 
   @override

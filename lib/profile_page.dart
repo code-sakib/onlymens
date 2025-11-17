@@ -1,4 +1,6 @@
+// profile_page.dart - SIMPLIFIED VERSION (No Firebase Storage)
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui';
 import 'package:feedback/feedback.dart';
 import 'package:flutter/cupertino.dart';
@@ -7,11 +9,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:onlymens/legal_screen.dart' show LegalScreen;
 import 'package:onlymens/userpost_pg.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:onlymens/core/data_state.dart';
 import 'package:onlymens/core/globals.dart';
 import 'package:onlymens/features/ai_model/model/model.dart';
@@ -65,8 +66,7 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isLoading = true;
   bool _isContentBlocked = false;
   String _userName = 'User';
-  String? _customAvatarPath;
-  String? _streakAvatarUrl;
+  String? _customAvatarPath; // Local file path
   int _totalDays = 0;
   int _currentStreak = 0;
   int _progressPercentage = 0;
@@ -135,7 +135,7 @@ class _ProfilePageState extends State<ProfilePage> {
         });
 
         _calculateProgress();
-        await _loadAvatars();
+        await _loadLocalAvatar(); // Load custom avatar if exists
       } else {
         await profileRef.set({
           'name': auth.currentUser?.displayName ?? 'User',
@@ -150,9 +150,11 @@ class _ProfilePageState extends State<ProfilePage> {
           _userName = auth.currentUser?.displayName ?? 'User';
           _isLoading = false;
         });
-        await _loadAvatars();
+
+        await _loadLocalAvatar();
       }
     } catch (e) {
+      debugPrint('❌ Critical profile loading error: $e');
       setState(() => _isLoading = false);
       Utilis.showSnackBar('Failed to load profile', isErr: true);
     }
@@ -186,65 +188,27 @@ class _ProfilePageState extends State<ProfilePage> {
     });
   }
 
-  Future<void> _loadAvatars() async {
-    try {
-      final customPath = await _getCustomAvatarPath();
-      if (customPath != null && File(customPath).existsSync()) {
-        setState(() {
-          _customAvatarPath = customPath;
-        });
-        return;
-      }
-
-      await _loadStreakAvatar();
-    } catch (e) {
-      print('Error loading avatars: $e');
-      setState(() {
-        _customAvatarPath = null;
-        _streakAvatarUrl = null;
-      });
-    }
-  }
-
-  Future<String?> _getCustomAvatarPath() async {
+  // ✅ Load custom avatar from local storage (if exists)
+  Future<void> _loadLocalAvatar() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final customAvatarPath = '${directory.path}/custom_avatar.png';
 
       if (File(customAvatarPath).existsSync()) {
-        return customAvatarPath;
-      }
-    } catch (e) {
-      print('Error getting custom avatar path: $e');
-    }
-    return null;
-  }
-
-  Future<void> _loadStreakAvatar() async {
-    try {
-      final currentStreakDays = StreaksData.currentStreakDays;
-      final calculatedLevel = AvatarManager.getLevelFromDays(currentStreakDays);
-
-      try {
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('avatarsImg')
-            .child('$calculatedLevel.png');
-
-        final downloadUrl = await storageRef.getDownloadURL();
+        debugPrint('✅ Found custom avatar: $customAvatarPath');
         setState(() {
-          _streakAvatarUrl = downloadUrl;
+          _customAvatarPath = customAvatarPath;
         });
-      } catch (storageError) {
-        print('Firebase Storage failed, will use local assets');
+      } else {
+        debugPrint('ℹ️ No custom avatar, will show streak avatar');
         setState(() {
-          _streakAvatarUrl = null;
+          _customAvatarPath = null;
         });
       }
     } catch (e) {
-      print('Error loading streak avatar: $e');
+      debugPrint('⚠️ Error loading local avatar: $e');
       setState(() {
-        _streakAvatarUrl = null;
+        _customAvatarPath = null;
       });
     }
   }
@@ -260,16 +224,8 @@ class _ProfilePageState extends State<ProfilePage> {
         padding: EdgeInsets.symmetric(vertical: 20.h, horizontal: 16.w),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 40.w,
-              height: 4.h,
-              decoration: BoxDecoration(
-                color: Colors.grey[600],
-                borderRadius: BorderRadius.circular(2.r),
-              ),
-            ),
-            SizedBox(height: 20.h),
             Text(
               'Edit Profile',
               style: TextStyle(
@@ -279,6 +235,8 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             SizedBox(height: 20.h),
+
+            // Option 1: Upload from Gallery
             ListTile(
               leading: Container(
                 padding: EdgeInsets.all(10.r),
@@ -305,28 +263,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 _pickAndSaveCustomAvatar();
               },
             ),
-            ListTile(
-              leading: Container(
-                padding: EdgeInsets.all(10.r),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                child: Icon(Icons.camera_alt, color: Colors.blue, size: 24.r),
-              ),
-              title: Text(
-                'Take Photo',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _takePhotoAndSaveAvatar();
-              },
-            ),
+
+            // Option 2: Reset to Streak Avatar (only show if custom avatar exists)
             if (_customAvatarPath != null)
               ListTile(
                 leading: Container(
@@ -350,10 +288,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   _resetToStreakAvatar();
                 },
               ),
+
             Padding(
               padding: EdgeInsets.symmetric(vertical: 8.h),
               child: Divider(color: Colors.grey[700], thickness: 1),
             ),
+
+            // Option 3: Edit Username
             ListTile(
               leading: Container(
                 padding: EdgeInsets.all(10.r),
@@ -391,6 +332,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // ✅ Pick image from gallery
   Future<void> _pickAndSaveCustomAvatar() async {
     try {
       final XFile? image = await _picker.pickImage(
@@ -404,103 +346,109 @@ class _ProfilePageState extends State<ProfilePage> {
         await _saveCustomAvatar(image.path);
       }
     } catch (e) {
+      debugPrint('Failed to pick image: $e');
       Utilis.showSnackBar('Failed to pick image', isErr: true);
     }
   }
 
-  Future<void> _takePhotoAndSaveAvatar() async {
-    try {
-      final XFile? photo = await _picker.pickImage(
-        source: ImageSource.camera,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
-      );
-
-      if (photo != null) {
-        await _saveCustomAvatar(photo.path);
-      }
-    } catch (e) {
-      Utilis.showSnackBar('Failed to take photo', isErr: true);
-    }
-  }
-
+  // ✅ Save custom avatar locally ONLY (no Firebase)
   Future<void> _saveCustomAvatar(String imagePath) async {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final customAvatarPath = '${directory.path}/custom_avatar.png';
-      final currentUid = auth.currentUser!.uid;
 
+      // Copy file to local storage
       final File sourceFile = File(imagePath);
       await sourceFile.copy(customAvatarPath);
 
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('userAvatars')
-          .child('$currentUid.png');
+      debugPrint('✅ Avatar saved locally: $customAvatarPath');
 
-      await storageRef.putFile(File(customAvatarPath));
-      final downloadUrl = await storageRef.getDownloadURL();
+      // Clear image cache BEFORE updating state
+      imageCache.clear();
+      imageCache.clearLiveImages();
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUid)
-          .collection('profile')
-          .doc('data')
-          .update({'customAvatarUrl': downloadUrl, 'img': downloadUrl});
+      // Force a complete rebuild with new path
+      if (mounted) {
+        setState(() {
+          _customAvatarPath = null; // Clear first
+        });
+        
+        // Wait a frame then set new path
+        await Future.delayed(Duration(milliseconds: 50));
+        
+        if (mounted) {
+          setState(() {
+            _customAvatarPath = customAvatarPath;
+          });
+        }
+      }
 
-      setState(() {
-        _customAvatarPath = customAvatarPath;
-      });
+      // Notify other pages
+      try {
+        avatarChangeNotifier.notifyAvatarChanged();
+      } catch (e) {
+        debugPrint('⚠️ avatarChangeNotifier not available: $e');
+      }
 
       Utilis.showSnackBar('Profile picture updated ✅');
     } catch (e) {
-      debugPrint('Error saving custom avatar: $e');
+      debugPrint('❌ Critical error saving avatar: $e');
       Utilis.showSnackBar('Failed to save profile picture', isErr: true);
     }
   }
 
+  // ✅ Reset to streak avatar (delete custom picture)
   Future<void> _resetToStreakAvatar() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final customAvatarPath = '${directory.path}/custom_avatar.png';
       final customAvatarFile = File(customAvatarPath);
-      final currentUid = auth.currentUser!.uid;
 
       if (customAvatarFile.existsSync()) {
         await customAvatarFile.delete();
+        debugPrint('✅ Local custom avatar deleted');
       }
 
+      // Clear cache BEFORE updating state
+      imageCache.clear();
+      imageCache.clearLiveImages();
+
+      // Force rebuild
+      if (mounted) {
+        setState(() {
+          _customAvatarPath = null;
+        });
+      }
+
+      // Notify other pages
       try {
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('userAvatars')
-            .child('$currentUid.png');
-        await storageRef.delete();
+        avatarChangeNotifier.notifyAvatarChanged();
       } catch (e) {
-        debugPrint('Storage file might not exist: $e');
+        debugPrint('⚠️ avatarChangeNotifier not available: $e');
       }
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUid)
-          .collection('profile')
-          .doc('data')
-          .update({
-            'customAvatarUrl': FieldValue.delete(),
-            'img': FieldValue.delete(),
-          });
-
-      setState(() {
-        _customAvatarPath = null;
-      });
-
-      await _loadStreakAvatar();
 
       Utilis.showSnackBar('Reset to streak avatar ✅');
     } catch (e) {
       debugPrint('Error resetting avatar: $e');
       Utilis.showSnackBar('Failed to reset avatar', isErr: true);
+    }
+  }
+
+  // ✅ Get avatar for any user (for other pages to use)
+  static Future<String?> getProfileAvatar(String userId) async {
+    try {
+      // Check if user has custom avatar locally
+      final directory = await getApplicationDocumentsDirectory();
+      final customAvatarPath = '${directory.path}/custom_avatar_$userId.png';
+
+      if (File(customAvatarPath).existsSync()) {
+        return customAvatarPath;
+      }
+
+      return null; // Will fall back to streak avatar
+    } catch (e) {
+      debugPrint("Avatar load error for $userId → $e");
+      return null;
     }
   }
 
@@ -540,7 +488,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       await profileRef.update({'contentBlocked': isBlocked});
     } catch (e) {
-      print('Failed to update Firestore: $e');
+      debugPrint('Failed to update Firestore: $e');
     }
   }
 
@@ -1086,38 +1034,45 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // ✅ SIMPLIFIED: Show custom image if exists, otherwise show streak-based avatar
   Widget _buildAvatarWidget() {
+    // 1) If custom avatar exists locally, show it
     if (_customAvatarPath != null && File(_customAvatarPath!).existsSync()) {
-      return Image.file(File(_customAvatarPath!), fit: BoxFit.cover);
-    }
-
-    if (_streakAvatarUrl != null) {
-      return Image.network(
-        _streakAvatarUrl!,
+      debugPrint('🖼️ Displaying custom avatar: $_customAvatarPath');
+      
+      // Use timestamp to force reload every time
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      
+      return Image.file(
+        File(_customAvatarPath!),
+        key: ValueKey('custom_$timestamp'), // Force rebuild with timestamp
         fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Center(
-            child: CupertinoActivityIndicator(color: Colors.white38),
-          );
-        },
+        cacheWidth: 512,
+        cacheHeight: 512,
         errorBuilder: (context, error, stackTrace) {
-          return _buildLocalAssetAvatar();
+          debugPrint('⚠️ Custom avatar error: $error');
+          return _buildStreakAvatar();
         },
       );
     }
 
-    return _buildLocalAssetAvatar();
+    // 2) Otherwise show streak-based avatar from assets
+    return _buildStreakAvatar();
   }
 
-  Widget _buildLocalAssetAvatar() {
+  // ✅ Show streak avatar from local assets (lvl1.png, lvl2.png, etc.)
+  Widget _buildStreakAvatar() {
     final currentStreakDays = StreaksData.currentStreakDays;
     final calculatedLevel = AvatarManager.getLevelFromDays(currentStreakDays);
 
+    debugPrint('🖼️ Displaying streak avatar: lvl$calculatedLevel.png');
+
     return Image.asset(
       'assets/3d/lvl$calculatedLevel.png',
+      key: ValueKey('lvl$calculatedLevel'), // Force rebuild on level change
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) {
+        debugPrint('⚠️ Asset avatar error: $error');
         return Icon(Icons.person, size: 80.r, color: Colors.grey[400]);
       },
     );
@@ -1511,3 +1466,10 @@ class ProfileData {
     });
   }
 }
+
+// ✅ Global notifier to inform other pages when avatar changes
+class AvatarChangeNotifier extends ChangeNotifier {
+  void notifyAvatarChanged() => notifyListeners();
+}
+
+final AvatarChangeNotifier avatarChangeNotifier = AvatarChangeNotifier();

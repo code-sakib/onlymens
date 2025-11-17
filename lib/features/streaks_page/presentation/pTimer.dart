@@ -30,9 +30,7 @@ class TimerComponents extends StatefulWidget {
 
 class _TimerComponentsState extends State<TimerComponents> {
   bool _showSmallHeatmap = false;
-  String _currentAvatarPath = AvatarManager.BUNDLED_LEVEL_1;
-  bool _isLoadingAvatar = false;
-  String _loadingMessage = '';
+  String _currentAvatarPath = AvatarManager.LEVEL_1_PATH;
   int _avatarKeySalt = 0;
   late ConfettiController _confettiController;
 
@@ -52,7 +50,6 @@ class _TimerComponentsState extends State<TimerComponents> {
   }
 
   void _onGlobalRefresh() {
-    _initializeAvatar();
     _checkAvatarUpdate();
   }
 
@@ -74,7 +71,6 @@ class _TimerComponentsState extends State<TimerComponents> {
       });
     }
 
-    await _initializeAvatar();
     await _checkAvatarUpdate();
   }
 
@@ -84,23 +80,6 @@ class _TimerComponentsState extends State<TimerComponents> {
     if (_showSmallHeatmap) setState(() => _showSmallHeatmap = false);
   }
 
-  Widget _buildAvatarLoadingState() => Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CupertinoActivityIndicator(color: Colors.white, radius: 12.r),
-          SizedBox(height: 16.h),
-          Text(
-            _loadingMessage,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      );
-
   void _onUpgrade(int newLevel) {
     _confettiController.play();
     Utilis.showSnackBar(
@@ -109,13 +88,8 @@ class _TimerComponentsState extends State<TimerComponents> {
     );
   }
 
-  Future<void> _initializeAvatar() async {
+  Future<void> _checkAvatarUpdate() async {
     if (!mounted) return;
-
-    setState(() {
-      _isLoadingAvatar = true;
-      _loadingMessage = 'Checking avatar...';
-    });
 
     try {
       final info = await AvatarManager.getStorageInfo(currentUser.uid);
@@ -128,57 +102,23 @@ class _TimerComponentsState extends State<TimerComponents> {
 
       if (!mounted) return;
 
-      setState(() {
-        _currentAvatarPath = result.currentPath;
-        _avatarKeySalt++;
-        _isLoadingAvatar = false;
-        _loadingMessage = '';
-      });
-
-      if (result.wasUpdated) {
-        final int newLevel = result.currentLevel;
-        if (newLevel > previousLevel) {
-          _onUpgrade(newLevel);
-        } else {
-          if (result.message != null) Utilis.showToast(result.message!);
-        }
-      }
-
-      if (result.downloadLimitExceeded) {
-        if (result.showLimitMessage && result.error != null) {
-          Utilis.showToast(result.error!);
-        }
-      }
-    } catch (e) {
-      print('❌ Avatar init error: $e');
-      if (mounted) {
-        setState(() {
-          _isLoadingAvatar = false;
-          _loadingMessage = '';
-        });
-      }
-    }
-  }
-
-  Future<void> _checkAvatarUpdate() async {
-    try {
-      final result = await AvatarManager.checkAndUpdateModelAfterFetch(
-        uid: currentUser.uid,
-        currentStreakDays: StreaksData.currentStreakDays,
-      );
-
-      if (!mounted) return;
-
-      if (result.success && result.currentPath.isNotEmpty) {
+      if (result.success) {
         setState(() {
           _currentAvatarPath = result.currentPath;
           _avatarKeySalt++;
         });
-      }
 
-      if (result.downloadLimitExceeded) {}
+        if (result.wasUpdated) {
+          final int newLevel = result.currentLevel;
+          if (newLevel > previousLevel) {
+            _onUpgrade(newLevel);
+          } else {
+            if (result.message != null) Utilis.showToast(result.message!);
+          }
+        }
+      }
     } catch (e) {
-      print('❌ Avatar check failed: $e');
+      print('❌ Avatar check error: $e');
     }
   }
 
@@ -194,52 +134,28 @@ class _TimerComponentsState extends State<TimerComponents> {
         return;
       }
 
-      if (status.canDownloadNow) {
-        if (!mounted) return;
+      final res = await AvatarManager.updateModelNow(
+        uid: currentUser.uid,
+        streakDays: StreaksData.currentStreakDays,
+      );
+
+      if (!mounted) return;
+
+      if (res.success) {
         setState(() {
-          _isLoadingAvatar = true;
-          _loadingMessage = 'Updating avatar...';
+          _currentAvatarPath = res.path;
+          _avatarKeySalt++;
         });
 
-        final res = await AvatarManager.updateModelNow(
-          uid: currentUser.uid,
-          streakDays: StreaksData.currentStreakDays,
-        );
-
-        if (!mounted) return;
-
-        setState(() {
-          _isLoadingAvatar = false;
-          _loadingMessage = '';
-        });
-
-        if (res.success) {
-          setState(() {
-            _currentAvatarPath = res.path;
-            _avatarKeySalt++;
-          });
-
-          if (res.level > status.currentLevel) {
-            _onUpgrade(res.level);
-          } else {
-            Utilis.showToast(res.message ?? 'Avatar updated');
-          }
-
-          refreshTrigger.value = refreshTrigger.value + 1;
+        if (res.level > status.currentLevel) {
+          _onUpgrade(res.level);
         } else {
-          if (res.downloadLimitExceeded) {
-            await AvatarManager.markPendingUpdate(uid: currentUser.uid);
-            Utilis.showSnackBar(
-              'Server busy. Avatar will auto-update later.',
-              isErr: true,
-            );
-          } else {
-            Utilis.showSnackBar(res.error ?? 'Update failed', isErr: true);
-          }
+          Utilis.showToast(res.message ?? 'Avatar updated');
         }
+
+        refreshTrigger.value = refreshTrigger.value + 1;
       } else {
-        await AvatarManager.markPendingUpdate(uid: currentUser.uid);
-        setState(() {});
+        Utilis.showSnackBar(res.error ?? 'Update failed', isErr: true);
       }
     } catch (e) {
       print('❌ handleStreakUpdate error: $e');
@@ -311,20 +227,13 @@ class _TimerComponentsState extends State<TimerComponents> {
                         SizedBox(
                           height: 260.h,
                           width: 200.w,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              if (!_isLoadingAvatar)
-                                RepaintBoundary(
-                                  child: Flutter3DViewer(
-                                    key: ValueKey(
-                                      'avatar|$_currentAvatarPath|$_avatarKeySalt',
-                                    ),
-                                    src: _currentAvatarPath,
-                                  ),
-                                ),
-                              if (_isLoadingAvatar) _buildAvatarLoadingState(),
-                            ],
+                          child: RepaintBoundary(
+                            child: Flutter3DViewer(
+                              key: ValueKey(
+                                'avatar|$_currentAvatarPath|$_avatarKeySalt',
+                              ),
+                              src: _currentAvatarPath,
+                            ),
                           ),
                         ),
                         const Expanded(child: PornFreeTimerCompact()),
@@ -517,32 +426,32 @@ class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
     return isLoading
         ? const Center(child: CupertinoActivityIndicator())
         : currentDuration == Duration.zero && totalDoneDuration == Duration.zero
-            ? Center(
-                child: Text(
-                  'No data available',
-                  style: TextStyle(color: Colors.grey, fontSize: 14.sp),
+        ? Center(
+            child: Text(
+              'No data available',
+              style: TextStyle(color: Colors.grey, fontSize: 14.sp),
+            ),
+          )
+        : Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                height: 120.h,
+                width: 200.w,
+                child: PageView(
+                  controller: _pageController,
+                  onPageChanged: (index) =>
+                      setState(() => _currentPage = index),
+                  children: [
+                    _buildTimerView("Currently", currentDuration),
+                    _buildTimerView("Total", totalDoneDuration),
+                  ],
                 ),
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    height: 120.h,
-                    width: 200.w,
-                    child: PageView(
-                      controller: _pageController,
-                      onPageChanged: (index) =>
-                          setState(() => _currentPage = index),
-                      children: [
-                        _buildTimerView("Currently", currentDuration),
-                        _buildTimerView("Total", totalDoneDuration),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 10.h),
-                  SimplePageIndicator(currentPage: _currentPage, pageCount: 2),
-                ],
-              );
+              ),
+              SizedBox(height: 10.h),
+              SimplePageIndicator(currentPage: _currentPage, pageCount: 2),
+            ],
+          );
   }
 
   Widget _buildTimerView(String title, Duration duration) {
@@ -570,9 +479,9 @@ class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
         Text(
           "$days days  $hours hrs",
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
           maxLines: 1,
           softWrap: true,
         ),
@@ -580,9 +489,9 @@ class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
         Text(
           "$minutes min  $seconds sec",
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[400],
-              ),
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[400],
+          ),
         ),
       ],
     );
@@ -865,52 +774,6 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
     );
   }
 
-  Widget _buildTile(String txt, bool isChecked, Function(bool) onChanged) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8.h),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => onChanged(!isChecked),
-          splashColor: Colors.deepPurple.withValues(alpha: 0.3),
-          highlightColor: Colors.deepPurple.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10.r),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isChecked ? Colors.deepPurple : Colors.grey[850],
-              borderRadius: BorderRadius.circular(10.r),
-              border: Border.all(
-                color: Colors.deepPurpleAccent,
-                width: 0.2.w,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.deepPurple.withValues(alpha: 0.2),
-                  blurRadius: isChecked ? 10.r : 4.r,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: ListTile(
-              trailing: Icon(
-                isChecked ? Icons.check_circle : Icons.circle_outlined,
-                color: isChecked ? Colors.orange : Colors.grey,
-                size: 24.sp,
-              ),
-              title: Text(
-                txt,
-                style: TextStyle(color: Colors.white, fontSize: 14.sp),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.r),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildSkipButton(int remainingSkips, bool canSkip) {
     bool canSkipThisDate = widget.isToday ? canSkip : true;
 
@@ -924,8 +787,9 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
                     ? _handleDoneAndSkip(StreaksData.SKIPPED)
                     : _updateForPastDate(StreaksData.SKIPPED),
           style: ElevatedButton.styleFrom(
-            backgroundColor:
-                canSkipThisDate ? Colors.grey[800] : Colors.grey[900],
+            backgroundColor: canSkipThisDate
+                ? Colors.grey[800]
+                : Colors.grey[900],
             disabledBackgroundColor: Colors.grey[850],
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10.r),
@@ -1008,8 +872,8 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
       String statusText = status == StreaksData.BOTH_TILES
           ? 'Done'
           : status == StreaksData.SKIPPED
-              ? 'Skipped'
-              : 'Relapsed';
+          ? 'Skipped'
+          : 'Relapsed';
       Utilis.showToast('Day marked as $statusText');
 
       if (mounted) {

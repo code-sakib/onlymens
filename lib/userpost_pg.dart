@@ -1,12 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:hugeicons/hugeicons.dart';
-import 'package:onlymens/core/globals.dart' show auth;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:onlymens/core/globals.dart';
 import 'package:onlymens/utilis/snackbar.dart';
-
-// Add this to ProfilePage State class
 
 class UserPostsPage extends StatefulWidget {
   const UserPostsPage({super.key});
@@ -16,9 +13,9 @@ class UserPostsPage extends StatefulWidget {
 }
 
 class _UserPostsPageState extends State<UserPostsPage> {
-  final _firestore = FirebaseFirestore.instance;
-  List<Map<String, dynamic>> userPosts = [];
-  bool isLoading = true;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  List<Map<String, dynamic>> _userPosts = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -27,106 +24,180 @@ class _UserPostsPageState extends State<UserPostsPage> {
   }
 
   Future<void> _loadUserPosts() async {
-    try {
-      final currentUid = auth.currentUser!.uid;
+    setState(() => _isLoading = true);
 
-      final postsSnap = await _firestore
+    try {
+      final uid = auth.currentUser?.uid;
+      if (uid == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final snapshot = await _firestore
           .collection('users')
-          .doc(currentUid)
+          .doc(uid)
           .collection('posts')
           .orderBy('timestamp', descending: true)
           .get();
 
-      List<Map<String, dynamic>> posts = [];
+      final posts = snapshot.docs.map((doc) {
+        final data = Map<String, dynamic>.from(doc.data());
+        data['postId'] = doc.id; // Ensure postId is set
+        return data;
+      }).toList();
 
-      for (var doc in postsSnap.docs) {
-        posts.add({...doc.data(), 'postId': doc.id});
+      setState(() {
+        _userPosts = posts;
+        _isLoading = false;
+      });
+
+      debugPrint("✅ Loaded ${_userPosts.length} user posts");
+    } catch (e) {
+      debugPrint("❌ Error loading user posts: $e");
+      setState(() => _isLoading = false);
+      Utilis.showSnackBar('Failed to load posts', isErr: true);
+    }
+  }
+
+  Future<void> _deletePost(Map<String, dynamic> post) async {
+    try {
+      final uid = auth.currentUser?.uid;
+      if (uid == null) {
+        Utilis.showSnackBar('User not authenticated', isErr: true);
+        return;
       }
 
-      if (!mounted) return;
-      setState(() {
-        userPosts = posts;
-        isLoading = false;
-      });
-    } catch (e) {
-      debugPrint("Error loading user posts: $e");
-      if (!mounted) return;
-      setState(() => isLoading = false);
-    }
-  }
+      // Safe null checks
+      final postId = post['postId']?.toString();
+      final postUserId = post['userId']?.toString();
 
-  Future<void> _deletePost(String postId, String date) async {
-    try {
-      final currentUid = auth.currentUser!.uid;
-
-      // Show confirmation dialog
-      final confirmed = await showCupertinoDialog<bool>(
-        context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: const Text('Delete Post?'),
-          content: const Text('This action cannot be undone.'),
-          actions: [
-            CupertinoDialogAction(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.pop(context, false),
-            ),
-            CupertinoDialogAction(
-              isDestructiveAction: true,
-              child: const Text('Delete'),
-              onPressed: () => Navigator.pop(context, true),
-            ),
-          ],
-        ),
+      debugPrint(
+        "🗑️ Delete attempt - postId: $postId, userId: $postUserId, currentUid: $uid",
       );
 
-      if (confirmed != true) return;
+      if (postId == null || postId.isEmpty) {
+        debugPrint("❌ Post ID is null or empty");
+        Utilis.showSnackBar('Invalid post ID', isErr: true);
+        return;
+      }
 
-      // Delete from main posts collection
-      await _firestore
-          .collection('posts')
-          .doc(date)
-          .collection('userPosts')
-          .doc(postId)
-          .delete();
+      // Verify ownership
+      if (postUserId != null && postUserId != uid) {
+        debugPrint("❌ User ID mismatch");
+        Utilis.showSnackBar('You can only delete your own posts', isErr: true);
+        return;
+      }
 
-      // Delete from user's personal collection
-      await _firestore
-          .collection('users')
-          .doc(currentUid)
-          .collection('posts')
-          .doc(postId)
-          .delete();
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) =>
+            Center(child: CupertinoActivityIndicator(color: Colors.white)),
+      );
 
-      // Remove from local state
+      // Delete from global posts collection (rUsers/all)
+      try {
+        await _firestore
+            .collection("posts")
+            .doc("rUsers")
+            .collection("all")
+            .doc(postId)
+            .delete();
+        debugPrint("✅ Deleted from rUsers/all");
+      } catch (e) {
+        debugPrint("⚠️ Failed to delete from rUsers/all: $e");
+      }
+
+      // Delete from user's personal posts
+      try {
+        await _firestore
+            .collection("users")
+            .doc(uid)
+            .collection("posts")
+            .doc(postId)
+            .delete();
+        debugPrint("✅ Deleted from user posts");
+      } catch (e) {
+        debugPrint("⚠️ Failed to delete from user posts: $e");
+      }
+
+      // Remove from local list
       setState(() {
-        userPosts.removeWhere((p) => p['postId'] == postId);
+        _userPosts.removeWhere((p) => p['postId']?.toString() == postId);
       });
 
-      if (!mounted) return;
-
-      Utilis.showSnackBar('Post deleted successfully', isGreen: true);
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+        Utilis.showSnackBar('Post deleted successfully', isGreen: true);
+      }
     } catch (e) {
-      debugPrint("Error deleting post: $e");
-      if (!mounted) return;
-
-      Utilis.showSnackBar('Failed to delete post', isGreen: true);
+      debugPrint("❌ Delete post error: $e");
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+        Utilis.showSnackBar('Failed to delete post', isErr: true);
+      }
     }
   }
 
-  String _getTimeAgo(int timestamp) {
+  void _confirmDelete(Map<String, dynamic> post) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1E),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        title: Text(
+          'Delete Post?',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18.sp,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'This action cannot be undone.',
+          style: TextStyle(color: Colors.white70, fontSize: 14.sp),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey[400], fontSize: 14.sp),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              _deletePost(post);
+            },
+            child: Text(
+              'Delete',
+              style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getTimeAgo(int? timestamp) {
+    if (timestamp == null) return 'Unknown';
+
     final now = DateTime.now();
     final postTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
     final diff = now.difference(postTime);
 
-    if (diff.inDays > 0) {
-      return '${diff.inDays}d ago';
-    } else if (diff.inHours > 0) {
-      return '${diff.inHours}h ago';
-    } else if (diff.inMinutes > 0) {
-      return '${diff.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
+    if (diff.inDays > 0) return '${diff.inDays}d ago';
+    if (diff.inHours > 0) return '${diff.inHours}h ago';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+    return 'Just now';
   }
 
   @override
@@ -135,59 +206,50 @@ class _UserPostsPageState extends State<UserPostsPage> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(CupertinoIcons.back, color: Colors.white),
+          icon: Icon(CupertinoIcons.back, color: Colors.white, size: 20.r),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'My Posts',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18.sp,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
-      body: isLoading
-          ? const Center(
-              child: CupertinoActivityIndicator(color: Colors.white24),
+      body: _isLoading
+          ? Center(
+              child: CupertinoActivityIndicator(
+                color: Colors.white24,
+                radius: 16.r,
+              ),
             )
-          : userPosts.isEmpty
+          : _userPosts.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.article_outlined,
-                    size: 64,
+                    size: 64.r,
                     color: Colors.white24,
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
+                  SizedBox(height: 16.h),
+                  Text(
                     'No posts yet',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.w500,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Share your thoughts with the community',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      // Navigate to BWB feed tab
-                      context.go('/bwb');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                    ),
-                    child: const Text('Create Post'),
+                  SizedBox(height: 8.h),
+                  Text(
+                    'Share your journey in the Feed tab',
+                    style: TextStyle(color: Colors.grey, fontSize: 14.sp),
                   ),
                 ],
               ),
@@ -197,10 +259,10 @@ class _UserPostsPageState extends State<UserPostsPage> {
               backgroundColor: const Color(0xFF1C1C1E),
               color: Colors.deepPurple,
               child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: userPosts.length,
+                padding: EdgeInsets.all(16.r),
+                itemCount: _userPosts.length,
                 itemBuilder: (context, index) {
-                  final post = userPosts[index];
+                  final post = _userPosts[index];
                   return _buildPostCard(post);
                 },
               ),
@@ -210,135 +272,85 @@ class _UserPostsPageState extends State<UserPostsPage> {
 
   Widget _buildPostCard(Map<String, dynamic> post) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: 16.h),
+      padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
         color: const Color(0xFF1C1C1E),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         border: Border.all(color: Colors.white.withOpacity(0.05), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with delete button
           Row(
             children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: Colors.grey[800],
-                child: post['dp'] != null
-                    ? ClipOval(
-                        child: Image.network(
-                          post['dp'],
-                          width: 44,
-                          height: 44,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Icon(
-                              Icons.person,
-                              size: 24,
-                              color: Colors.grey[400],
-                            );
-                          },
-                        ),
-                      )
-                    : Icon(Icons.person, size: 24, color: Colors.grey[400]),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Flexible(
-                          child: Text(
-                            post['name'] ?? 'You',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          post['name']?.toString() ?? 'Anonymous',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        if (post['streaks'] != null && post['streaks'] > 0)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.deepOrangeAccent.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const HugeIcon(
-                                  icon: HugeIcons.strokeRoundedFire02,
-                                  color: Colors.deepOrangeAccent,
-                                  size: 12,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${post['streaks']}',
-                                  style: const TextStyle(
-                                    color: Colors.deepOrangeAccent,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
+                        SizedBox(width: 6.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 6.w,
+                            vertical: 2.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.deepPurple.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(4.r),
+                          ),
+                          child: Text(
+                            'You',
+                            style: TextStyle(
+                              color: Colors.deepPurple,
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: 4.h),
                     Text(
-                      _getTimeAgo(post['timestamp'] ?? 0),
-                      style: const TextStyle(
-                        color: Colors.white38,
-                        fontSize: 12,
-                      ),
+                      _getTimeAgo(post['timestamp'] as int?),
+                      style: TextStyle(color: Colors.white38, fontSize: 12.sp),
                     ),
                   ],
                 ),
               ),
-              // Delete button
               IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                onPressed: () => _deletePost(post['postId'], post['date']),
+                icon: Icon(Icons.delete_outline, color: Colors.red[400]),
+                onPressed: () => _confirmDelete(post),
               ),
             ],
           ),
-
-          // Post text
-          const SizedBox(height: 12),
+          SizedBox(height: 12.h),
           Text(
-            post['postText'] ?? '',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              height: 1.5,
-            ),
+            post['postText']?.toString() ?? '',
+            style: TextStyle(color: Colors.white, fontSize: 15.sp, height: 1.5),
           ),
-
-          // Stats
-          const SizedBox(height: 12),
+          SizedBox(height: 12.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              const HugeIcon(
-                icon: HugeIcons.strokeRoundedChart01,
-                size: 14,
-                color: Color.fromARGB(255, 202, 202, 202),
+              Icon(
+                Icons.visibility_outlined,
+                size: 14.r,
+                color: Colors.grey[600],
               ),
-              const SizedBox(width: 4),
+              SizedBox(width: 4.w),
               Text(
                 '${post['viewCount'] ?? 0} views',
-                style: const TextStyle(color: Colors.white38, fontSize: 13),
+                style: TextStyle(color: Colors.white38, fontSize: 13.sp),
               ),
             ],
           ),
@@ -347,5 +359,3 @@ class _UserPostsPageState extends State<UserPostsPage> {
     );
   }
 }
-
-// Update the Profile Page _tile widget to navigate to UserPostsPage

@@ -1,7 +1,6 @@
 // approutes.dart — FINAL MERGED VERSION (DEV FLOW + REAL ROUTES, NO SIZECONFIG)
 
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +11,7 @@ import 'package:onlymens/features/affirmations/affirmations_pg.dart';
 
 import 'package:onlymens/features/ai_model/presentation/ai_mainpage.dart';
 import 'package:onlymens/features/ai_model/game_mode.dart';
+import 'package:onlymens/features/betterwbro/chat/messages_page.dart';
 
 import 'package:onlymens/features/betterwbro/presentation/bwb_page.dart';
 import 'package:onlymens/features/panic_mode/panic_mode_pg.dart';
@@ -19,7 +19,6 @@ import 'package:onlymens/features/streaks_page/presentation/streaks_page.dart';
 
 import 'package:onlymens/features/onboarding_pgs/onboarding_pgs.dart';
 import 'package:onlymens/guides/blogs.dart';
-import 'package:onlymens/meditation_pg.dart';
 import 'package:onlymens/profile_page.dart';
 import 'package:onlymens/sound_pg.dart';
 
@@ -77,6 +76,8 @@ final approutes = GoRouter(
     GoRoute(path: '/meditation', builder: (_, __) => RainScreen()),
     GoRoute(path: '/game1', builder: (_, __) => const PongGame()),
     GoRoute(path: '/game2', builder: (_, __) => const QuickDrawGame()),
+    GoRoute(path: '/messages', builder: (_, __) => const MessagesPage()),
+
     GoRoute(
       path: '/blogdetail',
       builder: (context, state) {

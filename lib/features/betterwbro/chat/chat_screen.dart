@@ -278,7 +278,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(child: _messages()),
           if (_otherTyping) _typingBubble(),
-          _inputBox(),
+          chatInput(_messageController, _send),
         ],
       ),
     );
@@ -371,9 +371,14 @@ class _ChatScreenState extends State<ChatScreen> {
     ),
   );
 
-  Widget _inputBox() => SafeArea(
-    child: Padding(
-      padding: EdgeInsets.all(10.r),
+  Widget chatInput(
+    TextEditingController controller,
+    VoidCallback sendMessage, [
+    bool isEnabled = true,
+    VoidCallback? onChanged,
+  ]) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 20.r),
       child: Container(
         height: 56.h,
         decoration: BoxDecoration(
@@ -384,21 +389,21 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Expanded(
               child: TextField(
-                controller: _messageController,
-                focusNode: _focus,
-                onChanged: (_) => _onTyping(),
+                controller: controller,
+                enabled: isEnabled,
                 textCapitalization: TextCapitalization.sentences,
-                style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                style: TextStyle(color: Colors.white, fontSize: 15.sp),
                 cursorColor: Colors.deepPurpleAccent,
                 minLines: 1,
                 maxLines: 5,
                 decoration: InputDecoration(
                   hintText: 'Message...',
-                  hintStyle: TextStyle(color: Colors.grey, fontSize: 14.sp),
+                  hintStyle: TextStyle(color: Colors.grey, fontSize: 15.sp),
                   border: InputBorder.none,
-                  fillColor: Colors.transparent,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
+                  fillColor: Colors.transparent,
+                  isDense: true,
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 16.w,
                     vertical: 12.h,
@@ -406,25 +411,17 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
             ),
-            Padding(
-              padding: EdgeInsets.only(right: 4.w),
-              child: FloatingActionButton(
-                shape: const CircleBorder(),
-                onPressed: _send,
-                backgroundColor: Colors.deepPurple,
-                mini: true,
-                child: Icon(
-                  Icons.send_rounded,
-                  color: Colors.white,
-                  size: 20.sp,
-                ),
-              ),
+            FloatingActionButton(
+              shape: const CircleBorder(),
+              onPressed: _send,
+              backgroundColor: Colors.deepPurple,
+              child: Icon(Icons.send_rounded, color: Colors.white, size: 20.r),
             ),
           ],
         ),
       ),
-    ),
-  );
+    );
+  }
 
   Future<void> _confirmBlockUser() async {
     if (_isDisposed || !mounted) return;

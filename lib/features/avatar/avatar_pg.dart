@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:onlymens/core/globals.dart';
 import 'package:onlymens/features/avatar/avatar_data.dart';
 import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
-import 'package:onlymens/utilis/snackbar.dart';
 
 class AvatarLevelsDrawer extends StatefulWidget {
   const AvatarLevelsDrawer({super.key});
@@ -13,95 +11,6 @@ class AvatarLevelsDrawer extends StatefulWidget {
 }
 
 class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
-  bool _hasPendingUpdate = false;
-  int? _pendingRequiredLevel;
-  int? _pendingCurrentLevel;
-  bool _isUpdating = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkPendingStatus();
-  }
-
-  Future<void> _checkPendingStatus() async {
-    try {
-      final info = await AvatarManager.getStorageInfo(currentUser.uid);
-      final pending = info['pending_update'] ?? false;
-      if (mounted) setState(() => _hasPendingUpdate = pending);
-    } catch (_) {}
-  }
-
-  Future<void> _handleManualRetry() async {
-    if (_isUpdating) return;
-
-    setState(() => _isUpdating = true);
-
-    try {
-      final res = await AvatarManager.updateModelNow(
-        uid: currentUser.uid,
-        streakDays: StreaksData.currentStreakDays,
-      );
-
-      if (!mounted) return;
-
-      setState(() => _isUpdating = false);
-
-      if (res.success) {
-        setState(() => _hasPendingUpdate = false);
-        Utilis.showSnackBar('🎉 Avatar updated successfully!', isErr: false);
-      } else if (res.downloadLimitExceeded) {
-        Utilis.showSnackBar(
-          'Server busy. Avatar will auto-update later.',
-          isErr: true,
-        );
-      } else {
-        Utilis.showSnackBar(res.error ?? 'Update failed', isErr: true);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isUpdating = false);
-        Utilis.showSnackBar('Update failed: $e', isErr: true);
-      }
-    }
-  }
-
-  void _showPendingInfoDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.system_update_alt, color: Colors.orange, size: 24.r),
-            SizedBox(width: 8.w),
-            Text('Avatar update pending', style: TextStyle(fontSize: 16.sp)),
-          ],
-        ),
-        content: Text(
-          'Server is temporarily busy. Avatar will auto-update soon.\n\nYou can retry manually now if you wish.',
-          style: TextStyle(fontSize: 14.sp),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (Navigator.canPop(context)) Navigator.pop(context);
-              Utilis.showToast('Avatar will update later');
-            },
-            child: Text('Later', style: TextStyle(fontSize: 14.sp)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (Navigator.canPop(context)) Navigator.pop(context);
-              _handleManualRetry();
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
-            child: Text('Try Update', style: TextStyle(fontSize: 14.sp)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final currentStreakDays = StreaksData.currentStreakDays;
@@ -130,59 +39,33 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
               // HEADER
               Padding(
                 padding: EdgeInsets.all(16.r),
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Avatar Levels',
-                          style: TextStyle(
-                            fontSize: 24.sp,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        SizedBox(height: 4.h),
-                        Text(
-                          'Current: Level $currentLevel',
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            color: Colors.deepPurple,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          '$currentStreakDays day${currentStreakDays == 1 ? '' : 's'} streak',
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    if (_hasPendingUpdate)
-                      IconButton(
-                        tooltip: 'Avatar update pending',
-                        icon: _isUpdating
-                            ? SizedBox(
-                                width: 18.r,
-                                height: 18.r,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.w,
-                                  color: Colors.orange,
-                                ),
-                              )
-                            : Icon(
-                                Icons.system_update_alt,
-                                color: Colors.orange,
-                                size: 24.r,
-                              ),
-                        onPressed: _isUpdating ? null : _showPendingInfoDialog,
+                    Text(
+                      'Avatar Levels',
+                      style: TextStyle(
+                        fontSize: 24.sp,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(
+                      'Current: Level $currentLevel',
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: Colors.deepPurple,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      '$currentStreakDays day${currentStreakDays == 1 ? '' : 's'} streak',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: Colors.grey[600],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -191,7 +74,10 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
               Expanded(
                 child: ListView.builder(
                   itemCount: 4,
-                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 12.h,
+                  ),
                   itemBuilder: (context, index) {
                     final levels = [
                       {
@@ -248,7 +134,8 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
                     } else if (levelNum == currentLevel + 1) {
                       final start = _getLevelStartDay(levelNum);
                       final remain = start - currentStreakDays;
-                      progressText = '$remain day${remain == 1 ? '' : 's'} to unlock';
+                      progressText =
+                          '$remain day${remain == 1 ? '' : 's'} to unlock';
                     }
 
                     return Column(
@@ -379,7 +266,11 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
                     width: 80.w,
                     height: 80.h,
                     color: Colors.grey[300],
-                    child: Icon(Icons.person, size: 40.r, color: Colors.grey[600]),
+                    child: Icon(
+                      Icons.person,
+                      size: 40.r,
+                      color: Colors.grey[600],
+                    ),
                   ),
                 ),
               ),
