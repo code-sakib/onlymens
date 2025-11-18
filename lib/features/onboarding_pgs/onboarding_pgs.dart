@@ -809,12 +809,12 @@ class _WelcomePageState extends State<WelcomePage> {
     {
       'image': 'assets/onboarding/p3.png',
       'name': 'Ruby',
-      'quote': 'A small habit that changed my life.',
+      'quote': 'It helped me understand my patterns and make smarter choices.',
     },
     {
       'image': 'assets/onboarding/p4.png',
       'name': 'Logan',
-      'quote': 'I finally feel like I own my time again.',
+      'quote': 'A simple way that keeps my mind steady.',
     },
   ];
 

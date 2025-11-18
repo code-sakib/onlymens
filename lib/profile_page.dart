@@ -9,6 +9,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:onlymens/legal_screen.dart' show LegalScreen;
@@ -372,10 +373,10 @@ class _ProfilePageState extends State<ProfilePage> {
         setState(() {
           _customAvatarPath = null; // Clear first
         });
-        
+
         // Wait a frame then set new path
         await Future.delayed(Duration(milliseconds: 50));
-        
+
         if (mounted) {
           setState(() {
             _customAvatarPath = customAvatarPath;
@@ -563,6 +564,9 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _showToggleOffDialog() {
+    const unlockPhrase =
+        'I choose to remain in apathy, embrace destructive thoughts, and avoid personal growth.';
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -574,8 +578,8 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           title: Row(
             children: [
-              Icon(
-                Icons.warning_amber_rounded,
+              HugeIcon(
+                icon: HugeIcons.strokeRoundedCancelCircle,
                 color: Colors.orange,
                 size: 28.r,
               ),
@@ -609,7 +613,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   border: Border.all(color: Colors.red[700]!),
                 ),
                 child: Text(
-                  'I choose to stay in apathy, embrace destructive thoughts, and avoid personal growth',
+                  unlockPhrase,
                   style: TextStyle(
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w500,
@@ -660,8 +664,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               onPressed: () async {
-                if (_confirmationController.text.trim() ==
-                    'I choose to stay in apathy, embrace destructive thoughts, and avoid personal growth') {
+                if (_confirmationController.text.trim().toLowerCase() ==
+                    unlockPhrase.toLowerCase()) {
                   final disabled = await _disablePornBlock();
 
                   if (disabled) {
@@ -681,11 +685,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     );
                   }
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Text doesn\'t match. Please try again.'),
-                      backgroundColor: Colors.red[700],
-                    ),
+                  Utilis.showSnackBar(
+                    'Text doesn\'t match. Please try again.',
+                    isErr: true,
                   );
                 }
               },
@@ -857,19 +859,21 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28.r),
               SizedBox(width: 8.w),
-              Text(
-                'Delete Account?',
-                style: TextStyle(
-                  fontSize: 20.sp,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              Expanded(
+                child: Text(
+                  'Delete Account?',
+                  style: TextStyle(
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
           ),
           content: Text(
-            'This action cannot be undone. All your data will be permanently deleted.',
-            style: TextStyle(color: Colors.grey[400]),
+            'This action cannot be undone. All your data will be permanently deleted immediately.',
+            style: TextStyle(color: Colors.grey[400], fontSize: 14.sp),
           ),
           actions: [
             TextButton(
@@ -884,28 +888,63 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               onPressed: () async {
+                Navigator.pop(context); // Close dialog
+
+                // Show loading
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => Center(
+                    child: CupertinoActivityIndicator(color: Colors.white),
+                  ),
+                );
+
                 try {
                   final uid = auth.currentUser?.uid;
                   if (uid != null) {
+                    // Delete all user data from Firestore
                     await FirebaseFirestore.instance
                         .collection('users')
                         .doc(uid)
                         .delete();
 
+                    // Delete custom avatar locally
+                    try {
+                      final directory =
+                          await getApplicationDocumentsDirectory();
+                      final customAvatarPath =
+                          '${directory.path}/custom_avatar.png';
+                      final customAvatarFile = File(customAvatarPath);
+                      if (customAvatarFile.existsSync()) {
+                        await customAvatarFile.delete();
+                        debugPrint('✅ Local avatar deleted');
+                      }
+                    } catch (e) {
+                      debugPrint('⚠️ Avatar deletion error: $e');
+                    }
+
+                    // Delete Firebase Auth account
                     await auth.currentUser?.delete();
 
+                    // Close loading dialog
+                    if (context.mounted) Navigator.pop(context);
+
+                    // Navigate to onboarding
                     if (context.mounted) {
-                      Navigator.pop(context);
-                      context.go('/');
+                      context.go(
+                        '/',
+                      ); // or context.go('/onboarding') depending on your route
                     }
+
                     Utilis.showSnackBar('Account deleted successfully');
                   }
                 } catch (e) {
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                  }
+                  // Close loading dialog
+                  if (context.mounted) Navigator.pop(context);
+
+                  debugPrint('❌ Delete error: $e');
                   Utilis.showSnackBar(
-                    'Failed to delete account. Please try again.',
+                    'Failed to delete account. Please try again or contact support.',
                     isErr: true,
                   );
                 }
@@ -1039,10 +1078,10 @@ class _ProfilePageState extends State<ProfilePage> {
     // 1) If custom avatar exists locally, show it
     if (_customAvatarPath != null && File(_customAvatarPath!).existsSync()) {
       debugPrint('🖼️ Displaying custom avatar: $_customAvatarPath');
-      
+
       // Use timestamp to force reload every time
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      
+
       return Image.file(
         File(_customAvatarPath!),
         key: ValueKey('custom_$timestamp'), // Force rebuild with timestamp
@@ -1180,9 +1219,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: _smallStatCard(
                     titleTop: "$_currentStreak",
                     titleBottom: "Streak Days",
-                    icon: Icons.local_fire_department,
-                    iconColor: Colors.orange,
-                    borderColor: Colors.orange,
+                    icon: HugeIcon(
+                      icon: HugeIcons.strokeRoundedFire02,
+                      color: Colors.deepOrangeAccent,
+                    ),
+                    iconColor: Colors.deepOrangeAccent,
+                    borderColor: Colors.deepOrangeAccent,
                   ),
                 ),
                 SizedBox(width: 10.w),
@@ -1190,7 +1232,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: _smallStatCard(
                     titleTop: "$_progressPercentage%",
                     titleBottom: "Progress",
-                    icon: Icons.trending_up_rounded,
+                    icon: HugeIcon(
+                      icon: HugeIcons.strokeRoundedChart03,
+                      color: Colors.green,
+                    ),
                     iconColor: Colors.green,
                     borderColor: Colors.green,
                   ),
@@ -1200,7 +1245,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: _smallStatCard(
                     titleTop: "$_totalDays",
                     titleBottom: "Total Days",
-                    icon: Icons.calendar_month_rounded,
+                    icon: HugeIcon(
+                      icon: HugeIcons.strokeRoundedAppointment02,
+                      color: Colors.blue,
+                    ),
                     iconColor: Colors.blue,
                     borderColor: Colors.blue,
                   ),
@@ -1213,7 +1261,7 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Padding(
                 padding: EdgeInsets.only(left: 4.w, bottom: 8.h),
                 child: Text(
-                  "Preferences",
+                  "Settings",
                   style: TextStyle(
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w500,
@@ -1232,13 +1280,16 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   _blockContentTile(
                     "Block Restrictive Content",
-                    Icons.shield,
+                    HugeIcon(
+                      icon: HugeIcons.strokeRoundedNoInternet,
+                      color: Colors.green,
+                    ),
                     _isContentBlocked,
                     _handleToggleChange,
                   ),
                   _tile(
                     "Privacy & Terms",
-                    Icons.privacy_tip_outlined,
+                    Icon(Icons.privacy_tip_outlined, color: Colors.deepPurple),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -1248,16 +1299,23 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
 
                   _tile(
-                    'Posts',
-                    Icons.post_add,
+                    'Your Posts',
+                    HugeIcon(
+                      icon: HugeIcons.strokeRoundedCommentAdd01,
+                      color: Colors.deepPurple[500],
+                    ),
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const UserPostsPage()),
                     ),
                   ),
+
                   _tile(
-                    "Feedback",
-                    Icons.feedback_outlined,
+                    "Help or Report Issue",
+                    HugeIcon(
+                      icon: HugeIcons.strokeRoundedCustomerService02,
+                      color: Colors.deepPurple[500],
+                    ),
                     onTap: () async {
                       BetterFeedback.of(context).show((
                         UserFeedback feedback,
@@ -1269,11 +1327,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Utilis.showSnackBar('Feedback sent successfully');
                       });
                     },
-                  ),
-                  _tile(
-                    "Help & Support",
-                    Icons.help_outline,
-                    onTap: () => _showReportDialog(context),
+                    subtitle: 'cleanmind001@gmail.com',
                   ),
                 ],
               ),
@@ -1313,9 +1367,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _tile(
     String title,
-    IconData icon, {
+    Widget icon, {
     Widget? trailingWidget,
     VoidCallback? onTap,
+    String? subtitle,
   }) {
     return ListTile(
       contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
@@ -1325,7 +1380,7 @@ class _ProfilePageState extends State<ProfilePage> {
           color: Colors.deepPurple.withOpacity(0.15),
           borderRadius: BorderRadius.circular(10.r),
         ),
-        child: Icon(icon, color: Colors.deepPurple[300], size: 22.r),
+        child: icon,
       ),
       title: Text(
         title,
@@ -1335,6 +1390,7 @@ class _ProfilePageState extends State<ProfilePage> {
           color: Colors.white,
         ),
       ),
+      subtitle: subtitle != null ? Text(subtitle) : null,
       trailing:
           trailingWidget ??
           Icon(Icons.chevron_right, color: Colors.grey[600], size: 20.r),
@@ -1345,7 +1401,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _smallStatCard({
     required String titleTop,
     required String titleBottom,
-    required IconData icon,
+    required Widget icon,
     required Color iconColor,
     required Color borderColor,
   }) {
@@ -1372,7 +1428,7 @@ class _ProfilePageState extends State<ProfilePage> {
               border: Border.all(color: iconColor.withOpacity(0.7), width: 1),
               borderRadius: BorderRadius.circular(12.r),
             ),
-            child: Icon(icon, size: 28.r, color: iconColor),
+            child: icon,
           ),
           SizedBox(height: 10.h),
           FittedBox(
@@ -1399,7 +1455,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _blockContentTile(
     String title,
-    IconData icon,
+    Widget icon,
     bool value,
     Function(bool) onToggle,
   ) {
@@ -1413,11 +1469,7 @@ class _ProfilePageState extends State<ProfilePage> {
               color: (value ? Colors.green : Colors.red).withOpacity(0.15),
               borderRadius: BorderRadius.circular(10.r),
             ),
-            child: Icon(
-              icon,
-              color: value ? Colors.green : Colors.red,
-              size: 22.r,
-            ),
+            child: icon,
           ),
           SizedBox(width: 14.w),
           Expanded(

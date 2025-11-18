@@ -167,6 +167,62 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     }
   }
 
+  // Update these specific methods in your bwb_page.dart
+
+  // 1. UPDATE: _getUserBadge method (add this if not exists, or replace existing)
+  Widget _getUserBadge(Map<String, dynamic> item, {bool isPost = true}) {
+    final uid = auth.currentUser?.uid ?? '';
+
+    if (isPost) {
+      final postUserId = item['userId']?.toString() ?? '';
+      final isOwn =
+          (item['isCurrentUser'] == true) ||
+          (postUserId.isNotEmpty && postUserId == uid);
+
+      if (isOwn) {
+        return Container(
+          padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+          decoration: BoxDecoration(
+            color: Colors.deepPurple.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(4.r),
+          ),
+          child: Text(
+            'You',
+            style: TextStyle(
+              color: Colors.deepPurple,
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        );
+      }
+    }
+
+    // Check if this is from mUsers (default/example content)
+    final isExample = item['isDefault'] == true || item['source'] == 'default';
+
+    if (isExample) {
+      return Container(
+        padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+        decoration: BoxDecoration(
+          color: Colors.green.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(4.r),
+          border: Border.all(color: Colors.green.withOpacity(0.3), width: 1),
+        ),
+        child: Text(
+          'Eg',
+          style: TextStyle(
+            color: Colors.green,
+            fontSize: 10.sp,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    return SizedBox.shrink();
+  }
+
   Future<void> loadDefaultUsers() async {
     try {
       final snapshot = await _firestore
@@ -180,6 +236,8 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           .map((e) {
             final map = Map<String, dynamic>.from(e.data() as Map);
             map['id'] = e.id;
+            map['source'] = 'default'; // ✅ Mark as default
+            map['isDefault'] = true; // ✅ Mark as default
             return map;
           })
           .where((u) => !blockedUsers.contains(u['id']))
@@ -190,6 +248,82 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     } catch (e) {
       debugPrint('Error loading default users: $e');
     }
+  }
+
+  // 5. UPDATE: showInfoDialog - Add explanation about Example badges
+  void showInfoDialog() {
+    if (!mounted) return;
+    showCupertinoDialog(
+      context: context,
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text('Better With Buddy'),
+        content: Padding(
+          padding: EdgeInsets.only(top: 16.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Lottie.network(
+                'https://lottie.host/23a28cec-2969-4b3b-9b55-f8b7a9ce7fc7/1ZCeHcovAb.json',
+                height: 120.h,
+              ),
+
+              SizedBox(height: 16.h),
+              Text(
+                '• Find real people on the same journey as you.',
+                style: TextStyle(fontSize: 13.sp),
+              ),
+              SizedBox(height: 12.h),
+              Text(
+                '• People support each other here.',
+                style: TextStyle(fontSize: 13.sp),
+              ),
+              SizedBox(height: 12.h),
+              Text(
+                '• Create your own posts and connect with the community.',
+                style: TextStyle(fontSize: 13.sp),
+              ),
+              SizedBox(height: 12.h),
+              Text(
+                '• Full control. Full privacy. Always.',
+                style: TextStyle(fontSize: 13.sp),
+              ),
+              Text(
+                '• Users and posts with green "Eg" badges are sample content to help understand how the app works.',
+                style: TextStyle(fontSize: 13.sp),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          if (!hasPermission)
+            CupertinoDialogAction(
+              child: const Text('Give Permission'),
+              onPressed: () async {
+                context.pop();
+                if (!mounted) return;
+                setState(() => isLoading = true);
+                final granted = await requestPermission();
+                if (granted) {
+                  await loadNearbyUsers();
+                  if (!mounted) return;
+                  setState(() {
+                    hasPermission = true;
+                    isLoading = false;
+                  });
+                } else {
+                  if (!mounted) return;
+                  setState(() => isLoading = false);
+                }
+              },
+            ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            child: const Text('Close'),
+            onPressed: () => context.pop(),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<bool> checkPermissionSilently() async {
@@ -602,7 +736,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           children: [
             Row(
               children: [
-                // IMPROVED AVATAR DISPLAY
                 CircleAvatar(
                   radius: 22.r,
                   backgroundColor: Colors.grey[800],
@@ -615,36 +748,19 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                     children: [
                       Row(
                         children: [
-                          Text(
-                            post['name'] ?? 'Anonymous',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15.sp,
-                              fontWeight: FontWeight.w600,
+                          Flexible(
+                            child: Text(
+                              post['name'] ?? 'Anonymous',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          if (isOwn) ...[
-                            SizedBox(width: 6.w),
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 6.w,
-                                vertical: 2.h,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.deepPurple.withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(4.r),
-                              ),
-                              child: Text(
-                                'You',
-                                style: TextStyle(
-                                  color: Colors.deepPurple,
-                                  fontSize: 10.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
+                          SizedBox(width: 6.w),
+                          _getUserBadge(post, isPost: true), // ✅ UPDATED
                         ],
                       ),
                       SizedBox(height: 2.h),
@@ -1054,71 +1170,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     } else {
       Utilis.showSnackBar(message);
     }
-  }
-
-  void showInfoDialog() {
-    if (!mounted) return;
-    showCupertinoDialog(
-      context: context,
-      builder: (_) => CupertinoAlertDialog(
-        title: const Text('Better With Buddy'),
-        content: Padding(
-          padding: EdgeInsets.only(top: 16.h),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Lottie.network(
-                'https://lottie.host/23a28cec-2969-4b3b-9b55-f8b7a9ce7fc7/1ZCeHcovAb.json',
-                height: 120.h,
-              ),
-              SizedBox(height: 12.h),
-              Text(
-                '• Find people who are on the same journey as you.',
-                style: TextStyle(fontSize: 13.sp),
-              ),
-              SizedBox(height: 12.h),
-              Text(
-                '• People support each other here.',
-                style: TextStyle(fontSize: 13.sp),
-              ),
-              SizedBox(height: 12.h),
-              Text(
-                '• Full control. Full privacy. Always.',
-                style: TextStyle(fontSize: 13.sp),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          if (!hasPermission)
-            CupertinoDialogAction(
-              child: const Text('Give Permission'),
-              onPressed: () async {
-                context.pop();
-                if (!mounted) return;
-                setState(() => isLoading = true);
-                final granted = await requestPermission();
-                if (granted) {
-                  await loadNearbyUsers();
-                  if (!mounted) return;
-                  setState(() {
-                    hasPermission = true;
-                    isLoading = false;
-                  });
-                } else {
-                  if (!mounted) return;
-                  setState(() => isLoading = false);
-                }
-              },
-            ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            child: const Text('Close'),
-            onPressed: () => context.pop(),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> handleUserTap(Map<String, dynamic> user) async {
@@ -1648,6 +1699,10 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                     : '${distance.toStringAsFixed(1)}km away';
               }
 
+              // ✅ Check if user is from mUsers (example user)
+              final isExampleUser =
+                  user['source'] == 'default' || user['isDefault'] == true;
+
               return Container(
                 margin: EdgeInsets.only(bottom: 12.h),
                 decoration: BoxDecoration(
@@ -1666,13 +1721,24 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                           'https://cdn-icons-png.flaticon.com/512/2815/2815428.png',
                     ),
                   ),
-                  title: Text(
-                    user['name'] ?? 'Unknown',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15.sp,
-                    ),
+                  title: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          user['name'] ?? 'Unknown',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15.sp,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isExampleUser) ...[
+                        SizedBox(width: 6.w),
+                        _getUserBadge(user, isPost: false), // ✅ Add badge
+                      ],
+                    ],
                   ),
                   subtitle: Text(
                     subtitle,

@@ -11,9 +11,7 @@ class Utilis {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       backgroundColor: isErr
           ? const Color(0xFFEF9A9A)
-          : isGreen
-          ? const Color.fromARGB(255, 135, 204, 138)
-          : const Color(0xFFB5A8F5),
+          : const Color.fromARGB(255, 135, 204, 138),
       duration: const Duration(seconds: 2),
       elevation: 2,
     );

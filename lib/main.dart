@@ -34,17 +34,19 @@ void main() async {
   // p();
   // c();/
   // seedAllPosts();
-  runApp(
-    BetterFeedback(
-      theme: FeedbackThemeData(
-        background: Colors.black.withOpacity(0.7),
-        feedbackSheetColor: Colors.grey,
-        drawColors: [Colors.red, Colors.blue, Colors.green, Colors.yellow],
-        activeFeedbackModeColor: Colors.deepPurple,
-      ),
-      child: const MyApp(),
-    ),
-  );
+
+  deleteAllRealUserPosts();
+  // runApp(
+  //   BetterFeedback(
+  //     theme: FeedbackThemeData(
+  //       background: Colors.black.withOpacity(0.7),
+  //       feedbackSheetColor: Colors.grey,
+  //       drawColors: [Colors.red, Colors.blue, Colors.green, Colors.yellow],
+  //       activeFeedbackModeColor: Colors.deepPurple,
+  //     ),
+  //     child: const MyApp(),
+  //   ),
+  // );
 }
 
 c() {
@@ -362,7 +364,8 @@ Future<void> seedRealUserPosts() async {
     {
       "dp": "https://picsum.photos/200?random=208",
       "name": "Caleb Foster",
-      "postText": "Cooked a healthy meal instead of doomscrolling. That felt good.",
+      "postText":
+          "Cooked a healthy meal instead of doomscrolling. That felt good.",
       "streaks": 8,
       "userId": "user_008",
       "viewCount": 33,
@@ -396,18 +399,38 @@ Future<void> seedRealUserPosts() async {
         .collection("all")
         .doc(id)
         .set({
-      ...post,
-      "postId": id,
-      "timestamp":
-          DateTime.now().millisecondsSinceEpoch - (i * 5000),
-      "likes": 0,
-      "isDefault": false,
-    });
+          ...post,
+          "postId": id,
+          "timestamp": DateTime.now().millisecondsSinceEpoch - (i * 5000),
+          "likes": 0,
+          "isDefault": false,
+        });
 
     i++;
   }
 
   print("✔ Real user-like posts seeded!");
+}
+
+Future<void> deleteAllRealUserPosts() async {
+  final firestore = FirebaseFirestore.instance;
+
+  final collectionRef = firestore
+      .collection("posts")
+      .doc("rUsers")
+      .collection("all");
+
+  final querySnapshot = await collectionRef.get();
+
+  WriteBatch batch = firestore.batch();
+
+  for (var doc in querySnapshot.docs) {
+    batch.delete(doc.reference);
+  }
+
+  await batch.commit();
+
+  print("🗑 All real-user posts deleted!");
 }
 
 Future<void> seedAllPosts() async {
