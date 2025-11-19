@@ -1,12 +1,15 @@
-// pricing_page.dart — FINAL CLEAN VERSION
+// pricing_page.dart — FINAL RESPONSIVE VERSION
 
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart'; // Added ScreenUtil
 import 'package:onlymens/auth/auth_service.dart';
 import 'package:onlymens/core/apptheme.dart';
 import 'package:onlymens/core/globals.dart';
+import 'package:onlymens/legal_screen.dart';
+import 'package:onlymens/utilis/snackbar.dart';
 
 class PricingPage extends StatefulWidget {
   const PricingPage({super.key});
@@ -32,6 +35,17 @@ class _PricingPageState extends State<PricingPage> {
     _listener = _iap.purchaseStream.listen(_handlePurchaseUpdates);
     _initIAP();
     _checkExistingSubscription();
+    // Try to resume any pending purchase
+    final savedReceipt = prefs.getString("pending_receipt");
+    final savedProductId = prefs.getString("pending_product_id");
+
+    if (savedReceipt != null && savedProductId != null) {
+      _pendingReceipt = savedReceipt;
+      _pendingProductId = savedProductId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        claimPendingIfNeeded();
+      });
+    }
   }
 
   @override
@@ -88,9 +102,9 @@ class _PricingPageState extends State<PricingPage> {
           ProductDetails(
             id: "cleanmind_premium_yearly",
             title: "Yearly Plan",
-            description: "Billed annually (save 35%)",
-            price: "\$54.99",
-            rawPrice: 54.99,
+            description: "Billed annually (save 46%)",
+            price: "\$44.99",
+            rawPrice: 44.99,
             currencyCode: "USD",
           ),
         ];
@@ -117,15 +131,20 @@ class _PricingPageState extends State<PricingPage> {
           p.status == PurchaseStatus.restored) {
         final receipt = p.verificationData.serverVerificationData;
 
+        // Save in memory
         _pendingReceipt = receipt;
         _pendingProductId = p.productID;
+
+        // Save for app relaunch
+        prefs.setString("pending_receipt", receipt);
+        prefs.setString("pending_product_id", p.productID);
 
         final isLoggedIn = AuthService.currentUser != null;
 
         if (!isLoggedIn) {
           final shouldLogin = await _askLoginDialog();
           if (shouldLogin && mounted) {
-            context.go('/');
+            context.pop();
           }
         } else {
           await _claimReceipt();
@@ -179,25 +198,26 @@ class _PricingPageState extends State<PricingPage> {
           builder: (_) => AlertDialog(
             backgroundColor: AppColors.surface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.r),
             ),
-            title: const Text(
+            title: Text(
               "Sign in required",
               style: TextStyle(
                 color: AppColors.text,
                 fontWeight: FontWeight.bold,
+                fontSize: 18.sp,
               ),
             ),
-            content: const Text(
+            content: Text(
               "Your purchase was successful! Please sign in to activate your subscription.",
-              style: TextStyle(color: AppColors.textMuted),
+              style: TextStyle(color: AppColors.textMuted, fontSize: 14.sp),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text(
+                child: Text(
                   "Later",
-                  style: TextStyle(color: AppColors.textMuted),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 14.sp),
                 ),
               ),
               ElevatedButton(
@@ -205,11 +225,12 @@ class _PricingPageState extends State<PricingPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                 ),
-                child: const Text(
+                child: Text(
                   "Sign in now",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
+                    fontSize: 14.sp,
                   ),
                 ),
               ),
@@ -224,16 +245,28 @@ class _PricingPageState extends State<PricingPage> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Purchase Failed',
-          style: TextStyle(color: AppColors.text, fontWeight: FontWeight.bold),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
         ),
-        content: Text(msg, style: const TextStyle(color: AppColors.textMuted)),
+        title: Text(
+          'Purchase Failed',
+          style: TextStyle(
+            color: AppColors.text,
+            fontWeight: FontWeight.bold,
+            fontSize: 18.sp,
+          ),
+        ),
+        content: Text(
+          msg,
+          style: TextStyle(color: AppColors.textMuted, fontSize: 14.sp),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK', style: TextStyle(color: AppColors.primary)),
+            child: Text(
+              'OK',
+              style: TextStyle(color: AppColors.primary, fontSize: 14.sp),
+            ),
           ),
         ],
       ),
@@ -243,14 +276,12 @@ class _PricingPageState extends State<PricingPage> {
   Future<void> _success() async {
     await prefs.setBool('onboarding_done', true);
 
+    // REMOVE pending receipt after successful claim
+    prefs.remove("pending_receipt");
+    prefs.remove("pending_product_id");
+
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("✅ Subscription activated successfully!"),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
+      Utilis.showSnackBar("Subscribed successfully!");
 
       Future.delayed(const Duration(seconds: 1), () {
         if (mounted) {
@@ -276,55 +307,90 @@ class _PricingPageState extends State<PricingPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: AppColors.text),
+          icon: Icon(Icons.close, color: AppColors.text, size: 24.r),
           onPressed: () => context.go('/onboarding'),
         ),
       ),
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 100),
+            // Adapted padding to screenutil
+            padding: EdgeInsets.fromLTRB(24.w, 8.h, 24.w, 100.h),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   "Unlock Premium",
                   style: TextStyle(
-                    fontSize: 32,
+                    fontSize: 32.sp,
                     fontWeight: FontWeight.bold,
                     color: AppColors.text,
                     letterSpacing: -0.5,
                   ),
                 ),
-                const SizedBox(height: 8),
-                const Text(
+                SizedBox(height: 8.h),
+                Text(
                   "Get full access to all premium features",
-                  style: TextStyle(fontSize: 16, color: AppColors.textMuted),
+                  style: TextStyle(fontSize: 16.sp, color: AppColors.textMuted),
                 ),
-                const SizedBox(height: 32),
+                SizedBox(height: 32.h),
                 _buildFeaturesGrid(),
-                const SizedBox(height: 36),
+                SizedBox(height: 36.h),
                 _buildPricingPlans(),
-                const SizedBox(height: 24),
+                SizedBox(height: 24.h),
                 _buildTrialInfo(),
-                const SizedBox(height: 32),
+                SizedBox(height: 32.h),
                 _buildPriceBreakdown(),
-                const SizedBox(height: 20),
+                SizedBox(height: 20.h),
                 Center(
-                  child: TextButton(
-                    onPressed: () async {
-                      await context.push('/');
-                      await claimPendingIfNeeded();
-                      await _checkExistingSubscription();
-                    },
-                    child: const Text(
-                      "Already have an account? Log in",
-                      style: TextStyle(
-                        decoration: TextDecoration.underline,
-                        color: AppColors.primary,
-                        fontSize: 14,
+                  child: Column(
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const LegalScreen(),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.h),
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 12.sp,
+                              ),
+                              children: const [
+                                TextSpan(text: "See our  "),
+                                TextSpan(
+                                  text: "Privacy Policy • Terms of Use",
+                                  style: TextStyle(color: Colors.lightBlue),
+                                ),
+                                TextSpan(
+                                  text:
+                                      "  By continuing, you're agreeing to it. Don't worry, it's all good there.",
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      GestureDetector(
+                        onTap: () async {
+                          await context.push('/auth');
+                        },
+                        child: Text(
+                          "Log in to restore your premium",
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 14.sp,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -333,47 +399,49 @@ class _PricingPageState extends State<PricingPage> {
 
           // Continue Button
           Positioned(
-            left: 20,
-            right: 20,
-            bottom: 20,
+            left: 20.w,
+            right: 20.w,
+            bottom: 20.h,
             child: SizedBox(
-              height: 56,
+              height: 56.h,
               child: ElevatedButton(
                 onPressed: _pending || _selected == null ? null : _buy,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
+                  disabledBackgroundColor: AppColors.primary.withValues(
+                    alpha: 0.5,
+                  ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(16.r),
                   ),
                 ),
                 child: _pending
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
+                        children: [
                           SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
+                            width: 20.r,
+                            height: 20.r,
+                            child: const CircularProgressIndicator(
                               color: Colors.white,
                               strokeWidth: 2,
                             ),
                           ),
-                          SizedBox(width: 12),
+                          SizedBox(width: 12.w),
                           Text(
                             "Processing...",
                             style: TextStyle(
-                              fontSize: 17,
+                              fontSize: 17.sp,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
                       )
-                    : const Text(
-                        "Start 7-Day Free Trial",
+                    : Text(
+                        "Continue",
                         style: TextStyle(
-                          fontSize: 17,
+                          fontSize: 17.sp,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.3,
                         ),
@@ -388,10 +456,10 @@ class _PricingPageState extends State<PricingPage> {
 
   Widget _buildFeaturesGrid() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20.r),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
@@ -401,67 +469,69 @@ class _PricingPageState extends State<PricingPage> {
             "Complete Streak System",
             "Track daily, monthly & lifetime progress",
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           _buildFeature(
             Icons.psychology_rounded,
             "Advanced AI Models",
             "Premium chat & voice capabilities",
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           _buildFeature(
             Icons.people_rounded,
             "Community Access",
-            "Connect with like-minded people",
+            "People on the same journey",
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           _buildFeature(
             Icons.lock_open_rounded,
             "No Restrictions",
-            "Remove all paywalls & limits",
+            "No ads. No paywalls. No distractions.",
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           _buildFeature(
             Icons.favorite_rounded,
-            "Support Development",
-            "Help us build better features",
+            "Support Indie Developer ❣️",
+            null,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFeature(IconData icon, String title, String subtitle) {
+  Widget _buildFeature(IconData icon, String title, String? subtitle) {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: EdgeInsets.all(10.r),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(12),
+            color: AppColors.primary.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12.r),
           ),
-          child: Icon(icon, color: AppColors.primary, size: 24),
+          child: Icon(icon, color: AppColors.primary, size: 24.r),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: 16.w),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.text,
-                  fontSize: 15,
+                  fontSize: 15.sp,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 13,
-                ),
-              ),
+              SizedBox(height: 2.h),
+              subtitle != null
+                  ? Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 13.sp,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ],
           ),
         ),
@@ -473,15 +543,15 @@ class _PricingPageState extends State<PricingPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "Choose Your Plan",
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 20.sp,
             fontWeight: FontWeight.bold,
             color: AppColors.text,
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16.h),
         ..._products.map((p) => _buildPlanTile(p)),
       ],
     );
@@ -492,35 +562,35 @@ class _PricingPageState extends State<PricingPage> {
     return GestureDetector(
       onTap: () => setState(() => _selected = p),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(18),
+        margin: EdgeInsets.only(bottom: 12.h),
+        padding: EdgeInsets.all(18.r),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withOpacity(0.1)
+              ? AppColors.primary.withValues(alpha: 0.1)
               : AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16.r),
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.border,
-            width: isSelected ? 2 : 1,
+            width: isSelected ? 2.w : 1.w,
           ),
         ),
         child: Row(
           children: [
             Container(
-              width: 24,
-              height: 24,
+              width: 24.r, // Using .r for circle to keep aspect ratio
+              height: 24.r,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isSelected ? AppColors.primary : AppColors.textMuted,
-                  width: 2,
+                  width: 2.w,
                 ),
               ),
               child: isSelected
                   ? Center(
                       child: Container(
-                        width: 12,
-                        height: 12,
+                        width: 12.r,
+                        height: 12.r,
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: AppColors.primary,
@@ -529,25 +599,25 @@ class _PricingPageState extends State<PricingPage> {
                     )
                   : null,
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: 16.w),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     p.title,
-                    style: const TextStyle(
-                      fontSize: 18,
+                    style: TextStyle(
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.w600,
                       color: AppColors.text,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2.h),
                   Text(
                     p.description,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
-                      fontSize: 13,
+                      fontSize: 13.sp,
                     ),
                   ),
                 ],
@@ -558,18 +628,15 @@ class _PricingPageState extends State<PricingPage> {
               children: [
                 Text(
                   p.price,
-                  style: const TextStyle(
-                    fontSize: 22,
+                  style: TextStyle(
+                    fontSize: 22.sp,
                     fontWeight: FontWeight.bold,
                     color: AppColors.text,
                   ),
                 ),
                 Text(
                   p.id.contains('yearly') ? '/year' : '/month',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textMuted,
-                  ),
+                  style: TextStyle(fontSize: 12.sp, color: AppColors.textMuted),
                 ),
               ],
             ),
@@ -583,25 +650,25 @@ class _PricingPageState extends State<PricingPage> {
     return Center(
       child: Column(
         children: [
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.check_circle_rounded, color: Colors.green, size: 18),
-              SizedBox(width: 8),
+              Icon(Icons.check_circle_rounded, color: Colors.green, size: 18.r),
+              SizedBox(width: 8.w),
               Text(
                 "7-Day Free Trial",
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 15.sp,
                   fontWeight: FontWeight.w600,
                   color: AppColors.text,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          const Text(
+          SizedBox(height: 8.h),
+          Text(
             "Cancel anytime. No commitment.",
-            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 13.sp),
           ),
         ],
       ),
@@ -609,88 +676,96 @@ class _PricingPageState extends State<PricingPage> {
   }
 
   Widget _buildPriceBreakdown() {
+    const double total = 6.99;
+    final amounts = [1.88, 1.51, 1.85, 1.75];
+
+    final items = [
+      {
+        'icon': Icons.memory_rounded,
+        'label': 'AI models & processing',
+        'color': Colors.purple,
+      },
+      {
+        'icon': Icons.cloud_rounded,
+        'label': 'Cloud infrastructure',
+        'color': Colors.blue,
+      },
+      {
+        'icon': Icons.settings_rounded,
+        'label': 'Operations & maintenance',
+        'color': Colors.orange,
+      },
+      {
+        'icon': Icons.people_rounded,
+        'label': 'Small team & support',
+        'color': Colors.green,
+      },
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.account_balance_wallet_rounded,
               color: AppColors.primary,
-              size: 22,
+              size: 22.r,
             ),
-            const SizedBox(width: 10),
-            const Text(
+            SizedBox(width: 10.w),
+            Text(
               "Pricing breakdown",
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.bold,
                 color: AppColors.text,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
-        const Text(
-          "Transparency of monthly costs",
-          style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+        SizedBox(height: 4.h),
+        Text(
+          "We want to stay transparent with you",
+          style: TextStyle(fontSize: 13.sp, color: AppColors.textMuted),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16.h),
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16.r),
             border: Border.all(color: AppColors.border),
           ),
-          padding: const EdgeInsets.all(18),
+          padding: EdgeInsets.all(18.r),
           child: Column(
             children: [
-              _buildBreakdownRow(
-                Icons.memory_rounded,
-                "AI Models & Processing",
-                "\$1.90",
-                Colors.purple,
-              ),
-              const SizedBox(height: 14),
-              _buildBreakdownRow(
-                Icons.cloud_rounded,
-                "Cloud Infrastructure",
-                "\$1.50",
-                Colors.blue,
-              ),
-              const SizedBox(height: 14),
-              _buildBreakdownRow(
-                Icons.settings_rounded,
-                "Operations & Maintenance",
-                "\$1.90",
-                Colors.orange,
-              ),
-              const SizedBox(height: 14),
-              _buildBreakdownRow(
-                Icons.groups_rounded,
-                "Small Team & Support",
-                "\$1.70",
-                Colors.green,
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Divider(color: AppColors.border, height: 1),
+              for (int i = 0; i < items.length; i++) ...[
+                _buildBreakdownRow(
+                  items[i]['icon'] as IconData,
+                  items[i]['label'] as String,
+                  "\$${amounts[i].toStringAsFixed(2)}",
+                  items[i]['color'] as Color,
+                ),
+                if (i != items.length - 1) SizedBox(height: 14.h),
+              ],
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 12.h),
+                child: Divider(color: AppColors.border, height: 1.h),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
+                children: [
                   Text(
                     "Total",
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 15.sp,
                       fontWeight: FontWeight.bold,
                       color: AppColors.text,
                     ),
                   ),
                   Text(
-                    "\$7.00",
+                    "\$${total.toStringAsFixed(2)}",
                     style: TextStyle(
-                      fontSize: 17,
+                      fontSize: 17.sp,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
                     ),
@@ -698,17 +773,6 @@ class _PricingPageState extends State<PricingPage> {
                 ],
               ),
             ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        const Center(
-          child: Text(
-            "You pay \$6.99/month • We operate on thin margins",
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.textMuted,
-              fontStyle: FontStyle.italic,
-            ),
           ),
         ),
       ],
@@ -724,24 +788,24 @@ class _PricingPageState extends State<PricingPage> {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: EdgeInsets.all(8.r),
           decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(10),
+            color: iconColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10.r),
           ),
-          child: Icon(icon, color: iconColor, size: 20),
+          child: Icon(icon, color: iconColor, size: 20.r),
         ),
-        const SizedBox(width: 14),
+        SizedBox(width: 14.w),
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(fontSize: 14, color: AppColors.text),
+            style: TextStyle(fontSize: 14.sp, color: AppColors.text),
           ),
         ),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 15,
+          style: TextStyle(
+            fontSize: 15.sp,
             fontWeight: FontWeight.w600,
             color: AppColors.text,
           ),

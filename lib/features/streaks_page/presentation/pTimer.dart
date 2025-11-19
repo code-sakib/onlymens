@@ -33,6 +33,7 @@ class _TimerComponentsState extends State<TimerComponents> {
   String _currentAvatarPath = AvatarManager.LEVEL_1_PATH;
   int _avatarKeySalt = 0;
   late ConfettiController _confettiController;
+  bool _avatarLoading = true;
 
   @override
   void initState() {
@@ -227,15 +228,35 @@ class _TimerComponentsState extends State<TimerComponents> {
                         SizedBox(
                           height: 260.h,
                           width: 200.w,
-                          child: RepaintBoundary(
-                            child: Flutter3DViewer(
-                              key: ValueKey(
-                                'avatar|$_currentAvatarPath|$_avatarKeySalt',
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              if (_avatarLoading)
+                                const CupertinoActivityIndicator(
+                                  color: Colors.white,
+                                ),
+
+                              AnimatedOpacity(
+                                opacity: _avatarLoading ? 0 : 1,
+                                duration: Duration(milliseconds: 500),
+                                child: RepaintBoundary(
+                                  child: Flutter3DViewer(
+                                    key: ValueKey(
+                                      'avatar|$_currentAvatarPath|$_avatarKeySalt',
+                                    ),
+                                    src: _currentAvatarPath,
+                                    onProgress: (p) {
+                                      if (_avatarLoading && p >= 1.0) {
+                                        setState(() => _avatarLoading = false);
+                                      }
+                                    },
+                                  ),
+                                ),
                               ),
-                              src: _currentAvatarPath,
-                            ),
+                            ],
                           ),
                         ),
+
                         const Expanded(child: PornFreeTimerCompact()),
                       ],
                     ),

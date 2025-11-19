@@ -99,4 +99,92 @@ class AuthService {
 
     return result.data['isValid'] == true;
   }
+
+  /// ----------------------
+  /// Re-authenticate before deleting account
+  /// ----------------------
+  /// ----------------------
+  /// Re-authenticate before deleting account
+  /// ----------------------
+  static Future<bool> reauthenticateBeforeDelete() async {
+    final user = auth.currentUser;
+    if (user == null) return false;
+
+    final provider = user.providerData.isNotEmpty
+        ? user.providerData.first.providerId
+        : null;
+
+    try {
+      // ----------------------
+      // GOOGLE re-auth
+      // ----------------------
+      if (provider == 'google.com') {
+        final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+
+        // The SAME call you use for login:
+        final googleUser = await googleSignIn.authenticate();
+        if (googleUser == null) return false;
+
+        final gAuth = await googleUser.authentication;
+
+        final credential = GoogleAuthProvider.credential(
+          idToken: gAuth.idToken,
+          accessToken: gAuth.idToken,
+        );
+
+        await user.reauthenticateWithCredential(credential);
+        return true;
+      }
+
+      // ----------------------
+      // APPLE re-auth
+      // ----------------------
+      if (provider == 'apple.com') {
+        final appleCred = await SignInWithApple.getAppleIDCredential(
+          scopes: [
+            AppleIDAuthorizationScopes.email,
+            AppleIDAuthorizationScopes.fullName,
+          ],
+        );
+
+        final oauth = OAuthProvider("apple.com").credential(
+          idToken: appleCred.identityToken,
+          accessToken: appleCred.authorizationCode,
+        );
+
+        await user.reauthenticateWithCredential(oauth);
+        return true;
+      }
+    } catch (e) {
+      print("❌ Re-auth error: $e");
+      return false;
+    }
+
+    return false;
+  }
+
+  /// ----------------------
+  /// Full delete: Firestore + Auth
+  /// ----------------------
+  static Future<bool> deleteAccountCompletely() async {
+    final user = auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      // Delete Firestore doc
+      await db.collection('users').doc(user.uid).delete();
+
+      // Re-auth before deleting
+      final ok = await reauthenticateBeforeDelete();
+      if (!ok) return false;
+
+      // Delete auth user
+      await user.delete();
+
+      return true;
+    } catch (e) {
+      print("❌ Delete account error: $e");
+      return false;
+    }
+  }
 }

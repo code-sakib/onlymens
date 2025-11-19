@@ -1,19 +1,26 @@
-import 'dart:async';
+// onboarding_screen.dart — FINAL RESPONSIVE VERSION
 
+import 'dart:async';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart'; // Added ScreenUtil
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
 import 'package:onlymens/core/apptheme.dart';
 import 'package:uuid/uuid.dart';
 
+// Import your other pages (StatusPage, EffectsPage, etc.) here
+// assuming they are in the same file or imported correctly.
+// If they are in this file, apply ScreenUtil to them similarly.
+
 // ============================================================================
-// MAIN ONBOARDING WIDGET (UPDATED TO 6 PAGES INCLUDING REPORT)
+// MAIN ONBOARDING WIDGET
 // ============================================================================
 
 final Map<String, dynamic> obSelectedValues = {};
@@ -38,8 +45,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   List<String> aspects = [];
   String? aspectDetails;
 
-  static const int totalPages =
-      6; // Welcome, Status, Effects, Triggers, Goals, Report
+  static const int totalPages = 6;
 
   @override
   void dispose() {
@@ -82,16 +88,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           },
           children: [
             WelcomePage(pageIndex: 0, onNext: _nextPage, onBack: _previousPage),
+
+            // NOTE: Ensure StatusPage, EffectsPage, TriggersPage, GoalsPage
+            // are also updated with ScreenUtil in their respective definitions.
             StatusPage(
               pageIndex: 1,
               onNext: _nextPage,
               onBack: _previousPage,
               selectedFrequency: frequency,
-              onFrequencyChanged: (value) {
-                setState(() {
-                  frequency = value;
-                });
-              },
+              onFrequencyChanged: (value) => setState(() => frequency = value),
             ),
             EffectsPage(
               pageIndex: 2,
@@ -99,16 +104,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               onBack: _previousPage,
               selectedEffects: effects,
               customEffect: customEffect,
-              onEffectsChanged: (newEffects) {
-                setState(() {
-                  effects = newEffects;
-                });
-              },
-              onCustomEffectChanged: (value) {
-                setState(() {
-                  customEffect = value;
-                });
-              },
+              onEffectsChanged: (val) => setState(() => effects = val),
+              onCustomEffectChanged: (val) =>
+                  setState(() => customEffect = val),
             ),
             TriggersPage(
               pageIndex: 3,
@@ -116,16 +114,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               onBack: _previousPage,
               selectedTriggers: triggers,
               customTrigger: customTrigger,
-              onTriggersChanged: (newTriggers) {
-                setState(() {
-                  triggers = newTriggers;
-                });
-              },
-              onCustomTriggerChanged: (value) {
-                setState(() {
-                  customTrigger = value;
-                });
-              },
+              onTriggersChanged: (val) => setState(() => triggers = val),
+              onCustomTriggerChanged: (val) =>
+                  setState(() => customTrigger = val),
             ),
             GoalsPage(
               pageIndex: 4,
@@ -133,28 +124,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               onBack: _previousPage,
               selectedAspects: aspects,
               aspectDetails: aspectDetails,
-              onAspectsChanged: (newAspects) {
-                setState(() {
-                  aspects = newAspects;
-                });
-              },
-              onAspectDetailsChanged: (value) {
-                setState(() {
-                  aspectDetails = value;
-                });
-              },
+              onAspectsChanged: (val) => setState(() => aspects = val),
+              onAspectDetailsChanged: (val) =>
+                  setState(() => aspectDetails = val),
             ),
 
-            // In your ReportPage, update the onNext callback:
             ReportPage(
               pageIndex: 5,
               onNext: () async {
-                // ❌ REMOVE THIS LINE:
-                // await prefs.setBool('onboarding_done', true);
-
-                // ✅ Just navigate to pricing, don't set the flag yet
                 if (context.mounted) {
-                  context.go('/pricing');
+                  context.push('/pricing');
                 }
               },
               onBack: _previousPage,
@@ -174,7 +153,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 }
 
 // ============================================================================
-// BASE PAGE STRUCTURE (progress updated for 6 pages)
+// BASE PAGE STRUCTURE (Responsive)
 // ============================================================================
 class BasePage extends StatelessWidget {
   final int pageIndex;
@@ -202,8 +181,7 @@ class BasePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Exclude welcome (0) and report (5) from progress calculation
-    final progressPages = 4; // Pages 1-4 only
+    final progressPages = 4;
     final currentProgressPage = pageIndex == 0
         ? 0
         : (pageIndex >= 5 ? 4 : pageIndex);
@@ -215,7 +193,7 @@ class BasePage extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.primary.withOpacity(0.15),
+            AppColors.primary.withValues(alpha: 0.15),
             AppColors.background,
             AppColors.background,
           ],
@@ -226,83 +204,87 @@ class BasePage extends StatelessWidget {
         children: [
           // Top Bar
           SizedBox(
-            height: 44,
+            height: 44.h,
             child: Row(
               children: [
                 if (pageIndex > 0)
                   IconButton(
-                    icon: const Icon(Icons.chevron_left, color: Colors.white),
+                    icon: Icon(
+                      Icons.chevron_left,
+                      color: Colors.white,
+                      size: 24.r,
+                    ),
                     onPressed: onBack,
                   )
                 else
-                  const SizedBox(width: 48),
+                  SizedBox(width: 48.w),
                 Expanded(
                   child: Text(
                     headerTitle,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white70,
-                      fontSize: 18,
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
-                const SizedBox(width: 48),
+                SizedBox(width: 48.w),
               ],
             ),
           ),
 
-          // Progress Indicator - hidden for Welcome (0) and Report (5)
+          // Progress Indicator
           if (pageIndex != 0 && pageIndex != 5) ...[
             Text(
               '${(progress * 100).toInt()}%',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.primary,
-                fontSize: 16,
+                fontSize: 16.sp,
                 fontWeight: FontWeight.w600,
               ),
             ),
 
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(2.r),
                 child: LinearProgressIndicator(
                   value: progress,
-                  backgroundColor: Colors.white.withOpacity(0.1),
+                  backgroundColor: Colors.white.withValues(alpha: 0.1),
                   valueColor: const AlwaysStoppedAnimation(AppColors.primary),
-                  minHeight: 4,
+                  minHeight: 4.h,
                 ),
               ),
             ),
 
-            const SizedBox(height: 32),
+            SizedBox(height: 32.h),
           ] else ...[
-            const SizedBox(height: 24),
+            SizedBox(height: 24.h),
           ],
 
           // Title & Subtitle
           bigTitle.isNotEmpty
               ? Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         bigTitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 28,
+                          fontSize: 28.sp,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       if (subtitle.isNotEmpty) ...[
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8.h),
                         Text(
                           subtitle,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.8),
-                            fontSize: 16,
+                            fontSize: 16.sp,
                           ),
                         ),
                       ],
@@ -314,30 +296,30 @@ class BasePage extends StatelessWidget {
           // Content
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(20.r),
               child: content,
             ),
           ),
 
           // Next Button
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(20.r),
             child: SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 50.h,
               child: ElevatedButton(
                 onPressed: isNextEnabled ? onNext : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   disabledBackgroundColor: Colors.white30,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(12.r),
                   ),
                 ),
                 child: Text(
                   nextButtonText,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: 16.sp,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),
@@ -352,7 +334,7 @@ class BasePage extends StatelessWidget {
 }
 
 // ============================================================================
-// REPORT PAGE WITH AI INSIGHTS AND GRAPH
+// REPORT PAGE WITH AI INSIGHTS AND GRAPH (Responsive)
 // ============================================================================
 class ReportPage extends StatefulWidget {
   final int pageIndex;
@@ -412,12 +394,11 @@ class _ReportPageState extends State<ReportPage>
     super.dispose();
   }
 
-  // Get or generate a persistent device ID
   Future<String> getDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
     String? id = prefs.getString('device_id');
     if (id == null) {
-      id = const Uuid().v4(); // Generate random UUID
+      id = const Uuid().v4();
       await prefs.setString('device_id', id);
     }
     return id;
@@ -426,12 +407,10 @@ class _ReportPageState extends State<ReportPage>
   Future<void> _generateReport() async {
     try {
       final deviceId = await getDeviceId();
-
       final effectsList = [
         ...widget.effects,
         if (widget.customEffect?.isNotEmpty == true) widget.customEffect!,
       ];
-
       final triggersList = [
         ...widget.triggers,
         if (widget.customTrigger?.isNotEmpty == true) widget.customTrigger!,
@@ -440,7 +419,6 @@ class _ReportPageState extends State<ReportPage>
       final callable = FirebaseFunctions.instance.httpsCallable(
         'generateOnboardingReport',
       );
-
       final result = await callable.call({
         'deviceId': deviceId,
         'frequency': widget.frequency,
@@ -453,22 +431,31 @@ class _ReportPageState extends State<ReportPage>
       if (mounted) {
         setState(() {
           _aiInsight = result.data['insight'] ?? 'Keep moving forward! 💪';
-          _estimatedDays = result.data['estimatedDays'] ?? 15;
+          _estimatedDays = result.data['estimatedDays'] ?? _getDefaultDays();
           _isLoading = false;
         });
         _animationController.forward();
       }
     } catch (e) {
-      print('Error generating report: $e');
+      debugPrint('Error generating report: $e');
       if (mounted) {
         setState(() {
           _aiInsight = _getFallbackInsight();
-          _estimatedDays = 15;
+          _estimatedDays = _getDefaultDays();
           _isLoading = false;
         });
         _animationController.forward();
       }
     }
+  }
+
+  int _getDefaultDays() {
+    final freq = widget.frequency.toLowerCase();
+    if (freq == 'never') return 15;
+    if (freq == 'occasionally') return 25;
+    if (freq == 'frequently') return 35;
+    if (freq == 'daily') return 45;
+    return 7;
   }
 
   String _getFallbackInsight() {
@@ -498,19 +485,22 @@ class _ReportPageState extends State<ReportPage>
       subtitle: '',
       onNext: widget.onNext,
       onBack: widget.onBack,
-      nextButtonText: 'Continue to Pricing',
+      nextButtonText: 'Continue',
       content: _isLoading
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CupertinoActivityIndicator(color: AppColors.primary),
-                  const SizedBox(height: 20),
+                  CupertinoActivityIndicator(
+                    color: AppColors.primary,
+                    radius: 14.r,
+                  ),
+                  SizedBox(height: 20.h),
                   Text(
                     'Analyzing your journey...',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 16,
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 16.sp,
                     ),
                   ),
                 ],
@@ -524,31 +514,23 @@ class _ReportPageState extends State<ReportPage>
                   // Header
                   Text(
                     'Your Growth Trajectory',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 24,
+                      fontSize: 24.sp,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Based on your inputs, here\'s what to expect',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 14,
-                    ),
-                  ),
 
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24.h),
 
                   // Chart Card
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(16.r),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(16.r),
                       border: Border.all(
-                        color: AppColors.primary.withOpacity(0.3),
+                        color: AppColors.primary.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Column(
@@ -560,34 +542,39 @@ class _ReportPageState extends State<ReportPage>
                             Text(
                               'Growth Progress',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 16,
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 16.sp,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '$_estimatedDays days',
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
+                            if (_estimatedDays != 7)
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12.w,
+                                  vertical: 6.h,
                                 ),
-                              ),
-                            ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12.r),
+                                ),
+                                child: Text(
+                                  '$_estimatedDays days',
+                                  style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 14.sp,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              )
+                            else
+                              const SizedBox(),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16.h),
                         SizedBox(
-                          height: 200,
+                          height: 200.h,
                           child: SfCartesianChart(
                             plotAreaBorderWidth: 0,
                             primaryXAxis: NumericAxis(
@@ -595,20 +582,20 @@ class _ReportPageState extends State<ReportPage>
                               majorGridLines: const MajorGridLines(width: 0),
                               axisLine: const AxisLine(width: 0),
                               labelStyle: TextStyle(
-                                color: Colors.white.withOpacity(0.5),
-                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.5),
+                                fontSize: 12.sp,
                               ),
                             ),
                             primaryYAxis: NumericAxis(
                               isVisible: true,
                               majorGridLines: MajorGridLines(
                                 width: 1,
-                                color: Colors.white.withOpacity(0.1),
+                                color: Colors.white.withValues(alpha: 0.1),
                               ),
                               axisLine: const AxisLine(width: 0),
                               labelStyle: TextStyle(
-                                color: Colors.white.withOpacity(0.5),
-                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.5),
+                                fontSize: 12.sp,
                               ),
                               labelFormat: '{value}%',
                             ),
@@ -619,14 +606,14 @@ class _ReportPageState extends State<ReportPage>
                                 yValueMapper: (ChartData data, _) => data.y,
                                 gradient: LinearGradient(
                                   colors: [
-                                    AppColors.primary.withOpacity(0.4),
-                                    AppColors.primary.withOpacity(0.0),
+                                    AppColors.primary.withValues(alpha: 0.4),
+                                    AppColors.primary.withValues(alpha: 0.0),
                                   ],
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                 ),
                                 borderColor: AppColors.primary,
-                                borderWidth: 3,
+                                borderWidth: 3.w,
                                 animationDuration: 2000,
                               ),
                             ],
@@ -636,23 +623,23 @@ class _ReportPageState extends State<ReportPage>
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24.h),
 
                   // AI Insight Card
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: EdgeInsets.all(20.r),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          AppColors.primary.withOpacity(0.1),
+                          AppColors.primary.withValues(alpha: 0.1),
                           AppColors.background,
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(16.r),
                       border: Border.all(
-                        color: AppColors.primary.withOpacity(0.3),
+                        color: AppColors.primary.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Column(
@@ -661,101 +648,37 @@ class _ReportPageState extends State<ReportPage>
                         Row(
                           children: [
                             HugeIcon(
-                              icon: HugeIcons
-                                  .strokeRoundedArtificialIntelligence02,
+                              icon: HugeIcons.strokeRoundedSparkles,
                               color: AppColors.primary,
-                              size: 24,
+                              size: 24.r,
                             ),
 
-                            const SizedBox(width: 8),
+                            SizedBox(width: 8.w),
                             Text(
-                              'AI Insights',
-                              style: const TextStyle(
+                              'Path ahead',
+                              style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
+                                fontSize: 18.sp,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16.h),
                         Text(
                           _aiInsight,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 15,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 15.sp,
                             height: 1.6,
                           ),
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // Summary Stats
-                  _buildSummaryStats(),
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _buildSummaryStats() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            'Current State',
-            widget.frequency,
-            Icons.timeline,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Focus Areas',
-            '${widget.aspects.length} goals',
-            Icons.flag,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: AppColors.primary, size: 20),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
     );
   }
 }
@@ -767,12 +690,8 @@ class ChartData {
 }
 
 // ============================================================================
-// EXISTING PAGES (WelcomePage, StatusPage, etc. - KEEP AS IS)
+// WELCOME PAGE (Responsive)
 // ============================================================================
-
-// ... (Keep all your existing page implementations: WelcomePage, StatusPage,
-// EffectsPage, TriggersPage, GoalsPage, RadioCard, MultiSelectCard, CustomInputCard)
-// They remain unchanged from your original code
 
 class WelcomePage extends StatefulWidget {
   final int pageIndex;
@@ -791,105 +710,11 @@ class WelcomePage extends StatefulWidget {
 }
 
 class _WelcomePageState extends State<WelcomePage> {
-  final PageController _reviewController = PageController();
-  Timer? _autoScrollTimer;
-  int _currentReviewIndex = 0;
-
-  final List<Map<String, String>> reviews = [
-    {
-      'image': 'assets/onboarding/p1.png',
-      'name': 'Ethan',
-      'quote': 'It helped me to gain back control.',
-    },
-    {
-      'image': 'assets/onboarding/p2.png',
-      'name': 'John',
-      'quote': 'Felt good by seeing every sec of my growth.',
-    },
-    {
-      'image': 'assets/onboarding/p3.png',
-      'name': 'Ruby',
-      'quote': 'It helped me understand my patterns and make smarter choices.',
-    },
-    {
-      'image': 'assets/onboarding/p4.png',
-      'name': 'Logan',
-      'quote': 'A simple way that keeps my mind steady.',
-    },
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _startAutoScroll();
-  }
-
-  void _startAutoScroll() {
-    _autoScrollTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (_reviewController.hasClients) {
-        final nextPage = (_currentReviewIndex + 1) % reviews.length;
-        _reviewController.animateToPage(
-          nextPage,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-        );
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _autoScrollTimer?.cancel();
-    _reviewController.dispose();
-    super.dispose();
-  }
-
-  Widget _buildReviewCard(Map<String, String> review, int index) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final cardWidth = screenWidth * 0.5;
-
-    return Container(
-      width: cardWidth,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircleAvatar(
-            radius: 40,
-            backgroundImage: AssetImage(review['image']!),
-            backgroundColor: Colors.white12,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${review['name']}${index % 2 != 0 ? ' • early user' : ''}',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '${review['quote']}',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 14,
-              height: 1.4,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return BasePage(
       pageIndex: widget.pageIndex,
-      headerTitle: 'OnlyMens',
+      headerTitle: 'CleanMind',
       bigTitle: '',
       subtitle: '',
       onNext: widget.onNext,
@@ -897,133 +722,99 @@ class _WelcomePageState extends State<WelcomePage> {
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          AnimatedTextKit(
-            totalRepeatCount: 1,
-            animatedTexts: [
-              TyperAnimatedText(
-                'Quit porn — Make yourself smarter — escape brain rot, gain clarity and save precious time of your life.',
-                textStyle: TextStyle(
-                  color: Colors.white.withOpacity(0.85),
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
           SizedBox(
-            height: 200,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: Image.asset(
-                      'assets/onboarding/l1.png',
-                      fit: BoxFit.contain,
-                      height: 130,
-                      opacity: const AlwaysStoppedAnimation(0.8),
-                    ),
-                  ),
-                ),
-
-                Expanded(
-                  flex: 3,
-                  child: PageView.builder(
-                    controller: _reviewController,
-                    onPageChanged: (index) {
-                      setState(() => _currentReviewIndex = index);
-                    },
-                    itemCount: reviews.length,
-                    itemBuilder: (context, index) =>
-                        Center(child: _buildReviewCard(reviews[index], index)),
-                  ),
-                ),
-
-                Expanded(
-                  flex: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 6),
-                    child: Image.asset(
-                      'assets/onboarding/l2.png',
-                      fit: BoxFit.contain,
-                      height: 130,
-                      opacity: const AlwaysStoppedAnimation(0.8),
-                    ),
+            height: 50.h,
+            child: AnimatedTextKit(
+              totalRepeatCount: 1,
+              animatedTexts: [
+                TyperAnimatedText(
+                  'Quit porn — escape brain rot, gain clarity and use your mind at its best again. ',
+                  textStyle: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 16.sp,
+                    height: 1.5,
                   ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 24),
+          // Lottie Animation
+          SizedBox(
+            height: 250.h,
+            child: Lottie.asset(
+              'assets/lottie/oblottie.json',
+              fit: BoxFit.contain,
+            ),
+          ),
 
           _buildFeatureCard(
-            'BetterWBro',
-            'Here are the people who are on a similar journey in locality. You may find a friend to share hurdles, journey and talk to during hard times.',
+            description:
+                'Block porn on websites — cut off the triggers, reclaim focus, and protect your mind from slipping back into old loops.',
           ),
-          const SizedBox(height: 12),
+
+          SizedBox(height: 12.h),
+
           _buildFeatureCard(
-            'Hardy',
-            'An AI friend to help you through tough relapsing times. It\'s trained to understand patterns and employ tricks to help you grow smarter.',
+            description:
+                'Daily accountability with levels and achievement badges — turn your self-improvement into an exciting journey.',
           ),
-          const SizedBox(height: 12),
+
+          SizedBox(height: 12.h),
+
           _buildFeatureCard(
-            'Streaks',
-            'Daily accountability with levels and achievement badges - turn your self-improvement into an exciting journey.',
+            description:
+                'Advanced AI models that act like a friend — trained to understand your urges, talk you through tough moments, and guide you with voice or chat.',
+          ),
+
+          SizedBox(height: 12.h),
+
+          _buildFeatureCard(
+            description:
+                'Meet people on a similar journey in your locality. Share hurdles, support each other and stay accountable.',
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFeatureCard(String title, String description) {
+  Widget _buildFeatureCard({required String description}) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: EdgeInsets.all(18.r),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              HugeIcon(
-                icon: HugeIcons.strokeRoundedMedal04,
-                color: Colors.white,
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            description,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 14,
-              height: 1.4,
-            ),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withValues(alpha: 0.06),
+            Colors.white.withValues(alpha: 0.03),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.22),
+            blurRadius: 12.r,
+            offset: Offset(0, 3.h),
           ),
         ],
+      ),
+      child: Text(
+        description,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.88),
+          fontSize: 15.sp,
+          height: 1.45,
+        ),
       ),
     );
   }
 }
 
+// ============================================================================
+// STATUS PAGE
+// ============================================================================
 class StatusPage extends StatelessWidget {
   final int pageIndex;
   final VoidCallback onNext;
@@ -1049,6 +840,7 @@ class StatusPage extends StatelessWidget {
       subtitle: 'Choose the option that best matches your current behavior',
       onNext: () {
         onNext();
+        // Ensure obSelectedValues is accessible here
         obSelectedValues.addAll({'0': selectedFrequency});
       },
       onBack: onBack,
@@ -1060,19 +852,19 @@ class StatusPage extends StatelessWidget {
             isSelected: selectedFrequency == 'Daily',
             onTap: () => onFrequencyChanged('Daily'),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           RadioCard(
             title: 'Frequently',
             isSelected: selectedFrequency == 'Frequently',
             onTap: () => onFrequencyChanged('Frequently'),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           RadioCard(
             title: 'Occasionally',
             isSelected: selectedFrequency == 'Occasionally',
             onTap: () => onFrequencyChanged('Occasionally'),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           RadioCard(
             title: 'Never',
             isSelected: selectedFrequency == 'Never',
@@ -1084,6 +876,9 @@ class StatusPage extends StatelessWidget {
   }
 }
 
+// ============================================================================
+// EFFECTS PAGE
+// ============================================================================
 class EffectsPage extends StatefulWidget {
   final int pageIndex;
   final VoidCallback onNext;
@@ -1148,11 +943,12 @@ class _EffectsPageState extends State<EffectsPage> {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 2.2,
+              crossAxisSpacing: 12.w,
+              mainAxisSpacing: 12.h,
+              childAspectRatio:
+                  2.2, // Aspect ratio usually doesn't need scaling
             ),
             itemCount: effectOptions.length,
             itemBuilder: (context, index) {
@@ -1165,7 +961,7 @@ class _EffectsPageState extends State<EffectsPage> {
             },
           ),
 
-          const SizedBox(height: 12),
+          SizedBox(height: 12.h),
 
           CustomInputCard(
             hintText: 'Other effects (optional)…',
@@ -1177,6 +973,9 @@ class _EffectsPageState extends State<EffectsPage> {
   }
 }
 
+// ============================================================================
+// TRIGGERS PAGE
+// ============================================================================
 class TriggersPage extends StatefulWidget {
   final int pageIndex;
   final VoidCallback onNext;
@@ -1241,10 +1040,10 @@ class _TriggersPageState extends State<TriggersPage> {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
+              crossAxisSpacing: 12.w,
+              mainAxisSpacing: 12.h,
               childAspectRatio: 2.2,
             ),
             itemCount: triggerOptions.length,
@@ -1258,7 +1057,7 @@ class _TriggersPageState extends State<TriggersPage> {
             },
           ),
 
-          const SizedBox(height: 12),
+          SizedBox(height: 12.h),
 
           CustomInputCard(
             hintText: 'Other situations (optional)…',
@@ -1270,6 +1069,9 @@ class _TriggersPageState extends State<TriggersPage> {
   }
 }
 
+// ============================================================================
+// GOALS PAGE
+// ============================================================================
 class GoalsPage extends StatefulWidget {
   final int pageIndex;
   final VoidCallback onNext;
@@ -1334,10 +1136,10 @@ class _GoalsPageState extends State<GoalsPage> {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
+              crossAxisSpacing: 12.w,
+              mainAxisSpacing: 12.h,
               childAspectRatio: 2.0,
             ),
             itemCount: aspectOptions.length,
@@ -1351,29 +1153,29 @@ class _GoalsPageState extends State<GoalsPage> {
             },
           ),
 
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
 
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.06),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.3)),
+              color: Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
             ),
             child: TextField(
               onChanged: widget.onAspectDetailsChanged,
               maxLines: 3,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
+              style: TextStyle(color: Colors.white, fontSize: 16.sp),
               decoration: InputDecoration(
                 hintText:
                     'You can describe what motivates you, how you wish to grow, or what support you need to reach your goals.',
                 hintStyle: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
-                  fontSize: 14,
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 14.sp,
                 ),
                 border: InputBorder.none,
                 fillColor: Colors.transparent,
                 focusedBorder: InputBorder.none,
-                contentPadding: const EdgeInsets.all(16),
+                contentPadding: EdgeInsets.all(16.r),
               ),
             ),
           ),
@@ -1382,6 +1184,10 @@ class _GoalsPageState extends State<GoalsPage> {
     );
   }
 }
+
+// ============================================================================
+// WIDGETS (Responsive)
+// ============================================================================
 
 class RadioCard extends StatelessWidget {
   final String title;
@@ -1402,37 +1208,37 @@ class RadioCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
-        height: 60,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        height: 60.h,
+        padding: EdgeInsets.symmetric(horizontal: 16.w),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withOpacity(0.1)
+              ? AppColors.primary.withValues(alpha: 0.1)
               : AppColors.background,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
             color: isSelected
                 ? AppColors.primary
-                : Colors.white.withOpacity(0.1),
+                : Colors.white.withValues(alpha: 0.1),
           ),
         ),
         child: Row(
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              width: 24,
-              height: 24,
+              width: 24.r,
+              height: 24.r,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isSelected ? AppColors.primary : Colors.white30,
-                  width: 2,
+                  width: 2.w,
                 ),
               ),
               child: Center(
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
-                  width: 12,
-                  height: 12,
+                  width: 12.r,
+                  height: 12.r,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: isSelected ? AppColors.primary : Colors.transparent,
@@ -1440,11 +1246,11 @@ class RadioCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: 16.w),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                style: TextStyle(color: Colors.white, fontSize: 16.sp),
               ),
             ),
           ],
@@ -1472,39 +1278,39 @@ class MultiSelectCard extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(12.r),
         decoration: BoxDecoration(
           color: AppColors.background,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
             color: isSelected
                 ? AppColors.primary
-                : Colors.white.withOpacity(0.1),
+                : Colors.white.withValues(alpha: 0.1),
           ),
         ),
         child: Row(
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: 24,
-              height: 24,
+              width: 24.r,
+              height: 24.r,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(6.r),
                 color: isSelected ? AppColors.primary : Colors.transparent,
                 border: Border.all(
                   color: isSelected ? AppColors.primary : Colors.white30,
-                  width: 2,
+                  width: 2.w,
                 ),
               ),
               child: isSelected
-                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  ? Icon(Icons.check, size: 16.r, color: Colors.white)
                   : null,
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12.w),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                style: TextStyle(color: Colors.white, fontSize: 14.sp),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -1529,27 +1335,27 @@ class CustomInputCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 50,
+      height: 50.h,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.3)),
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
       ),
       child: TextField(
         onChanged: onChanged,
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.white,
-          fontSize: 16,
+          fontSize: 16.sp,
           fontWeight: FontWeight.w500,
         ),
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
           focusedBorder: InputBorder.none,
           enabledBorder: InputBorder.none,
           fillColor: Colors.transparent,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12.w),
         ),
       ),
     );

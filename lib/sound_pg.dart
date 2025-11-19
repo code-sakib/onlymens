@@ -25,7 +25,6 @@ class _RainScreenState extends State<RainScreen> {
   bool _isCheckingInternet = true;
   String _currentText = 'Ambient Sounds';
   bool _isLoadingText = false;
-
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   final List<VideoItem> _videos = [
@@ -40,10 +39,10 @@ class _RainScreenState extends State<RainScreen> {
     ),
     VideoItem(
       title: 'Calm',
-      icon: Icons.terrain,
+      icon: CupertinoIcons.snow,
       videoUrl: '',
       audioUrl: '',
-      color: Colors.green,
+      color: const Color(0xFFB8E6F5), // Soft icy blue
       isAsset: false,
       storagePath: 'relax/medi.mp4',
       audioStoragePath: 'relax/medi.mp3',
@@ -51,10 +50,10 @@ class _RainScreenState extends State<RainScreen> {
     ),
     VideoItem(
       title: 'Forest',
-      icon: Icons.air,
+      icon: Icons.terrain,
       videoUrl: '',
       audioUrl: '',
-      color: Colors.cyan,
+      color: Colors.green,
       isAsset: false,
       storagePath: 'relax/forest.mp4',
       audioStoragePath: 'relax/forest.mp3',
@@ -87,14 +86,16 @@ class _RainScreenState extends State<RainScreen> {
   }
 
   Future<void> _initializeApp() async {
-    await _checkInternetConnection();
+    // START ASSET VIDEO IMMEDIATELY - Don't wait for anything
+    unawaited(_initializeVideo(0));
 
-    if (mounted) {
-      setState(() {
-        _isCheckingInternet = false;
-      });
-    }
+    // Run everything else in parallel
+    unawaited(_setupConnectivityListener());
+    unawaited(_checkInternetAndPreload());
+    unawaited(_fetchAmbientText(0));
+  }
 
+  Future<void> _setupConnectivityListener() async {
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
       List<ConnectivityResult> results,
     ) {
@@ -103,24 +104,15 @@ class _RainScreenState extends State<RainScreen> {
         setState(() {
           _hasInternet = hasInternet;
         });
-
         if (hasInternet) {
           _retryFailedInitializations();
         }
       }
     });
-
-    await _initializeVideo(0);
-    _fetchAmbientText(0);
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted && _hasInternet) {
-        _preloadNetworkVideos();
-      }
-    });
   }
 
-  Future<void> _checkInternetConnection() async {
+  Future<void> _checkInternetAndPreload() async {
+    // Check internet in background
     try {
       final results = await Connectivity().checkConnectivity();
       _hasInternet = !results.contains(ConnectivityResult.none);
@@ -140,6 +132,19 @@ class _RainScreenState extends State<RainScreen> {
       debugPrint('Error checking internet: $e');
       _hasInternet = false;
     }
+
+    if (mounted) {
+      setState(() {
+        _isCheckingInternet = false;
+      });
+    }
+
+    // Preload network videos if we have internet
+    if (_hasInternet) {
+      // Small delay to let asset video start first, but much shorter
+      await Future.delayed(const Duration(milliseconds: 500));
+      _preloadNetworkVideos();
+    }
   }
 
   void _retryFailedInitializations() {
@@ -152,9 +157,10 @@ class _RainScreenState extends State<RainScreen> {
   }
 
   void _preloadNetworkVideos() {
+    // Preload all network videos in parallel
     for (int i = 1; i < _videos.length; i++) {
       if (!_videos[i].isAsset && _controllers[i] == null) {
-        _initializeVideoInBackground(i);
+        unawaited(_initializeVideoInBackground(i));
       }
     }
   }
@@ -164,14 +170,20 @@ class _RainScreenState extends State<RainScreen> {
         _initializationFailed[index] == true) {
       return;
     }
+
     _isInitializing[index] = true;
 
     try {
       final video = _videos[index];
-
       if (!video.isAsset && _hasInternet) {
-        final videoUrl = await _fetchFirestoreUrl(video.storagePath!);
-        final audioUrl = await _fetchFirestoreUrl(video.audioStoragePath!);
+        // Fetch URLs in parallel
+        final results = await Future.wait([
+          _fetchFirestoreUrl(video.storagePath!),
+          _fetchFirestoreUrl(video.audioStoragePath!),
+        ]);
+
+        final videoUrl = results[0];
+        final audioUrl = results[1];
 
         if (videoUrl != null && audioUrl != null && mounted) {
           video.videoUrl = videoUrl;
@@ -228,7 +240,6 @@ class _RainScreenState extends State<RainScreen> {
       if (docSnapshot.exists && mounted) {
         final data = docSnapshot.data();
         final text = data?['today'] ?? data?['text'] ?? 'Ambient Sounds';
-
         setState(() {
           _currentText = text;
           _isLoadingText = false;
@@ -258,6 +269,7 @@ class _RainScreenState extends State<RainScreen> {
           .ref(storagePath)
           .getDownloadURL()
           .timeout(const Duration(seconds: 10));
+
       return url;
     } catch (e) {
       debugPrint('Error fetching URL from $storagePath: $e');
@@ -293,20 +305,20 @@ class _RainScreenState extends State<RainScreen> {
       VideoPlayerController controller;
 
       if (video.isAsset) {
+        // Asset video - fast path, no network needed
         controller = VideoPlayerController.asset(video.videoUrl);
         _controllers[index] = controller;
-
         if (mounted) setState(() {});
 
         await controller.initialize();
         controller.setLooping(true);
         controller.setVolume(0);
-
         await controller.play();
         await _playAudio(index);
 
         if (mounted) setState(() {});
       } else {
+        // Network video
         if (!_hasInternet) {
           _isInitializing[index] = false;
           _initializationFailed[index] = true;
@@ -323,8 +335,14 @@ class _RainScreenState extends State<RainScreen> {
           return;
         }
 
-        final videoUrl = await _fetchFirestoreUrl(video.storagePath!);
-        final audioUrl = await _fetchFirestoreUrl(video.audioStoragePath!);
+        // Fetch URLs in parallel
+        final results = await Future.wait([
+          _fetchFirestoreUrl(video.storagePath!),
+          _fetchFirestoreUrl(video.audioStoragePath!),
+        ]);
+
+        final videoUrl = results[0];
+        final audioUrl = results[1];
 
         if (videoUrl == null || audioUrl == null) {
           _isInitializing[index] = false;
@@ -341,26 +359,23 @@ class _RainScreenState extends State<RainScreen> {
 
         video.videoUrl = videoUrl;
         video.audioUrl = audioUrl;
-        controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
 
+        controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
         _controllers[index] = controller;
         if (mounted) setState(() {});
 
         await controller.initialize();
         controller.setLooping(true);
         controller.setVolume(0);
-
         await controller.play();
         await _playAudio(index);
 
         if (mounted) setState(() {});
-
         _initializationFailed[index] = false;
       }
     } catch (e) {
       debugPrint('Error initializing video $index: $e');
       _initializationFailed[index] = true;
-
       if (mounted && !_videos[index].isAsset) {
         Utilis.showSnackBar(
           'Error loading ${_videos[index].title}',
@@ -397,7 +412,6 @@ class _RainScreenState extends State<RainScreen> {
         'No internet connection. Please check and try again.',
         isErr: true,
       );
-
       if (_currentIndex != 0) {
         _returnToRain();
       }
@@ -445,11 +459,9 @@ class _RainScreenState extends State<RainScreen> {
     _connectivitySubscription?.cancel();
     _audioPlayer.dispose();
     _scrollController.dispose();
-
     for (var controller in _controllers) {
       controller?.dispose();
     }
-
     super.dispose();
   }
 
@@ -574,11 +586,9 @@ class _RainScreenState extends State<RainScreen> {
                         _showNoInternetError();
                         return;
                       }
-
                       if (hasFailed && !video.isAsset) {
                         _initializationFailed[index] = false;
                       }
-
                       _switchVideo(index);
                     },
                     child: AnimatedContainer(

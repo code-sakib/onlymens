@@ -1,27 +1,27 @@
-// approutes.dart — FINAL MERGED VERSION (DEV FLOW + REAL ROUTES, NO SIZECONFIG)
+// approutes.dart — PRODUCTION VERSION with proper flow
 
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
+import 'package:onlymens/legal_screen.dart';
+import 'package:onlymens/utilis/snackbar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:onlymens/auth/auth_service.dart';
 import 'package:onlymens/auth/auth_screen.dart';
 import 'package:onlymens/features/affirmations/affirmations_pg.dart';
-
 import 'package:onlymens/features/ai_model/presentation/ai_mainpage.dart';
 import 'package:onlymens/features/ai_model/game_mode.dart';
 import 'package:onlymens/features/betterwbro/chat/messages_page.dart';
-
 import 'package:onlymens/features/betterwbro/presentation/bwb_page.dart';
+import 'package:onlymens/features/onboarding_pgs/pricing_pg.dart';
 import 'package:onlymens/features/panic_mode/panic_mode_pg.dart';
 import 'package:onlymens/features/streaks_page/presentation/streaks_page.dart';
-
 import 'package:onlymens/features/onboarding_pgs/onboarding_pgs.dart';
 import 'package:onlymens/guides/blogs.dart';
 import 'package:onlymens/profile_page.dart';
 import 'package:onlymens/sound_pg.dart';
-
 import 'package:onlymens/utilis/bottom_appbar.dart';
 
 final approutes = GoRouter(
@@ -29,42 +29,122 @@ final approutes = GoRouter(
   refreshListenable: GoRouterRefreshStream(AuthService.auth.authStateChanges()),
 
   // =============================================================
-  // DEV MODE ROUTING FLOW
-  // - New users → Auth → Streaks
-  // - Skip onboarding & pricing fully
-  // - Logged-in users always go to streaks
+  // PRODUCTION ROUTING FLOW
   // =============================================================
   redirect: (context, state) async {
     final loggedIn = AuthService.currentUser != null;
     final loc = state.matchedLocation;
 
-    print('🔄 [DEV MODE] Redirect: loc=$loc, loggedIn=$loggedIn');
+    print('🔄 [ROUTER] loc=$loc, loggedIn=$loggedIn');
+
+    // --- ALLOW THESE ROUTES ALWAYS ---
+    if (loc == '/onboarding' || loc == '/pricing' || loc == '/auth') {
+      return null;
+    }
 
     // --- NOT LOGGED IN ---
     if (!loggedIn) {
-      if (loc == '/') return null; // allow auth
-      print('⚠️ Not logged in → redirect to /');
-      return '/';
+      final prefs = await SharedPreferences.getInstance();
+      final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+
+      // Check if user has pending receipt (paid but not signed in)
+      final hasPendingReceipt = prefs.getString('pending_receipt') != null;
+
+      if (loc == '/') {
+        // Root route - determine where to send them
+        if (hasPendingReceipt || onboardingDone) {
+          print('📦 Has pending receipt or completed onboarding → /pricing');
+          return '/pricing';
+        }
+        print('🆕 New user → /onboarding');
+        return '/onboarding';
+      }
+
+      // Trying to access protected routes without login
+      if (hasPendingReceipt || onboardingDone) {
+        print('⚠️ Not logged in, trying to access $loc → /pricing');
+        return '/pricing';
+      }
+
+      print('⚠️ Not logged in, trying to access $loc → /onboarding');
+      return '/onboarding';
     }
 
     // --- LOGGED IN ---
     if (loggedIn) {
+      // Check subscription status
+      final sub = await AuthService.fetchSubscriptionForCurrentUser();
+
+      if (sub == null) {
+        print('⚠️ Logged in but no subscription → /pricing');
+        if (loc != '/pricing' && loc != '/auth') {
+          return '/pricing';
+        }
+        return null;
+      }
+
+      final expiresMs = sub['expiresDateMs'] ?? 0;
+      final isActive = expiresMs > DateTime.now().millisecondsSinceEpoch;
+
+      if (!isActive) {
+        print('⚠️ Subscription expired → /pricing');
+        Future.microtask(() {
+          Utilis.showSnackBar("Your subscription has expired", isErr: true);
+        });
+        if (loc != '/pricing' && loc != '/auth') {
+          return '/pricing';
+        }
+
+        return null;
+      }
+
+      // Active subscription - allow access
+      print('✅ Active subscription - allowing access to $loc');
+
+      // Set onboarding done if not already set
+      final prefs = await SharedPreferences.getInstance();
+      if (!prefs.containsKey('onboarding_done')) {
+        await prefs.setBool('onboarding_done', true);
+      }
+
+      // If on root, redirect to streaks
       if (loc == '/') {
-        print('✅ Logged in → redirect to /streaks');
+        print('✅ Root route with active sub → /streaks');
         return '/streaks';
       }
-      return null; // allow all other routes
+
+      return null; // Allow access to requested route
     }
 
     return null;
   },
 
   routes: [
-    // AUTH PAGE
-    GoRoute(path: '/', builder: (_, __) => const AuthScreen()),
+    // =============================================================
+    // PUBLIC ROUTES (accessible without subscription)
+    // =============================================================
+    GoRoute(path: '/', builder: (_, __) => const _LoadingScreen()),
 
-    // Dev routes (unlocked in DEV MODE)
     GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
+
+    GoRoute(path: '/pricing', builder: (_, __) => const PricingPage()),
+
+    GoRoute(path: '/auth', builder: (_, __) => const AuthScreen()),
+
+    // =============================================================
+    // PROTECTED ROUTES (require active subscription)
+    // =============================================================
+
+    // Blog detail (can be accessed without subscription)
+    GoRoute(
+      path: '/blogdetail',
+      builder: (context, state) {
+        final data = state.extra as Map<String, dynamic>? ?? {};
+        return BlogDetailPage(blogData: data);
+      },
+    ),
+
+    // Individual protected routes
     GoRoute(path: '/aimodel', builder: (_, __) => const AiMainpage()),
     GoRoute(path: '/bwb', builder: (_, __) => BWBPage()),
     GoRoute(path: '/profile', builder: (_, __) => ProfilePage()),
@@ -77,16 +157,12 @@ final approutes = GoRouter(
     GoRoute(path: '/game1', builder: (_, __) => const PongGame()),
     GoRoute(path: '/game2', builder: (_, __) => const QuickDrawGame()),
     GoRoute(path: '/messages', builder: (_, __) => const MessagesPage()),
+    GoRoute(path: '/legal', builder: (_, __) => const LegalScreen()),
 
-    GoRoute(
-      path: '/blogdetail',
-      builder: (context, state) {
-        final data = state.extra as Map<String, dynamic>? ?? {};
-        return BlogDetailPage(blogData: data);
-      },
-    ),
 
+    // =============================================================
     // SHELL ROUTE (BOTTOM NAV + STREAKS FAB)
+    // =============================================================
     ShellRoute(
       builder: (context, state, child) {
         return Scaffold(
@@ -97,7 +173,7 @@ final approutes = GoRouter(
             onPressed: () => context.go('/streaks'),
             child: Lottie.asset(
               'assets/lottie/fire.json',
-              height: 40.h, // removed SizeConfig
+              height: 40.h,
               width: 40.w,
             ),
           ),
@@ -111,12 +187,28 @@ final approutes = GoRouter(
           ),
         );
       },
-      routes: [GoRoute(path: '/streaks', builder: (_, __) => const BWBPage())],
+      routes: [
+        GoRoute(path: '/streaks', builder: (_, __) => const StreaksPage()),
+      ],
     ),
   ],
 );
 
-/// GoRouter listens to auth state changes
+// =============================================================
+// LOADING SCREEN (shown briefly while determining route)
+// =============================================================
+class _LoadingScreen extends StatelessWidget {
+  const _LoadingScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+  }
+}
+
+// =============================================================
+// AUTH STATE LISTENER
+// =============================================================
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     _subscription = stream.asBroadcastStream().listen((_) {

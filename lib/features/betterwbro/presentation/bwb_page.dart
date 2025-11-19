@@ -43,8 +43,8 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
   bool isLoadingMorePosts = false;
 
   // pagination / limits
-  final int _pageSize = 20; // how many real posts we page by
-  final int _defaultLimit = 6; // fetch 5-6 default posts per page as requested
+  final int _pageSize = 20;
+  final int _defaultLimit = 6;
 
   bool _isFetchingPosts = false;
 
@@ -54,7 +54,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
   StreamSubscription? _blockSub;
   bool _initialized = false;
 
-  // For pagination cursors + flags
   DocumentSnapshot? _lastRealDoc;
   DocumentSnapshot? _lastDefaultDoc;
   bool _hasMoreReal = true;
@@ -110,8 +109,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     if (!_feedScrollController.hasClients) return;
 
     final position = _feedScrollController.position;
-
-    // Trigger load when user is near the bottom (80% scrolled)
     final threshold = position.maxScrollExtent * 0.8;
 
     if (position.pixels >= threshold &&
@@ -128,7 +125,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     _blockSub?.cancel();
     _tabController.dispose();
     _feedScrollController.dispose();
-    _cachedCurrentUserAvatar = null; // Clear cache
+    _cachedCurrentUserAvatar = null;
     super.dispose();
   }
 
@@ -140,7 +137,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     setState(() => isLoading = true);
 
     await fetchBlockedUsers();
-    await loadDefaultUsers(); // community list
+    await loadDefaultUsers();
     await loadPosts(forceRefresh: true);
 
     bool granted = await checkPermissionSilently();
@@ -167,9 +164,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     }
   }
 
-  // Update these specific methods in your bwb_page.dart
-
-  // 1. UPDATE: _getUserBadge method (add this if not exists, or replace existing)
   Widget _getUserBadge(Map<String, dynamic> item, {bool isPost = true}) {
     final uid = auth.currentUser?.uid ?? '';
 
@@ -198,7 +192,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       }
     }
 
-    // Check if this is from mUsers (default/example content)
     final isExample = item['isDefault'] == true || item['source'] == 'default';
 
     if (isExample) {
@@ -236,8 +229,8 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           .map((e) {
             final map = Map<String, dynamic>.from(e.data() as Map);
             map['id'] = e.id;
-            map['source'] = 'default'; // ✅ Mark as default
-            map['isDefault'] = true; // ✅ Mark as default
+            map['source'] = 'default';
+            map['isDefault'] = true;
             return map;
           })
           .where((u) => !blockedUsers.contains(u['id']))
@@ -250,7 +243,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     }
   }
 
-  // 5. UPDATE: showInfoDialog - Add explanation about Example badges
   void showInfoDialog() {
     if (!mounted) return;
     showCupertinoDialog(
@@ -266,7 +258,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                 'https://lottie.host/23a28cec-2969-4b3b-9b55-f8b7a9ce7fc7/1ZCeHcovAb.json',
                 height: 120.h,
               ),
-
               SizedBox(height: 16.h),
               Text(
                 '• Find real people on the same journey as you.',
@@ -287,6 +278,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                 '• Full control. Full privacy. Always.',
                 style: TextStyle(fontSize: 13.sp),
               ),
+              SizedBox(height: 12.h),
               Text(
                 '• Users and posts with green "Eg" badges are sample content to help understand how the app works.',
                 style: TextStyle(fontSize: 13.sp),
@@ -413,7 +405,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       if (!mounted) return;
       setState(() => currentPosition = pos);
 
-      // save current user's loc
       await _firestore
           .collection('users')
           .doc(auth.currentUser!.uid)
@@ -428,6 +419,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
 
       for (var doc in allUsersSnap.docs) {
         if (doc.id == auth.currentUser!.uid) continue;
+        if (doc.id == 'mUsers') continue; // ✅ Skip mUsers document
         if (blockedUsers.contains(doc.id)) continue;
 
         final profileDoc = await doc.reference
@@ -453,6 +445,8 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           final userMap = Map<String, dynamic>.from(data);
           userMap['id'] = doc.id;
           userMap['distance'] = distKm;
+          userMap['source'] = 'real'; // ✅ Mark as real user
+          userMap['isDefault'] = false; // ✅ Not a default user
           realNearby.add(userMap);
         }
       }
@@ -460,8 +454,10 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       realNearby.sort(
         (a, b) => (a['distance'] ?? 999).compareTo(b['distance'] ?? 999),
       );
+
       List<Map<String, dynamic>> finalUsers = List.from(realNearby);
 
+      // ✅ Only add default users if we have less than 10 real users
       if (finalUsers.length < 10) {
         final needed = 10 - finalUsers.length;
         final defaultSnap = await _firestore
@@ -476,6 +472,8 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
               (e) => {
                 ...Map<String, dynamic>.from(e.data() as Map),
                 'id': e.id,
+                'source': 'default', // ✅ Mark as default
+                'isDefault': true, // ✅ Mark as example user
               },
             )
             .where((u) => !blockedUsers.contains(u['id']))
@@ -485,13 +483,17 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
 
       if (!mounted) return;
       setState(() => users = finalUsers);
+
+      debugPrint(
+        "✅ Loaded ${realNearby.length} real users and ${finalUsers.length - realNearby.length} example users",
+      );
     } catch (e) {
       debugPrint("Error in loadNearbyUsers: $e");
     }
   }
 
   final Set<String> _firstBumpedPosts = {};
-  final Map<String, int> _lastIncrementTs = {}; // postId -> epochSeconds
+  final Map<String, int> _lastIncrementTs = {};
   final Random _rnd = Random();
 
   Future<void> incrementViewCount(Map<String, dynamic> post) async {
@@ -499,7 +501,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       final postId = post['postId']?.toString();
       if (postId == null || postId.isEmpty) return;
 
-      // Only increment once per session per post
       if (_viewedPosts.contains(postId)) return;
       _viewedPosts.add(postId);
 
@@ -537,7 +538,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
 
     final int now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-    // Rule 1: First time in session → guaranteed bump
     if (!_firstBumpedPosts.contains(postId)) {
       _firstBumpedPosts.add(postId);
       _lastIncrementTs[postId] = now;
@@ -545,22 +545,17 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       return;
     }
 
-    // Rule 2: Cooldown — must wait at least 10 seconds
     if (_lastIncrementTs.containsKey(postId)) {
       final last = _lastIncrementTs[postId]!;
-      if (now - last < 10) return; // limit to once per 10 seconds
+      if (now - last < 10) return;
     }
 
-    // Rule 3: Random bump only 20% chance
     if (_rnd.nextDouble() > 0.20) return;
 
     _lastIncrementTs[postId] = now;
     await incrementViewCount(post);
   }
 
-  // Fix for BWB Page - Replace the _getUserProfileImage method and update post card building
-
-  // REPLACE the existing _getUserProfileImage method with this improved version:
   Future<String?> _getUserProfileImage(String userId, int? streaks) async {
     try {
       final userDoc = await _firestore
@@ -573,14 +568,12 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       if (userDoc.exists) {
         final profileData = userDoc.data()!;
 
-        // 1) HIGHEST PRIORITY: Custom avatar URL
         final customImg = profileData['customAvatarUrl'];
         if (customImg != null && customImg.toString().trim().isNotEmpty) {
           debugPrint('✅ Using customAvatarUrl for $userId: $customImg');
           return customImg.toString().trim();
         }
 
-        // 2) SECOND PRIORITY: Regular img field
         final img = profileData['img'];
         if (img != null && img.toString().trim().isNotEmpty) {
           debugPrint('✅ Using img for $userId: $img');
@@ -588,7 +581,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         }
       }
 
-      // 3) FALLBACK: Streak-based avatar from Firebase Storage
       if (streaks != null) {
         final level = AvatarManager.getLevelFromDays(streaks);
         try {
@@ -612,7 +604,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     }
   }
 
-  // UPDATE the createPost method to fetch and store the correct profile image:
   Future<void> createPost(String postText) async {
     if (postText.trim().isEmpty) return;
 
@@ -630,17 +621,14 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       final name = profile['name'] ?? 'Anonymous';
       final streaks = profile['currentStreak'] ?? 0;
 
-      // Get the correct profile image using the same priority logic
       String? dp;
 
-      // 1) Try custom avatar first
       final customImg = profile['customAvatarUrl'];
       if (customImg != null && customImg.toString().trim().isNotEmpty) {
         dp = customImg.toString().trim();
         debugPrint('✅ Post using customAvatarUrl: $dp');
       }
 
-      // 2) Try regular img field
       if (dp == null) {
         final img = profile['img'];
         if (img != null && img.toString().trim().isNotEmpty) {
@@ -649,7 +637,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         }
       }
 
-      // 3) Fallback to streak avatar
       if (dp == null) {
         final level = AvatarManager.getLevelFromDays(streaks);
         try {
@@ -671,7 +658,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         "postId": postId,
         "userId": uid,
         "name": name,
-        "dp": dp, // This will now contain the correct profile image
+        "dp": dp,
         "postText": postText.trim(),
         "streaks": streaks,
         "timestamp": timestamp,
@@ -695,7 +682,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           .doc(postId)
           .set(postData);
 
-      // Refresh feed
       await loadPosts(forceRefresh: true);
 
       _showSnackbar("Post shared with community! 🎉", Colors.deepPurple);
@@ -705,7 +691,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     }
   }
 
-  // UPDATE the _buildPostCard CircleAvatar section for better image handling:
   Widget _buildPostCard(Map<String, dynamic> post) {
     final uid = auth.currentUser?.uid ?? '';
     final postUserId = post['userId']?.toString() ?? '';
@@ -760,7 +745,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                             ),
                           ),
                           SizedBox(width: 6.w),
-                          _getUserBadge(post, isPost: true), // ✅ UPDATED
+                          _getUserBadge(post, isPost: true),
                         ],
                       ),
                       SizedBox(height: 2.h),
@@ -843,7 +828,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     );
   }
 
-  // ADD this new helper method to build the avatar widget:
   Widget _buildPostAvatar(Map<String, dynamic> post) {
     final uid = auth.currentUser?.uid ?? '';
     final postUserId = post['userId']?.toString() ?? '';
@@ -851,7 +835,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         (post['isCurrentUser'] == true) ||
         (postUserId.isNotEmpty && postUserId == uid);
 
-    // ✅ Use cached avatar for current user
     if (isOwn) {
       if (_avatarCacheLoaded && _cachedCurrentUserAvatar != null) {
         return _cachedCurrentUserAvatar!;
@@ -860,19 +843,16 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         child: SizedBox(
           width: 20.r,
           height: 20.r,
-          child: CupertinoActivityIndicator(
-            radius: 10.r, // ✅ Consistent sizing
-          ),
+          child: CupertinoActivityIndicator(radius: 10.r),
         ),
       );
     }
-    // For other users' posts, use the dp from post data
+
     final dpUrl = post['dp']?.toString().trim() ?? '';
     debugPrint('🖼️ Building avatar for ${post['name']}: $dpUrl');
 
     if (dpUrl.isNotEmpty) {
-      return // For network images
-      ClipOval(
+      return ClipOval(
         child: Image.network(
           dpUrl,
           width: 44.r,
@@ -884,9 +864,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
               child: SizedBox(
                 width: 20.r,
                 height: 20.r,
-                child: CupertinoActivityIndicator(
-                  radius: 10.r, // ✅ Match other loaders
-                ),
+                child: CupertinoActivityIndicator(radius: 10.r),
               ),
             );
           },
@@ -959,7 +937,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                       TextButton(
                         onPressed: () {
                           Navigator.of(dialogContext).pop();
-                          // Don't dispose - let it be garbage collected
                         },
                         child: Text(
                           'Cancel',
@@ -974,7 +951,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                         onPressed: () async {
                           final text = textController.text.trim();
                           Navigator.of(dialogContext).pop();
-                          // Don't dispose - let it be garbage collected
                           if (text.isNotEmpty) await createPost(text);
                         },
                         style: ElevatedButton.styleFrom(
@@ -1003,7 +979,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
 
   Future<Widget> _getCurrentUserAvatar() async {
     try {
-      // 1) Check for custom avatar first (local file)
       final directory = await getApplicationDocumentsDirectory();
       final customAvatarPath = '${directory.path}/custom_avatar.png';
 
@@ -1018,11 +993,9 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         );
       }
 
-      // 2) Load streak-based avatar
       final currentStreakDays = StreaksData.currentStreakDays;
       final calculatedLevel = AvatarManager.getLevelFromDays(currentStreakDays);
 
-      // Try Firebase Storage first
       try {
         final storageRef = FirebaseStorage.instance
             .ref()
@@ -1038,7 +1011,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
             height: 44.r,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
-              // Fallback to local asset
               return Image.asset(
                 'assets/3d/lvl$calculatedLevel.png',
                 width: 44.r,
@@ -1049,7 +1021,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           ),
         );
       } catch (e) {
-        // Use local asset directly
         return ClipOval(
           child: Image.asset(
             'assets/3d/lvl$calculatedLevel.png',
@@ -1131,7 +1102,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
             TextButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop();
-                // Don't dispose - let it be garbage collected
               },
               style: TextButton.styleFrom(foregroundColor: Colors.grey[400]),
               child: Text('Cancel', style: TextStyle(fontSize: 14.sp)),
@@ -1148,7 +1118,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
               onPressed: () async {
                 final msg = reportController.text.trim();
                 Navigator.of(dialogContext).pop();
-                // Don't dispose - let it be garbage collected
                 await reportPost(post, msg);
               },
               child: Text(
@@ -1234,11 +1203,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     }
   }
 
-  // ========================================
-  // MAIN FEED LOADER (own → real → default)
-  // lazy default loading, dedupe, merge, and randomize own posts inside top 10
-  // ========================================
-  // Simple, clean post loading - no over-engineering
   Future<void> loadPosts({bool forceRefresh = false}) async {
     if (!mounted || _isFetchingPosts) return;
     _isFetchingPosts = true;
@@ -1261,9 +1225,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           .toSet();
       List<Map<String, dynamic>> newPosts = [];
 
-      // ============================================
-      // 1) FETCH REAL POSTS (from rUsers/all)
-      // ============================================
       if (_hasMoreReal) {
         Query query = _firestore
             .collection("posts")
@@ -1287,10 +1248,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
             final postId = doc.id;
             final userId = data['userId']?.toString() ?? '';
 
-            // Skip if already in list (deduplication)
             if (existingIds.contains(postId)) continue;
-
-            // Skip blocked users
             if (blockedUsers.contains(userId)) continue;
 
             data['postId'] = postId;
@@ -1312,9 +1270,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         }
       }
 
-      // ============================================
-      // 2) FETCH DEFAULT POSTS (from mUsers/all)
-      // ============================================
       if (newPosts.length < 10 && _hasMoreDefault) {
         final needed = max(10 - newPosts.length, _defaultLimit);
 
@@ -1360,16 +1315,12 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         }
       }
 
-      // ============================================
-      // 3) ADD NEW POSTS & SORT CHRONOLOGICALLY
-      // ============================================
       posts.addAll(newPosts);
 
-      // Sort everything by timestamp (newest first)
       posts.sort((a, b) {
         final aTime = a['timestamp'] ?? 0;
         final bTime = b['timestamp'] ?? 0;
-        return bTime.compareTo(aTime); // Descending order
+        return bTime.compareTo(aTime);
       });
 
       debugPrint(
@@ -1387,7 +1338,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     _isFetchingPosts = false;
   }
 
-  // Load more posts when scrolling to bottom
   Future<void> _loadMorePosts() async {
     if (_isFetchingPosts) return;
     if (!_hasMoreReal && !_hasMoreDefault) {
@@ -1398,10 +1348,10 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     debugPrint("🔄 Loading more posts...");
     setState(() => isLoadingMorePosts = true);
 
-    await loadPosts(); // Don't pass forceRefresh - we want to continue from cursor
+    await loadPosts();
 
     if (mounted) setState(() => isLoadingMorePosts = false);
-  } // Replace your deletePost function with this improved version:
+  }
 
   Future<void> deletePost(Map<String, dynamic> post) async {
     try {
@@ -1420,14 +1370,12 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         return;
       }
 
-      // More robust userId comparison
       if (postUserId.trim() != uid.trim()) {
         debugPrint("❌ User ID mismatch: '$postUserId' != '$uid'");
         _showSnackbar("You can only delete your own posts", Colors.red);
         return;
       }
 
-      // Delete from global posts collection
       try {
         await _firestore
             .collection("posts")
@@ -1438,10 +1386,8 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         debugPrint("✅ Deleted from rUsers/all");
       } catch (e) {
         debugPrint("⚠️ Failed to delete from rUsers/all: $e");
-        // Continue anyway - might not exist there
       }
 
-      // Delete from user's personal posts
       try {
         await _firestore
             .collection("users")
@@ -1454,7 +1400,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         debugPrint("⚠️ Failed to delete from user posts: $e");
       }
 
-      // Remove from local lists
       posts.removeWhere((p) => p['postId']?.toString() == postId.toString());
 
       if (mounted) setState(() {});
@@ -1465,8 +1410,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       _showSnackbar("Failed to delete: ${e.toString()}", Colors.red);
     }
   }
-
-  // Also update _buildPostCard to add better debugging:
 
   Future<void> handlePostUserTap(Map<String, dynamic> post) async {
     final otherUserId = post['userId'] ?? '';
@@ -1514,7 +1457,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     }
 
     try {
-      // Save the report first (this is most important)
       await _firestore.collection("reports").add({
         "postId": postId,
         "userId": post["userId"]?.toString() ?? "unknown",
@@ -1526,11 +1468,9 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       });
       debugPrint("✅ Report saved successfully");
 
-      // Determine correct delete target
       final bool isDefault =
           post["isDefault"] == true || post["source"] == "default";
 
-      // Try to delete the post (best effort - don't fail if this doesn't work)
       if (isDefault) {
         try {
           await _firestore
@@ -1542,10 +1482,8 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           debugPrint("✅ Deleted from mUsers/all");
         } catch (e) {
           debugPrint("⚠️ Could not delete from mUsers/all: $e");
-          // Don't throw - reporting succeeded
         }
       } else {
-        // Try to delete from real posts
         try {
           await _firestore
               .collection("posts")
@@ -1556,10 +1494,8 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           debugPrint("✅ Deleted from rUsers/all");
         } catch (e) {
           debugPrint("⚠️ Could not delete from rUsers/all: $e");
-          // Don't throw - reporting succeeded
         }
 
-        // Try to delete from user's private posts
         final reportedUserId = post["userId"]?.toString() ?? '';
         if (reportedUserId.isNotEmpty) {
           try {
@@ -1572,12 +1508,10 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
             debugPrint("✅ Deleted from user's posts");
           } catch (e) {
             debugPrint("⚠️ Could not delete from user posts: $e");
-            // Don't throw - reporting succeeded
           }
         }
       }
 
-      // Remove from local feed
       posts.removeWhere((p) => p['postId']?.toString() == postId);
       if (mounted) setState(() {});
 
@@ -1699,7 +1633,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                     : '${distance.toStringAsFixed(1)}km away';
               }
 
-              // ✅ Check if user is from mUsers (example user)
               final isExampleUser =
                   user['source'] == 'default' || user['isDefault'] == true;
 
@@ -1736,7 +1669,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                       ),
                       if (isExampleUser) ...[
                         SizedBox(width: 6.w),
-                        _getUserBadge(user, isPost: false), // ✅ Add badge
+                        _getUserBadge(user, isPost: false),
                       ],
                     ],
                   ),
@@ -1756,7 +1689,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
 
   Widget _buildFeedTab() {
     if (isLoadingPosts && posts.isEmpty) {
-      // Initial loading state
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1773,7 +1705,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     }
 
     if (posts.isEmpty && !isLoadingPosts) {
-      // Empty state
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1809,7 +1740,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       );
     }
 
-    // Posts list with lazy loading
     return RefreshIndicator(
       onRefresh: () async {
         await loadPosts(forceRefresh: true);
@@ -1818,19 +1748,15 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       color: Colors.deepPurple,
       child: ListView.builder(
         controller: _feedScrollController,
-        physics:
-            const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh even with few items
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.only(
           left: 16.w,
           right: 16.w,
           top: 12.h,
           bottom: 80.h,
         ),
-        itemCount:
-            posts.length +
-            1, // Always add 1 for loading indicator or end message
+        itemCount: posts.length + 1,
         itemBuilder: (context, index) {
-          // Loading indicator or end message at bottom
           if (index == posts.length) {
             if (isLoadingMorePosts) {
               return Container(
@@ -1872,7 +1798,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                 ),
               );
             } else {
-              // Has more but not currently loading - show nothing or a subtle indicator
               return SizedBox(height: 20.h);
             }
           }

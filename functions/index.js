@@ -110,8 +110,8 @@ function buildSystemPrompt(
 ) {
   // Base identity
   let identity = isAvatarMode
-    ? "You are the user's current avatar in OnlyMens - a personified representation of their progress and growth"
-    : "You are OnlyMens, a supportive AI companion";
+    ? "You are the user's current avatar in CleanMind - a personified representation of their progress and growth"
+    : "You are CleanMind, a supportive AI companion";
 
   // Streak context
   const streakContext = getStreakContext(currentStreak, longestStreak);
@@ -488,7 +488,7 @@ exports.sendVoiceMessage = onCall({ secrets: [OPENAI_KEY] }, async (req) => {
           {
             role: "system",
             content:
-              "You are OnlyMens Voice Coach, a supportive AI companion for men overcoming pornography addiction. " +
+              "You are CleanMind Voice Coach, a supportive AI companion for men overcoming pornography addiction. " +
               "You're speaking out loud, so keep responses conversational, warm, and natural. " +
               "Be empathetic, direct, and motivating. Keep answers concise (2-4 sentences max) since this is voice. " +
               "Speak like a trusted friend who understands their struggle.",
@@ -725,7 +725,7 @@ exports.checkAffirmationLimit = onCall(async (req) => {
 // ============================================
 function buildPanicModePrompt(currentStreak, longestStreak) {
   const streakContext = getStreakContext(currentStreak, longestStreak);
-  return `You are OnlyMens Crisis Coach. Current streak: ${currentStreak}. ${streakContext}. Provide a short, grounding, empowering message (3 paragraphs max) and a 2-3 sentence breathing grounding instruction. Respond in JSON: {"mainText":"...", "guidanceText":"..."};`;
+  return `You are CleanMind Crisis Coach. Current streak: ${currentStreak}. ${streakContext}. Provide a short, grounding, empowering message (3 paragraphs max) and a 2-3 sentence breathing grounding instruction. Respond in JSON: {"mainText":"...", "guidanceText":"..."};`;
 }
 
 function getFallbackPanicResponse(currentStreak) {
@@ -861,15 +861,41 @@ exports.checkPanicModeLimit = onCall(async (req) => {
 // ============================================
 // Onboarding report (uses OpenAI)
 // ============================================
+// ============================================
+// Onboarding report (uses OpenAI)
+// ============================================
 function buildReportPrompt(frequency, effects, triggers, goals, goalDetails) {
-  return `You are OnlyMens Coach. Generate a 3-4 paragraph motivational report for:
+  const freqLower = frequency.toLowerCase();
+  let estimatedDays = null;
+
+  if (freqLower === "never") estimatedDays = 15;
+  else if (freqLower === "occasionally") estimatedDays = 25;
+  else if (freqLower === "frequently") estimatedDays = 35;
+  else if (freqLower === "daily") estimatedDays = 45;
+
+  return `You are CleanMind Coach.
+
+Generate a **short, concise** 2-3 paragraph personal insight (15-20 lines total).
+NO long explanations. NO filler. Keep it tight, emotional, and helpful.
+
+User profile:
 Frequency: ${frequency}
 Effects: ${effects.length ? effects.join(", ") : "None"}
 Triggers: ${triggers.length ? triggers.join(", ") : "None"}
 Goals: ${goals.length ? goals.join(", ") : "None"}
 ${goalDetails ? `Details: ${goalDetails}` : ""}
-Return JSON: {"insight":"...","estimatedDays":15}`;
+
+Mention CleanMind features naturally:
+- Streak tracking
+- Advance AI models
+- Trigger blocking
+- Achievement badges & levels
+- Community support
+
+Return JSON ONLY:
+{"insight":"...","estimatedDays":${estimatedDays === null ? "null" : estimatedDays}}`;
 }
+
 
 exports.generateOnboardingReport = onCall(
   { secrets: [OPENAI_KEY] },

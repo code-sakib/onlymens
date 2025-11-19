@@ -87,25 +87,9 @@ class _ConversationHistoryWidgetState extends State<ConversationHistoryWidget> {
           );
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  CupertinoIcons.chat_bubble_2,
-                  size: 64,
-                  color: Colors.grey[600],
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'No conversations yet',
-                  style: TextStyle(color: Colors.grey[400], fontSize: 16),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Start a new chat to begin!',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                ),
-              ],
+            child: Text(
+              'No conversations yet',
+              style: TextStyle(color: Colors.grey[400], fontSize: 16),
             ),
           );
         }
@@ -320,25 +304,9 @@ class _AvatarConversationHistoryWidgetState
           );
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  CupertinoIcons.person_crop_circle,
-                  size: 64,
-                  color: Colors.grey[600],
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'No avatar conversations yet',
-                  style: TextStyle(color: Colors.grey[400], fontSize: 16),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Start chatting with your avatar!',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                ),
-              ],
+            child: Text(
+              'No conversations yet',
+              style: TextStyle(color: Colors.grey[400], fontSize: 16),
             ),
           );
         }

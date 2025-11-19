@@ -2,11 +2,13 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:feedback/feedback.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:onlymens/core/approuter.dart';
 import 'package:onlymens/core/apptheme.dart';
 import 'package:onlymens/core/globals.dart';
@@ -28,25 +30,21 @@ void main() async {
     ),
   );
 
-  // await auth.signOut();
-  // await prefs.clear();
-
   // p();
   // c();/
   // seedAllPosts();
 
-  deleteAllRealUserPosts();
-  // runApp(
-  //   BetterFeedback(
-  //     theme: FeedbackThemeData(
-  //       background: Colors.black.withOpacity(0.7),
-  //       feedbackSheetColor: Colors.grey,
-  //       drawColors: [Colors.red, Colors.blue, Colors.green, Colors.yellow],
-  //       activeFeedbackModeColor: Colors.deepPurple,
-  //     ),
-  //     child: const MyApp(),
-  //   ),
-  // );
+  runApp(
+    BetterFeedback(
+      theme: FeedbackThemeData(
+        background: Colors.black.withOpacity(0.7),
+        feedbackSheetColor: Colors.grey,
+        drawColors: [Colors.red, Colors.blue, Colors.green, Colors.yellow],
+        activeFeedbackModeColor: Colors.deepPurple,
+      ),
+      child: const MyApp(),
+    ),
+  );
 }
 
 c() {

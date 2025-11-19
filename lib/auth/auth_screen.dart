@@ -1,10 +1,12 @@
-// auth_screen.dart - FIXED VERSION
+// auth_screen.dart - FINAL RESPONSIVE VERSION
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart'; // ScreenUtil
 import 'package:go_router/go_router.dart';
 import 'package:onlymens/auth/auth_service.dart';
 import 'package:onlymens/core/apptheme.dart';
-import 'package:onlymens/utilis/size_config.dart';
+import 'package:onlymens/legal_screen.dart';
+// removed size_config import as we are using flutter_screenutil
 import 'package:onlymens/utilis/snackbar.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -28,7 +30,7 @@ class _AuthScreenState extends State<AuthScreen> {
       final isActive = expiresMs > DateTime.now().millisecondsSinceEpoch;
 
       if (isActive && mounted) {
-        print('✅ User has active subscription, navigating to /streaks');
+        debugPrint('✅ User has active subscription, navigating to /streaks');
         context.go('/streaks');
         return;
       }
@@ -36,7 +38,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
     // No active subscription, go to pricing
     if (mounted) {
-      print('⚠️ No active subscription, navigating to /pricing');
+      debugPrint('⚠️ No active subscription, navigating to /pricing');
       context.go('/pricing');
     }
   }
@@ -48,7 +50,7 @@ class _AuthScreenState extends State<AuthScreen> {
       await _handleSuccessfulLogin("Apple");
     } catch (e) {
       Utilis.showSnackBar("Apple Sign-In failed", isErr: true);
-      print("Apple error: $e");
+      debugPrint("Apple error: $e");
     } finally {
       if (mounted) setState(() => _loadingApple = false);
     }
@@ -61,7 +63,7 @@ class _AuthScreenState extends State<AuthScreen> {
       await _handleSuccessfulLogin("Google");
     } catch (e) {
       Utilis.showSnackBar("Google Sign-In failed", isErr: true);
-      print("Google error: $e");
+      debugPrint("Google error: $e");
     } finally {
       if (mounted) setState(() => _loadingGoogle = false);
     }
@@ -69,38 +71,37 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    SizeConfig.init(context);
+    // SizeConfig.init(context); // Removed, using ScreenUtil
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       body: SafeArea(
         child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: 22,
-            vertical: SizeConfig.screenVPadding,
-          ),
+          padding: EdgeInsets.symmetric(horizontal: 20.w), // Adapted padding
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(height: SizeConfig.screenHeight * 0.1),
+              // Using 0.1.sh for 10% of screen height
+              SizedBox(height: 0.1.sh),
 
               // TITLE
               Text(
-                "Welcome",
-                style: const TextStyle(
-                  fontSize: 36,
+                "Last Step!",
+                style: TextStyle(
+                  fontSize: 36.sp,
                   fontWeight: FontWeight.bold,
                   color: AppColors.text,
                 ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: 10.h),
 
               Text(
-                "Sign in to continue your journey.",
-                style: TextStyle(fontSize: 16, color: AppColors.textMuted),
+                "Sign in to keep your data and premium features synced on all your devices.",
+                style: TextStyle(fontSize: 16.sp, color: AppColors.textMuted),
               ),
 
-              const SizedBox(height: 45),
+              SizedBox(height: 45.h),
 
               // APPLE LOGIN BUTTON
               _SignInButton(
@@ -110,7 +111,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 onTap: _loadingApple ? null : _appleLogin,
               ),
 
-              const SizedBox(height: 18),
+              SizedBox(height: 18.h),
 
               // GOOGLE LOGIN BUTTON
               _SignInButton(
@@ -124,11 +125,34 @@ class _AuthScreenState extends State<AuthScreen> {
 
               Center(
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 22.0),
-                  child: Text(
-                    "By continuing, you agree to our Terms & Privacy Policy",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  padding: EdgeInsets.only(bottom: 22.h),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LegalScreen()),
+                      );
+                    },
+                    child: RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 12.sp,
+                        ),
+                        children: const [
+                          TextSpan(text: "See our  "),
+                          TextSpan(
+                            text: "Privacy Policy • Terms of Use",
+                            style: TextStyle(color: Colors.lightBlue),
+                          ),
+                          TextSpan(
+                            text:
+                                "  By continuing, you're agreeing to it. Don't worry, it's all good there.",
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -158,14 +182,14 @@ class _SignInButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 56,
+      height: 56.h,
       width: double.infinity,
       child: OutlinedButton(
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Colors.white30, width: 1),
+          side: BorderSide(color: Colors.white30, width: 1.w),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(14.r),
           ),
         ),
         child: isLoading
@@ -173,18 +197,18 @@ class _SignInButton extends StatelessWidget {
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (icon != null) Icon(icon, size: 22, color: Colors.white),
+                  if (icon != null) Icon(icon, size: 22.r, color: Colors.white),
                   if (assetIcon != null)
                     Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Image.asset(assetIcon!, height: 22),
+                      padding: EdgeInsets.only(right: 8.w),
+                      child: Image.asset(assetIcon!, height: 22.h),
                     ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8.w),
                   Text(
                     text,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 17,
+                      fontSize: 17.sp,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

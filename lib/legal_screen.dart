@@ -11,7 +11,10 @@ class LegalScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         title: ListTile(
-          title: Text("Legal", style: TextStyle(fontSize: 18.sp)),
+          title: Text(
+            "Privacy Policy • Terms",
+            style: TextStyle(fontSize: 18.sp),
+          ),
           subtitle: Text(
             "Last updated: November 2025",
             style: TextStyle(fontSize: 11.sp, color: Colors.grey),

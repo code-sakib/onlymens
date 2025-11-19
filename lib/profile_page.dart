@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:onlymens/auth/auth_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:onlymens/legal_screen.dart' show LegalScreen;
 import 'package:onlymens/userpost_pg.dart';
@@ -97,6 +98,8 @@ class _ProfilePageState extends State<ProfilePage> {
     "drtuber.com",
     "porn.com",
     "sex.com",
+    "beeg.com",
+    "goporn.com",
   ];
 
   @override
@@ -888,66 +891,37 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               onPressed: () async {
-                Navigator.pop(context); // Close dialog
+                Navigator.pop(context); // Close confirm dialog
 
-                // Show loading
+                // Show loading spinner
                 showDialog(
                   context: context,
                   barrierDismissible: false,
-                  builder: (context) => Center(
+                  builder: (_) => Center(
                     child: CupertinoActivityIndicator(color: Colors.white),
                   ),
                 );
 
-                try {
-                  final uid = auth.currentUser?.uid;
-                  if (uid != null) {
-                    // Delete all user data from Firestore
-                    await FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(uid)
-                        .delete();
+                // Call AuthService deletion
+                final success = await AuthService.deleteAccountCompletely();
 
-                    // Delete custom avatar locally
-                    try {
-                      final directory =
-                          await getApplicationDocumentsDirectory();
-                      final customAvatarPath =
-                          '${directory.path}/custom_avatar.png';
-                      final customAvatarFile = File(customAvatarPath);
-                      if (customAvatarFile.existsSync()) {
-                        await customAvatarFile.delete();
-                        debugPrint('✅ Local avatar deleted');
-                      }
-                    } catch (e) {
-                      debugPrint('⚠️ Avatar deletion error: $e');
-                    }
+                // Close the loading dialog
+                if (context.mounted) Navigator.pop(context);
 
-                    // Delete Firebase Auth account
-                    await auth.currentUser?.delete();
-
-                    // Close loading dialog
-                    if (context.mounted) Navigator.pop(context);
-
-                    // Navigate to onboarding
-                    if (context.mounted) {
-                      context.go(
-                        '/',
-                      ); // or context.go('/onboarding') depending on your route
-                    }
-
-                    Utilis.showSnackBar('Account deleted successfully');
-                  }
-                } catch (e) {
-                  // Close loading dialog
-                  if (context.mounted) Navigator.pop(context);
-
-                  debugPrint('❌ Delete error: $e');
+                if (!success) {
                   Utilis.showSnackBar(
-                    'Failed to delete account. Please try again or contact support.',
+                    'Failed to delete account. Please try again.',
                     isErr: true,
                   );
+                  return;
                 }
+
+                // Navigate away
+                if (context.mounted) {
+                  context.go('/');
+                }
+
+                Utilis.showSnackBar('Account deleted successfully');
               },
               child: Text('Delete', style: TextStyle(color: Colors.white)),
             ),
@@ -1291,10 +1265,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     "Privacy & Terms",
                     Icon(Icons.privacy_tip_outlined, color: Colors.deepPurple),
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LegalScreen()),
-                      );
+                      context.push('/legal');
                     },
                   ),
 
