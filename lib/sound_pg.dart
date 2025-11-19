@@ -40,12 +40,10 @@ class _RainScreenState extends State<RainScreen> {
     VideoItem(
       title: 'Calm',
       icon: CupertinoIcons.snow,
-      videoUrl: '',
-      audioUrl: '',
+      videoUrl: 'assets/relax/medi/medi.mp4',
+      audioUrl: 'assets/relax/medi/medi.mp3',
       color: const Color(0xFFB8E6F5), // Soft icy blue
-      isAsset: false,
-      storagePath: 'relax/medi.mp4',
-      audioStoragePath: 'relax/medi.mp3',
+      isAsset: true,
       firestoreCollection: 'calm',
     ),
     VideoItem(

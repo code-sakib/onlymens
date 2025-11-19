@@ -62,9 +62,12 @@ class _TimerComponentsState extends State<TimerComponents> {
   }
 
   Future<void> _bootAvatarLogic() async {
+    setState(() => _avatarLoading = true);
+
     final initialPath = await AvatarManager.getCurrentAvatarPath(
       currentUser.uid,
     );
+
     if (mounted) {
       setState(() {
         _currentAvatarPath = initialPath;
@@ -73,6 +76,13 @@ class _TimerComponentsState extends State<TimerComponents> {
     }
 
     await _checkAvatarUpdate();
+
+    // Add a fallback timeout to ensure loading state is cleared
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted && _avatarLoading) {
+        setState(() => _avatarLoading = false);
+      }
+    });
   }
 
   void _toggleSmallHeatmap() =>
@@ -238,7 +248,7 @@ class _TimerComponentsState extends State<TimerComponents> {
 
                               AnimatedOpacity(
                                 opacity: _avatarLoading ? 0 : 1,
-                                duration: Duration(milliseconds: 500),
+                                duration: const Duration(milliseconds: 500),
                                 child: RepaintBoundary(
                                   child: Flutter3DViewer(
                                     key: ValueKey(
@@ -246,7 +256,20 @@ class _TimerComponentsState extends State<TimerComponents> {
                                     ),
                                     src: _currentAvatarPath,
                                     onProgress: (p) {
-                                      if (_avatarLoading && p >= 1.0) {
+                                      // Simplified: just check if loading is complete
+                                      if (mounted && p >= 1.0) {
+                                        setState(() => _avatarLoading = false);
+                                      }
+                                    },
+                                    // Add onLoad callback as additional safety
+                                    onLoad: (String? message) {
+                                      if (mounted) {
+                                        setState(() => _avatarLoading = false);
+                                      }
+                                    },
+                                    onError: (String error) {
+                                      print('❌ Avatar load error: $error');
+                                      if (mounted) {
                                         setState(() => _avatarLoading = false);
                                       }
                                     },
