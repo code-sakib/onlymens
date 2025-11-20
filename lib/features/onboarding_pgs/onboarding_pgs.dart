@@ -766,21 +766,21 @@ class _WelcomePageState extends State<WelcomePage> {
 
           _buildFeatureCard(
             description:
-                'Daily accountability with levels and achievement badges — turn your self-improvement into an exciting journey.',
+                'Rise and unlock avatar-based achievements that make your self-growth journey truely exciting and rewarding.',
           ),
 
           SizedBox(height: 12.h),
 
           _buildFeatureCard(
             description:
-                'Advanced AI models that act like a friend — trained to understand your urges, talk you through tough moments, and guide you with voice or chat.',
+                'Advanced AI models that act like a friend — trained to understand the situation, talk you through tough moments, and guide you with voice or chat.',
           ),
 
           SizedBox(height: 12.h),
 
           _buildFeatureCard(
             description:
-                'Meet people on a similar journey in your locality. Share hurdles, support each other and stay accountable.',
+                'Meet people on a similar journey. Share hurdles, support each other and stay accountable.',
           ),
         ],
       ),
@@ -846,7 +846,7 @@ class StatusPage extends StatelessWidget {
       pageIndex: pageIndex,
       headerTitle: 'About You',
       bigTitle: 'What best describes your current pornography content use?',
-      subtitle: 'Choose the option that best matches your current behavior',
+      subtitle: 'Choose the best match',
       onNext: () {
         onNext();
         // Ensure obSelectedValues is accessible here
@@ -973,7 +973,7 @@ class _EffectsPageState extends State<EffectsPage> {
           SizedBox(height: 12.h),
 
           CustomInputCard(
-            hintText: 'Other effects (optional)…',
+            hintText: 'Other effects (optional)',
             onChanged: widget.onCustomEffectChanged,
           ),
         ],
@@ -1069,7 +1069,7 @@ class _TriggersPageState extends State<TriggersPage> {
           SizedBox(height: 12.h),
 
           CustomInputCard(
-            hintText: 'Other situations (optional)…',
+            hintText: 'Other situations (optional)',
             onChanged: widget.onCustomTriggerChanged,
           ),
         ],
@@ -1320,7 +1320,7 @@ class MultiSelectCard extends StatelessWidget {
               child: Text(
                 title,
                 style: TextStyle(color: Colors.white, fontSize: 14.sp),
-                maxLines: 2,
+                maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
             ),

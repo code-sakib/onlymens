@@ -14,22 +14,24 @@ import ManagedSettings
                 let status = AuthorizationCenter.shared.authorizationStatus
                 result(status == .approved)
             } catch {
-                print("Screen Time auth error: \(error.localizedDescription)")
-                result(false)
+                print("❌ Screen Time auth error: \(error.localizedDescription)")
+                result(FlutterError(code: "AUTH_ERROR",
+                                  message: error.localizedDescription,
+                                  details: nil))
             }
         }
     }
 
     // MARK: - Enable Porn Block
-    @objc func enablePornBlock(_ domains: [String]) {
+    @objc func enablePornBlock(_ domains: [String], result: @escaping FlutterResult) {
         Task { @MainActor in
-            // Build token set from domains
             let tokens: Set<WebDomainToken> = Set(domains.compactMap {
                 WebDomain(domain: $0).token
             })
 
             guard !tokens.isEmpty else {
                 print("⚠️ No valid domains")
+                result(false)
                 return
             }
 
@@ -37,15 +39,17 @@ import ManagedSettings
             store.shield.webDomains = tokens
             
             print("✅ Applied shield to \(tokens.count) domains")
+            result(true)
         }
     }
 
     // MARK: - Disable Porn Block
-    @objc func disablePornBlock() {
+    @objc func disablePornBlock(result: @escaping FlutterResult) {
         Task { @MainActor in
             store.shield.webDomains = nil
             store.shield.webDomainCategories = nil
             print("✅ Content blocking disabled")
+            result(true)
         }
     }
 

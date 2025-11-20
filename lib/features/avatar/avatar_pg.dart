@@ -257,24 +257,21 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
                         BlendMode.multiply,
                       )
                     : const ColorFilter.mode(Colors.grey, BlendMode.saturation),
-                child: Image.asset(
-                  imagePath,
-                  width: 80.w,
-                  height: 80.h,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 80.w,
-                    height: 80.h,
-                    color: Colors.grey[300],
-                    child: Icon(
-                      Icons.person,
-                      size: 40.r,
-                      color: Colors.grey[600],
+                child: ClipRect(
+                  child: Align(
+                    alignment: Alignment.center,
+                    widthFactor: 0.88, // trim 2% from sides
+                    child: Image.asset(
+                      imagePath,
+                      width: 80.w,
+                      height: 80.h,
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
               ),
             ),
+
             SizedBox(width: 16.w),
             Expanded(
               child: Column(

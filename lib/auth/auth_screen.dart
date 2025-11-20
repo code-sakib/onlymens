@@ -166,17 +166,15 @@ class _AuthScreenState extends State<AuthScreen> {
 
 class _SignInButton extends StatelessWidget {
   final String text;
-  final IconData? icon;
   final String? assetIcon;
   final VoidCallback? onTap;
   final bool isLoading;
 
   const _SignInButton({
     required this.text,
-    this.assetIcon,
     required this.onTap,
     required this.isLoading,
-    this.icon,
+    this.assetIcon,
   });
 
   @override
@@ -197,13 +195,11 @@ class _SignInButton extends StatelessWidget {
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (icon != null) Icon(icon, size: 22.r, color: Colors.white),
                   if (assetIcon != null)
                     Padding(
                       padding: EdgeInsets.only(right: 8.w),
                       child: Image.asset(assetIcon!, height: 22.h),
                     ),
-                  SizedBox(width: 8.w),
                   Text(
                     text,
                     style: TextStyle(

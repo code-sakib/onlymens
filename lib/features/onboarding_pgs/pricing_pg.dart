@@ -467,7 +467,7 @@ class _PricingPageState extends State<PricingPage> {
           _buildFeature(
             Icons.flash_on_rounded,
             "Complete Streak System",
-            "Track daily, monthly & lifetime progress",
+            "Track every second’s progress",
           ),
           SizedBox(height: 16.h),
           _buildFeature(

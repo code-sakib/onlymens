@@ -294,7 +294,7 @@ class GuidanceCard extends StatelessWidget {
           color: Colors.grey.shade900,
           borderRadius: BorderRadius.circular(16.r),
           border: Border.all(
-            color: Colors.deepPurpleAccent.withOpacity(0.3),
+            color: Colors.deepPurpleAccent.withValues(alpha: 0.3),
             width: 1.w,
           ),
         ),

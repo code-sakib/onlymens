@@ -31,7 +31,7 @@ void main() async {
   );
 
   // p();
-  // c();/
+  // c();
   // seedAllPosts();
 
   
@@ -39,6 +39,9 @@ void main() async {
   // seedDefaultPosts();
 
   // seedThreeRealPosts();
+
+  // prefs.clear();
+  // auth.signOut();
   
   
 
@@ -84,7 +87,7 @@ c() {
 
   cloudDB
       .collection('users')
-      .doc('y7cs7Ul45lRVmzCykxsIPiO5XqD2')
+      .doc('ewOxwInzBShPEFi2OAesgdCBd8B3')
       .collection('streaks')
       .doc('total')
       .set({"dailyData": dailyData}, SetOptions(merge: true))

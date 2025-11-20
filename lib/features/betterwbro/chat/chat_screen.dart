@@ -195,10 +195,11 @@ class _BChatScreenState extends State<BChatScreen> {
           children: [
             CircleAvatar(
               radius: 20.r,
-              backgroundImage: NetworkImage(
-                widget.imageUrl ??
-                    "https://cdn-icons-png.flaticon.com/512/2815/2815428.png",
-              ),
+              backgroundImage: widget.imageUrl != null
+                  ? (widget.imageUrl!.startsWith("assets/")
+                        ? AssetImage(widget.imageUrl!) as ImageProvider
+                        : NetworkImage(widget.imageUrl!))
+                  : AssetImage("assets/3d/lvl1.png"),
             ),
             SizedBox(width: 10.w),
             Expanded(

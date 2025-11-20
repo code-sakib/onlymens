@@ -1,4 +1,6 @@
 // auth_service.dart
+import 'dart:developer' as developer;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -18,10 +20,12 @@ class AuthService {
     final GoogleSignIn googleSignIn = GoogleSignIn.instance;
     final googleUser = await googleSignIn.authenticate();
 
+    // In your google_sign_in variant `authentication` is synchronous / non-Future.
     final gAuth = googleUser.authentication;
+
     final credential = GoogleAuthProvider.credential(
       idToken: gAuth.idToken,
-      accessToken: gAuth.idToken,
+      accessToken: gAuth.idToken, // kept exactly as your original flow
     );
     final userCred = await auth.signInWithCredential(credential);
     await _ensureUserDoc(userCred.user);
@@ -103,9 +107,6 @@ class AuthService {
   /// ----------------------
   /// Re-authenticate before deleting account
   /// ----------------------
-  /// ----------------------
-  /// Re-authenticate before deleting account
-  /// ----------------------
   static Future<bool> reauthenticateBeforeDelete() async {
     final user = auth.currentUser;
     if (user == null) return false;
@@ -121,15 +122,15 @@ class AuthService {
       if (provider == 'google.com') {
         final GoogleSignIn googleSignIn = GoogleSignIn.instance;
 
-        // The SAME call you use for login:
+        // Keep your original authenticate() flow (no null-check here; authenticate() doesn't return null).
         final googleUser = await googleSignIn.authenticate();
-        if (googleUser == null) return false;
 
-        final gAuth = await googleUser.authentication;
+        // authentication is synchronous in your google_sign_in version.
+        final gAuth = googleUser.authentication;
 
         final credential = GoogleAuthProvider.credential(
           idToken: gAuth.idToken,
-          accessToken: gAuth.idToken,
+          accessToken: gAuth.idToken, // preserved as in your original code
         );
 
         await user.reauthenticateWithCredential(credential);
@@ -155,8 +156,8 @@ class AuthService {
         await user.reauthenticateWithCredential(oauth);
         return true;
       }
-    } catch (e) {
-      print("❌ Re-auth error: $e");
+    } catch (e, st) {
+      developer.log("❌ Re-auth error: $e", stackTrace: st);
       return false;
     }
 
@@ -182,8 +183,8 @@ class AuthService {
       await user.delete();
 
       return true;
-    } catch (e) {
-      print("❌ Delete account error: $e");
+    } catch (e, st) {
+      developer.log("❌ Delete account error: $e", stackTrace: st);
       return false;
     }
   }

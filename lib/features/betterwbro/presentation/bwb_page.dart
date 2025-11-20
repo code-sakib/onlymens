@@ -1162,30 +1162,57 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     if (otherUserId.isEmpty) return;
 
     if (blockedUsers.contains(otherUserId)) {
-      if (!mounted) return;
       _showSnackbar("This user is blocked.", Colors.red);
       return;
     }
 
-    // Fetch the user's profile image before navigation
-    final profileImage = await _getUserProfileImage(
-      otherUserId,
-      user['streaks'] ?? 0,
+    // Example user → img comes from Firestore
+    if (user['isDefault'] == true || user['source'] == 'default') {
+      return _openChatScreen(
+        userId: otherUserId,
+        name: user['name'],
+        imageUrl: user['img'], // default users have firebase img
+        distance: user['distance'],
+        streaks: user['streaks'] ?? 0,
+        totalStreaks: user['totalStreaks'] ?? 0,
+      );
+    }
+
+    // REAL USER — USE LOCALLY CALCULATED STREAK AVATAR
+    final int streaks = user['currentStreak'] ?? user['streaks'] ?? 0;
+    final int level = AvatarManager.getLevelFromDays(streaks);
+
+    final String avatarAsset = "assets/3d/lvl$level.png";
+
+    return _openChatScreen(
+      userId: otherUserId,
+      name: user['name'],
+      imageUrl: avatarAsset, // 🔥 PASS LOCAL ASSET PATH
+      distance: user['distance'],
+      streaks: streaks,
+      totalStreaks: user['totalStreaks'] ?? 0,
     );
+  }
 
-    if (!mounted) return;
-
-    await Navigator.push(
+  void _openChatScreen({
+    required String userId,
+    required String? name,
+    required String? imageUrl,
+    required double? distance,
+    required int streaks,
+    required int totalStreaks,
+  }) {
+    Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => BChatScreen(
-          userId: otherUserId,
-          name: user['name'] ?? 'Unknown',
-          status: user['status'] ?? 'offline',
-          imageUrl: profileImage ?? user['img'],
-          distance: user['distance'],
-          streaks: user['streaks'] ?? 0,
-          totalStreaks: user['totalStreaks'] ?? 0,
+          userId: userId,
+          name: name ?? 'Unknown',
+          status: 'online',
+          imageUrl: imageUrl, // NOW ALWAYS CORRECT
+          distance: distance,
+          streaks: streaks,
+          totalStreaks: totalStreaks,
         ),
       ),
     );
@@ -1831,6 +1858,42 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+
+                      // --- Streak Badge (REAL USERS ONLY) ---
+                      if ((user['streaks'] ?? user['currentStreak'] ?? 0) > 0)
+                        Padding(
+                          padding: EdgeInsets.only(left: 6.w),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8.w,
+                              vertical: 2.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.deepOrangeAccent.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                            child: Row(
+                              children: [
+                                HugeIcon(
+                                  icon: HugeIcons.strokeRoundedFire02,
+                                  color: Colors.deepOrangeAccent,
+                                  size: 11.r,
+                                ),
+                                SizedBox(width: 3.w),
+                                Text(
+                                  '${user['streaks'] ?? user['currentStreak'] ?? 0}',
+                                  style: TextStyle(
+                                    color: Colors.deepOrangeAccent,
+                                    fontSize: 10.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                      // --- Example badge (Eg) ---
                       if (isExampleUser) ...[
                         SizedBox(width: 6.w),
                         _getUserBadge(user, isPost: false),

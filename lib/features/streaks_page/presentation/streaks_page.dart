@@ -116,97 +116,6 @@ class _StreaksPageState extends State<StreaksPage> {
   }
 }
 
-Widget _buildProgressInsights() {
-  return Container(
-    margin: EdgeInsets.symmetric(horizontal: 16.w),
-    padding: EdgeInsets.all(20.r),
-    decoration: BoxDecoration(
-      color: Colors.grey[850],
-      borderRadius: BorderRadius.circular(16.r),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black26,
-          blurRadius: 4.r,
-          offset: Offset(0, 2.h),
-        ),
-      ],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Progress Insights',
-          style: TextStyle(
-            fontSize: 20.sp,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        SizedBox(height: 20.h),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildInsightCard(
-              'Current Streak',
-              '11 Days',
-              Icons.whatshot,
-              Colors.orange,
-            ),
-            _buildInsightCard(
-              'Best Streak',
-              '18 Days',
-              Icons.emoji_events,
-              Colors.amber,
-            ),
-            _buildInsightCard(
-              'Success Rate',
-              '60%',
-              Icons.trending_up,
-              Colors.green,
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildInsightCard(
-  String label,
-  String value,
-  IconData icon,
-  Color color,
-) {
-  return Column(
-    children: [
-      Container(
-        padding: EdgeInsets.all(12.r),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(color: color.withValues(alpha: 0.5)),
-        ),
-        child: Icon(icon, color: color, size: 28.r),
-      ),
-      SizedBox(height: 8.h),
-      Text(
-        value,
-        style: TextStyle(
-          fontSize: 18.sp,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      ),
-      SizedBox(height: 4.h),
-      Text(
-        label,
-        style: TextStyle(fontSize: 12.sp, color: Colors.grey[400]),
-        textAlign: TextAlign.center,
-      ),
-    ],
-  );
-}
-
 secondRowButtons(BuildContext context) {
   return Padding(
     padding: EdgeInsets.all(10.r),
@@ -268,7 +177,7 @@ class _PanicButtonState extends State<PanicButton>
 
   Future<void> _onTriggered() async {
     Gaimon.selection();
-    
+
     setState(() {
       _isTriggered = true;
       _isPressed = false;
