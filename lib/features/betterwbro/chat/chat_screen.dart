@@ -8,10 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/features/betterwbro/chat/chat_service.dart';
+import 'package:cleanmind/core/globals.dart';
+import 'package:cleanmind/features/betterwbro/chat/chat_service.dart';
 
-class ChatScreen extends StatefulWidget {
+class BChatScreen extends StatefulWidget {
   final String userId;
   final String name;
   final String? imageUrl;
@@ -20,7 +20,7 @@ class ChatScreen extends StatefulWidget {
   final int streaks;
   final int totalStreaks;
 
-  const ChatScreen({
+  const BChatScreen({
     super.key,
     required this.userId,
     required this.name,
@@ -32,10 +32,10 @@ class ChatScreen extends StatefulWidget {
   });
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  State<BChatScreen> createState() => _BChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _BChatScreenState extends State<BChatScreen> {
   final ChatService _chatService = ChatService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scroll = ScrollController();

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:onlymens/features/avatar/avatar_data.dart';
-import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
+import 'package:cleanmind/features/avatar/avatar_data.dart';
+import 'package:cleanmind/features/streaks_page/data/streaks_data.dart';
 
 class AvatarLevelsDrawer extends StatefulWidget {
   const AvatarLevelsDrawer({super.key});

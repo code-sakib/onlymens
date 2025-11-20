@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:onlymens/core/apptheme.dart';
+import 'package:cleanmind/core/apptheme.dart';
 
 Widget bottomAppBar({
   required String currentRoute,

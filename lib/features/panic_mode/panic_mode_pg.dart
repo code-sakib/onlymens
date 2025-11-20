@@ -2,9 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
-import 'package:onlymens/features/panic_mode/panicm_service.dart';
-import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
-import 'package:onlymens/utilis/snackbar.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:cleanmind/features/panic_mode/panicm_service.dart';
+import 'package:cleanmind/features/streaks_page/data/streaks_data.dart';
+import 'package:cleanmind/utilis/snackbar.dart';
 
 // ============================================
 // PANIC MODE PAGE (Online API Integration - No Timer)
@@ -29,6 +30,7 @@ class _PanicModePgState extends State<PanicModePg> {
     _loadGuidance();
 
     // Auto show/hide guidance card
+    // Auto show/hide guidance card
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
       setState(() => _showGuidanceCard = true);
@@ -48,16 +50,17 @@ class _PanicModePgState extends State<PanicModePg> {
 
       if (!mounted) return;
       setState(() {
-        _mainText = response.mainText;
-        _guidanceText = response.guidanceText;
+        _mainText = response.mainText; // FETCH ONLY MAIN TEXT
+        _guidanceText = _getFallbackGuidanceText(); // ALWAYS DEFAULT GUIDANCE
         _isLoading = false;
       });
     } catch (e) {
-      debugPrint('❌ Error loading guidance: $e');
+      debugPrint('❌ Error: $e');
+
       if (!mounted) return;
       setState(() {
-        _mainText = _getFallbackMainText();
-        _guidanceText = _getFallbackGuidanceText();
+        _mainText = _getFallbackMainText(); // USE FALLBACK MAIN ONLY
+        _guidanceText = _getFallbackGuidanceText(); // ALWAYS DEFAULT GUIDANCE
         _isLoading = false;
       });
     }
@@ -298,8 +301,8 @@ class GuidanceCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.lightbulb_outline,
+            HugeIcon(
+              icon: HugeIcons.strokeRoundedSparkles,
               color: Colors.deepPurpleAccent,
               size: 20.r,
             ),

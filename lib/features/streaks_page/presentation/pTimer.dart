@@ -3,18 +3,20 @@ import 'dart:async';
 import 'package:confetti/confetti.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_3d_controller/flutter_3d_controller.dart';
 import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gaimon/gaimon.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:intl/intl.dart';
-import 'package:onlymens/core/apptheme.dart';
-import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/features/avatar/avatar_data.dart';
-import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
-import 'package:onlymens/utilis/page_indicator.dart';
-import 'package:onlymens/utilis/snackbar.dart';
+import 'package:cleanmind/core/apptheme.dart';
+import 'package:cleanmind/core/globals.dart';
+import 'package:cleanmind/features/avatar/avatar_data.dart';
+import 'package:cleanmind/features/streaks_page/data/streaks_data.dart';
+import 'package:cleanmind/utilis/page_indicator.dart';
+import 'package:cleanmind/utilis/snackbar.dart';
 
 // ✅ GLOBAL: Single source of truth for data state
 ValueNotifier<Duration?> currentTimer = ValueNotifier(Duration.zero);
@@ -30,28 +32,35 @@ class TimerComponents extends StatefulWidget {
 
 class _TimerComponentsState extends State<TimerComponents> {
   bool _showSmallHeatmap = false;
+  bool _shouldShowAvatar = true; // CRITICAL FIX
+  bool _avatarLoading = true; // loading state
+
   String _currentAvatarPath = AvatarManager.LEVEL_1_PATH;
   int _avatarKeySalt = 0;
-  late ConfettiController _confettiController;
-  bool _avatarLoading = true;
 
+  late ConfettiController _confettiController;
+
+  @override
   @override
   void initState() {
     super.initState();
+
     _confettiController = ConfettiController(
       duration: const Duration(seconds: 3),
     );
+
+    // 🚀 Start TIMER loading immediately (parallel)
+    Future.microtask(() async {
+      final d = await StreaksData.fetchData();
+      currentTimer.value = d;
+      dataLoadedNotifier.value = true;
+      refreshTrigger.value++; // Trigger TimerCompact rebuild early
+    });
+
+    // 🚀 Start AVATAR loading immediately (parallel)
     _bootAvatarLogic();
-  }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
     refreshTrigger.addListener(_onGlobalRefresh);
-  }
-
-  void _onGlobalRefresh() {
-    _checkAvatarUpdate();
   }
 
   @override
@@ -61,283 +70,271 @@ class _TimerComponentsState extends State<TimerComponents> {
     super.dispose();
   }
 
+  // -------------------------------------------------------------------
+  // INITIAL AVATAR LOAD
+  // -------------------------------------------------------------------
   Future<void> _bootAvatarLogic() async {
-    setState(() => _avatarLoading = true);
+    final initial = await AvatarManager.getCurrentAvatarPath(currentUser.uid);
+    if (!mounted) return;
 
-    final initialPath = await AvatarManager.getCurrentAvatarPath(
-      currentUser.uid,
-    );
+    setState(() {
+      _currentAvatarPath = initial;
+      _avatarKeySalt++;
+    });
 
-    if (mounted) {
-      setState(() {
-        _currentAvatarPath = initialPath;
-        _avatarKeySalt++;
-      });
-    }
+    // fallback timeout
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted && _avatarLoading)
+        setState(() {
+          _avatarLoading = false;
+        });
+    });
 
-    await _checkAvatarUpdate();
+    _checkAvatarUpdate();
+  }
 
-    // Add a fallback timeout to ensure loading state is cleared
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted && _avatarLoading) {
-        setState(() => _avatarLoading = false);
-      }
+  // -------------------------------------------------------------------
+  // REFRESH FROM STREAK UPDATE
+  // -------------------------------------------------------------------
+  void _onGlobalRefresh() {
+    _checkAvatarUpdate();
+  }
+
+  // -------------------------------------------------------------------
+  // RELOAD AVATAR (SAFE)
+  // -------------------------------------------------------------------
+  Future<void> _reloadAvatar(String newPath) async {
+    if (!mounted) return;
+
+    // Step 1 – hide avatar to dispose platform view
+    setState(() {
+      _shouldShowAvatar = false;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 80));
+
+    if (!mounted) return;
+
+    // Step 2 – reload with new key
+    setState(() {
+      _avatarLoading = true;
+      _currentAvatarPath = newPath;
+      _avatarKeySalt++;
+      _shouldShowAvatar = true;
+    });
+
+    // Step 3 – fallback timeout
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted && _avatarLoading)
+        setState(() {
+          _avatarLoading = false;
+        });
     });
   }
 
-  void _toggleSmallHeatmap() =>
-      setState(() => _showSmallHeatmap = !_showSmallHeatmap);
-  void _hideSmallHeatmap() {
-    if (_showSmallHeatmap) setState(() => _showSmallHeatmap = false);
-  }
-
-  void _onUpgrade(int newLevel) {
-    _confettiController.play();
-    Utilis.showSnackBar(
-      "🎉 Congrats! Avatar upgraded to Level $newLevel!",
-      isErr: false,
-    );
-  }
+  // -------------------------------------------------------------------
+  // AVATAR UPDATE CHECK
+  // -------------------------------------------------------------------
+  bool _avatarUpdateInProgress = false;
 
   Future<void> _checkAvatarUpdate() async {
     if (!mounted) return;
 
+    // 👉 PREVENT double-loading
+    if (_avatarUpdateInProgress) return;
+    _avatarUpdateInProgress = true;
+
     try {
-      final info = await AvatarManager.getStorageInfo(currentUser.uid);
-      final int previousLevel = info['current_level'] ?? 1;
+      final oldInfo = await AvatarManager.getStorageInfo(currentUser.uid);
+      final oldLevel = oldInfo['current_level'] ?? 1;
 
       final result = await AvatarManager.checkAndUpdateModelAfterFetch(
         uid: currentUser.uid,
         currentStreakDays: StreaksData.currentStreakDays,
       );
 
-      if (!mounted) return;
+      if (mounted && result.success) {
+        await _reloadAvatar(result.currentPath);
 
-      if (result.success) {
-        setState(() {
-          _currentAvatarPath = result.currentPath;
-          _avatarKeySalt++;
-        });
-
-        if (result.wasUpdated) {
-          final int newLevel = result.currentLevel;
-          if (newLevel > previousLevel) {
-            _onUpgrade(newLevel);
-          } else {
-            if (result.message != null) Utilis.showToast(result.message!);
-          }
+        if (result.wasUpdated && result.currentLevel > oldLevel) {
+          _onUpgrade(result.currentLevel);
         }
       }
     } catch (e) {
-      print('❌ Avatar check error: $e');
+      print("Avatar update error: $e");
+    } finally {
+      _avatarUpdateInProgress = false;
     }
   }
 
-  Future<void> _handleStreakUpdate() async {
-    try {
-      final status = await AvatarManager.checkIfUpdateNeeded(
-        uid: currentUser.uid,
-        newStreakDays: StreaksData.currentStreakDays,
-      );
-
-      if (!status.needsUpdate) {
-        await _checkAvatarUpdate();
-        return;
-      }
-
-      final res = await AvatarManager.updateModelNow(
-        uid: currentUser.uid,
-        streakDays: StreaksData.currentStreakDays,
-      );
-
-      if (!mounted) return;
-
-      if (res.success) {
-        setState(() {
-          _currentAvatarPath = res.path;
-          _avatarKeySalt++;
-        });
-
-        if (res.level > status.currentLevel) {
-          _onUpgrade(res.level);
-        } else {
-          Utilis.showToast(res.message ?? 'Avatar updated');
-        }
-
-        refreshTrigger.value = refreshTrigger.value + 1;
-      } else {
-        Utilis.showSnackBar(res.error ?? 'Update failed', isErr: true);
-      }
-    } catch (e) {
-      print('❌ handleStreakUpdate error: $e');
-    }
+  void _onUpgrade(int level) {
+    _confettiController.play();
+    Utilis.showSnackBar("🎉 Congrats! Avatar upgraded to Level $level!");
   }
 
+  // -------------------------------------------------------------------
+  // UI BUILD
+  // -------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
       valueListenable: currentTimer,
-      builder: (context, timer, _) {
+      builder: (context, _, __) {
         return Stack(
           children: [
             Column(
               children: [
-                // App bar row
-                Padding(
-                  padding: EdgeInsets.only(top: 8.r),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Builder(
-                        builder: (context) {
-                          return IconButton(
-                            onPressed: () => Scaffold.of(context).openDrawer(),
-                            icon: HugeIcon(
-                              icon: HugeIcons.strokeRoundedSidebarLeft,
-                              color: Colors.white,
-                              size: 25.sp,
-                            ),
-                          );
-                        },
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              IconButton(
-                                onPressed: _toggleSmallHeatmap,
-                                icon: HugeIcon(
-                                  icon: HugeIcons.strokeRoundedCalendar03,
-                                  color: Colors.white,
-                                  size: 25.sp,
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () => context.push('/profile'),
-                                icon: HugeIcon(
-                                  icon: HugeIcons.strokeRoundedUserCircle,
-                                  color: Colors.white,
-                                  size: 25.sp,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // 3D Avatar
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Row(
-                      children: [
-                        SizedBox(
-                          height: 260.h,
-                          width: 200.w,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              if (_avatarLoading)
-                                const CupertinoActivityIndicator(
-                                  color: Colors.white,
-                                ),
-
-                              AnimatedOpacity(
-                                opacity: _avatarLoading ? 0 : 1,
-                                duration: const Duration(milliseconds: 500),
-                                child: RepaintBoundary(
-                                  child: Flutter3DViewer(
-                                    key: ValueKey(
-                                      'avatar|$_currentAvatarPath|$_avatarKeySalt',
-                                    ),
-                                    src: _currentAvatarPath,
-                                    onProgress: (p) {
-                                      // Simplified: just check if loading is complete
-                                      if (mounted && p >= 1.0) {
-                                        setState(() => _avatarLoading = false);
-                                      }
-                                    },
-                                    // Add onLoad callback as additional safety
-                                    onLoad: (String? message) {
-                                      if (mounted) {
-                                        setState(() => _avatarLoading = false);
-                                      }
-                                    },
-                                    onError: (String error) {
-                                      print('❌ Avatar load error: $error');
-                                      if (mounted) {
-                                        setState(() => _avatarLoading = false);
-                                      }
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const Expanded(child: PornFreeTimerCompact()),
-                      ],
-                    ),
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: ConfettiWidget(
-                        confettiController: _confettiController,
-                        blastDirection: 3.14 / 2,
-                        blastDirectionality: BlastDirectionality.directional,
-                        emissionFrequency: 0.03,
-                        numberOfParticles: 20,
-                        maxBlastForce: 10,
-                        minBlastForce: 5,
-                        gravity: 0.25,
-                        colors: const [
-                          Colors.deepPurple,
-                          Colors.deepPurpleAccent,
-                          Colors.amber,
-                          Colors.yellow,
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
+                _buildAppbarRow(context),
+                _buildAvatarAndTimer(),
                 DaysList(
                   key: ValueKey(StreaksData.currentStreakDays),
-                  onStreakUpdate: _handleStreakUpdate,
+                  onStreakUpdate: () => refreshTrigger.value++,
                 ),
               ],
             ),
 
-            // Heatmap overlay
-            if (_showSmallHeatmap)
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _hideSmallHeatmap,
-                  child: Padding(
-                    padding: EdgeInsets.only(top: 60.r),
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: Material(
-                        elevation: 10,
-                        borderRadius: BorderRadius.circular(12.r),
-                        child: Container(
-                          width: 260.w,
-                          padding: EdgeInsets.all(8.r),
-                          child: const CompactHeatMap(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            if (_showSmallHeatmap) _buildHeatmapOverlay(),
           ],
         );
       },
+    );
+  }
+
+  // -------------------------------------------------------------------
+  // APPBAR
+  // -------------------------------------------------------------------
+  Widget _buildAppbarRow(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(top: 8.r),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Builder(
+            builder: (context) => IconButton(
+              onPressed: () => Scaffold.of(context).openDrawer(),
+              icon: HugeIcon(
+                icon: HugeIcons.strokeRoundedSidebarLeft,
+                color: Colors.white,
+                size: 25.sp,
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              IconButton(
+                onPressed: () => setState(() {
+                  _showSmallHeatmap = !_showSmallHeatmap;
+                }),
+                icon: HugeIcon(
+                  icon: HugeIcons.strokeRoundedCalendar03,
+                  color: Colors.white,
+                  size: 25.sp,
+                ),
+              ),
+              IconButton(
+                onPressed: () => context.push('/profile'),
+                icon: HugeIcon(
+                  icon: HugeIcons.strokeRoundedUserCircle,
+                  color: Colors.white,
+                  size: 25.sp,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------
+  // AVATAR + TIMER ROW (TIMER ALREADY PERFECT)
+  // -------------------------------------------------------------------
+  Widget _buildAvatarAndTimer() {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Row(
+          children: [
+            SizedBox(
+              height: 260.h,
+              width: 200.w,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (_avatarLoading)
+                    const CupertinoActivityIndicator(color: Colors.white),
+
+                  if (_shouldShowAvatar)
+                    RepaintBoundary(
+                      child: Flutter3DViewer(
+                        key: ValueKey("avatar_$_avatarKeySalt"),
+                        src: _currentAvatarPath,
+                        onLoad: (_) {
+                          if (mounted) {
+                            setState(() => _avatarLoading = false);
+                          }
+                        },
+                        onError: (_) {
+                          if (mounted) {
+                            setState(() => _avatarLoading = false);
+                          }
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            // IMPORTANT: Timer untouched
+            const Expanded(child: PornFreeTimerCompact()),
+          ],
+        ),
+
+        // Confetti top center
+        Align(
+          alignment: Alignment.topCenter,
+          child: ConfettiWidget(
+            confettiController: _confettiController,
+            blastDirection: 3.14 / 2,
+            emissionFrequency: 0.03,
+            numberOfParticles: 20,
+            gravity: 0.25,
+            colors: const [
+              Colors.deepPurple,
+              Colors.deepPurpleAccent,
+              Colors.amber,
+              Colors.yellow,
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // -------------------------------------------------------------------
+  // HEATMAP OVERLAY
+  // -------------------------------------------------------------------
+  Widget _buildHeatmapOverlay() {
+    return Positioned.fill(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _showSmallHeatmap = false),
+        child: Padding(
+          padding: EdgeInsets.only(top: 60.r),
+          child: Align(
+            alignment: Alignment.topRight,
+            child: Material(
+              elevation: 10,
+              borderRadius: BorderRadius.circular(12.r),
+              child: Container(
+                width: 260.w,
+                padding: EdgeInsets.all(8.r),
+                child: const CompactHeatMap(),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -387,7 +384,7 @@ class PornFreeTimerCompact extends StatefulWidget {
 
 class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
   Timer? _timer;
-  final PageController _pageController = PageController();
+  final PageController _pageController = PageController(initialPage: 0);
   int _currentPage = 0;
   bool isLoading = true;
   Duration totalDoneDuration = Duration.zero;
@@ -401,8 +398,6 @@ class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
 
     _refreshListener = _onRefreshTriggered;
     refreshTrigger.addListener(_refreshListener);
-
-    _initData();
   }
 
   void _onRefreshTriggered() {
@@ -468,7 +463,7 @@ class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
   @override
   Widget build(BuildContext context) {
     return isLoading
-        ? const Center(child: CupertinoActivityIndicator())
+        ? const Center(child: CupertinoActivityIndicator(color: Colors.white))
         : currentDuration == Duration.zero && totalDoneDuration == Duration.zero
         ? Center(
             child: Text(
@@ -484,6 +479,8 @@ class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
                 width: 200.w,
                 child: PageView(
                   controller: _pageController,
+                  allowImplicitScrolling: true,
+                  physics: const BouncingScrollPhysics(),
                   onPageChanged: (index) =>
                       setState(() => _currentPage = index),
                   children: [
@@ -493,6 +490,7 @@ class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
                 ),
               ),
               SizedBox(height: 10.h),
+              // keep your existing indicator
               SimplePageIndicator(currentPage: _currentPage, pageCount: 2),
             ],
           );
@@ -516,7 +514,7 @@ class _PornFreeTimerCompactState extends State<PornFreeTimerCompact> {
           ),
         ),
         Text(
-          "You've been porn free for..",
+          "You've been porn-free for",
           style: TextStyle(fontSize: 12.sp, color: Colors.grey[500]),
         ),
         SizedBox(height: 8.h),
@@ -607,7 +605,7 @@ class _DaysListState extends State<DaysList> {
                   return GestureDetector(
                     onTap: () {
                       if (!canUpdate) {
-                        Utilis.showSnackBar('Cannot update future dates');
+                        Utilis.showSnackBar('Cannot update future dates', isErr: true);
                         return;
                       }
                       selectedDay.value = index;
@@ -888,6 +886,8 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
   Future<void> _updateForPastDate(int status) async {
     if (isUpdatingDone || isUpdatingSkip || isRelapsedUpdating) return;
 
+    Gaimon.heavy();
+
     setState(() {
       if (status == StreaksData.BOTH_TILES) {
         isUpdatingDone = true;
@@ -940,6 +940,8 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
   Future<void> _handleRelapse() async {
     if (isRelapsedUpdating) return;
 
+    HapticFeedback.mediumImpact();
+
     if (!widget.isToday) {
       await _updateForPastDate(StreaksData.RELAPSED);
       return;
@@ -978,6 +980,8 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
     if (isUpdatingDone || isUpdatingSkip) return;
 
     bool isSkip = status == StreaksData.SKIPPED;
+
+    Gaimon.heavy();
 
     setState(() {
       if (isSkip) {

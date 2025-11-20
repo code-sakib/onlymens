@@ -3,10 +3,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
-import 'package:onlymens/core/data_state.dart';
-import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/features/avatar/avatar_data.dart';
-import 'package:onlymens/profile_page.dart';
+import 'package:cleanmind/core/data_state.dart';
+import 'package:cleanmind/core/globals.dart';
+import 'package:cleanmind/features/avatar/avatar_data.dart';
+import 'package:cleanmind/profile_page.dart';
 
 class StreaksData {
   // Cloud Firestore reference

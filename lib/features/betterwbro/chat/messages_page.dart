@@ -3,9 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/features/betterwbro/chat/chat_service.dart';
-import 'package:onlymens/features/betterwbro/chat/chat_screen.dart';
+import 'package:cleanmind/core/globals.dart';
+import 'package:cleanmind/features/betterwbro/chat/chat_service.dart';
+import 'package:cleanmind/features/betterwbro/chat/chat_screen.dart';
 
 class MessagesPage extends StatefulWidget {
   const MessagesPage({super.key});
@@ -167,7 +167,7 @@ class _MessagesPageState extends State<MessagesPage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => ChatScreen(
+                                  builder: (_) => BChatScreen(
                                     userId: otherId,
                                     name: title,
                                     status: "online",

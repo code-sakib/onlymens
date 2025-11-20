@@ -5,14 +5,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gaimon/gaimon.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/features/avatar/avatar_pg.dart';
-import 'package:onlymens/features/streaks_page/presentation/pTimer.dart';
-import 'package:onlymens/guides/blogs.dart';
-import 'package:onlymens/guides/guides_pg.dart';
-import 'package:onlymens/utilis/snackbar.dart';
+import 'package:cleanmind/core/globals.dart';
+import 'package:cleanmind/features/avatar/avatar_pg.dart';
+import 'package:cleanmind/features/streaks_page/presentation/pTimer.dart';
+import 'package:cleanmind/guides/blogs.dart';
+import 'package:cleanmind/guides/guides_pg.dart';
+import 'package:cleanmind/utilis/snackbar.dart';
 
 class StreaksPage extends StatefulWidget {
   const StreaksPage({super.key});
@@ -266,7 +267,8 @@ class _PanicButtonState extends State<PanicButton>
   }
 
   Future<void> _onTriggered() async {
-    HapticFeedback.heavyImpact();
+    Gaimon.selection();
+    
     setState(() {
       _isTriggered = true;
       _isPressed = false;
@@ -293,6 +295,10 @@ class _PanicButtonState extends State<PanicButton>
       _isPressed = true;
       _isTriggered = false;
     });
+
+    // ADD THIS
+    HapticFeedback.heavyImpact();
+
     _timerController.forward(from: 0);
   }
 

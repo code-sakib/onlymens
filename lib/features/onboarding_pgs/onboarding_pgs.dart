@@ -5,6 +5,7 @@ import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart'; // Added ScreenUtil
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -12,7 +13,7 @@ import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
-import 'package:onlymens/core/apptheme.dart';
+import 'package:cleanmind/core/apptheme.dart';
 import 'package:uuid/uuid.dart';
 
 // Import your other pages (StatusPage, EffectsPage, etc.) here
@@ -308,7 +309,12 @@ class BasePage extends StatelessWidget {
               width: double.infinity,
               height: 50.h,
               child: ElevatedButton(
-                onPressed: isNextEnabled ? onNext : null,
+                onPressed: isNextEnabled
+                    ? () {
+                        HapticFeedback.mediumImpact();
+                        onNext();
+                      }
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   disabledBackgroundColor: Colors.white30,
@@ -725,6 +731,9 @@ class _WelcomePageState extends State<WelcomePage> {
           SizedBox(
             height: 50.h,
             child: AnimatedTextKit(
+              onNext: (index, isLast) {
+                HapticFeedback.mediumImpact();
+              },
               totalRepeatCount: 1,
               animatedTexts: [
                 TyperAnimatedText(

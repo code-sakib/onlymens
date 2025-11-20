@@ -4,7 +4,7 @@ import 'package:animated_text_kit/animated_text_kit.dart';
 import 'dart:async';
 
 import 'package:go_router/go_router.dart';
-import 'package:onlymens/utilis/size_config.dart';
+import 'package:cleanmind/utilis/size_config.dart';
 
 class MeditationPg extends StatefulWidget {
   const MeditationPg({super.key});

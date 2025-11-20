@@ -1,6 +1,6 @@
 // import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'package:onlymens/core/data_state.dart';
-// import 'package:onlymens/core/globals.dart';
+// import 'package:cleanmind/core/data_state.dart';
+// import 'package:cleanmind/core/globals.dart';
 
 // class OBDataService {
 //   static Future<void> onboardUser(Map<String, dynamic> userOBValues) async {

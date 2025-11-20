@@ -42,8 +42,6 @@
 	<true/>
 	<key>NSFamilyControlsUsageDescription</key>
 	<string>We need Screen Time access to block adult content</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>We use your location to find people near you on the same journey.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to find people near you on the same journey.</string>
 	<key>NSMicrophoneUsageDescription</key>

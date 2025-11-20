@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart'; // ScreenUtil
 import 'package:go_router/go_router.dart';
-import 'package:onlymens/auth/auth_service.dart';
-import 'package:onlymens/core/apptheme.dart';
-import 'package:onlymens/legal_screen.dart';
+import 'package:cleanmind/auth/auth_service.dart';
+import 'package:cleanmind/core/apptheme.dart';
+import 'package:cleanmind/legal_screen.dart';
 // removed size_config import as we are using flutter_screenutil
-import 'package:onlymens/utilis/snackbar.dart';
+import 'package:cleanmind/utilis/snackbar.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});

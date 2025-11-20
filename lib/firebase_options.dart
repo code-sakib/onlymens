@@ -50,9 +50,9 @@ class DefaultFirebaseOptions {
     apiKey: 'AIzaSyAOVJ4QFC-vhCHKEHmaaqc2PUPYJl5mVrg',
     appId: '1:99850291815:web:29e05917c11765b00d22c2',
     messagingSenderId: '99850291815',
-    projectId: 'onlymens-344d2',
-    authDomain: 'onlymens-344d2.firebaseapp.com',
-    storageBucket: 'onlymens-344d2.firebasestorage.app',
+    projectId: 'cleanmind-344d2',
+    authDomain: 'cleanmind-344d2.firebaseapp.com',
+    storageBucket: 'cleanmind-344d2.firebasestorage.app',
     measurementId: 'G-3JF2H0BQ53',
   );
 
@@ -60,8 +60,8 @@ class DefaultFirebaseOptions {
     apiKey: 'AIzaSyDBJsqPLvfh-4tC2zV5Uf4kCQ7Zs_WXx1k',
     appId: '1:99850291815:android:89808d74cc2d010a0d22c2',
     messagingSenderId: '99850291815',
-    projectId: 'onlymens-344d2',
-    storageBucket: 'onlymens-344d2.firebasestorage.app',
+    projectId: 'cleanmind-344d2',
+    storageBucket: 'cleanmind-344d2.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(

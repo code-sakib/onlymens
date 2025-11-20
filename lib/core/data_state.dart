@@ -2,7 +2,7 @@
 
 import 'package:firebase_auth/firebase_auth.dart'; // For specific FirebaseAuthException
 
-import 'package:onlymens/utilis/snackbar.dart';
+import 'package:cleanmind/utilis/snackbar.dart';
 
 class DataState {
   // Async runner for operations, catches exceptions and shows snackbars

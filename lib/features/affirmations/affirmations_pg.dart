@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:onlymens/features/affirmations/affirmations_data.dart';
-import 'package:onlymens/utilis/snackbar.dart';
+import 'package:cleanmind/features/affirmations/affirmations_data.dart';
+import 'package:cleanmind/utilis/snackbar.dart';
 
 // Affirmations Page with ScreenUtil
 

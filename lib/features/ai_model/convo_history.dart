@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:onlymens/features/ai_model/model/model.dart';
+import 'package:cleanmind/features/ai_model/model/model.dart';
 
 class ConversationHistoryWidget extends StatefulWidget {
   final Function(String sessionId)? onConversationTap;

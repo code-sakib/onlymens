@@ -1,5 +1,6 @@
 // profile_page.dart - SIMPLIFIED VERSION (No Firebase Storage)
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui';
 import 'package:feedback/feedback.dart';
@@ -11,20 +12,20 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:onlymens/auth/auth_service.dart';
+import 'package:cleanmind/auth/auth_service.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:onlymens/legal_screen.dart' show LegalScreen;
-import 'package:onlymens/userpost_pg.dart';
-import 'package:onlymens/core/data_state.dart';
-import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/features/ai_model/model/model.dart';
-import 'package:onlymens/features/avatar/avatar_data.dart';
-import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
-import 'package:onlymens/feedback_service.dart';
-import 'package:onlymens/utilis/snackbar.dart';
+import 'package:cleanmind/legal_screen.dart' show LegalScreen;
+import 'package:cleanmind/userpost_pg.dart';
+import 'package:cleanmind/core/data_state.dart';
+import 'package:cleanmind/core/globals.dart';
+import 'package:cleanmind/features/ai_model/model/model.dart';
+import 'package:cleanmind/features/avatar/avatar_data.dart';
+import 'package:cleanmind/features/streaks_page/data/streaks_data.dart';
+import 'package:cleanmind/feedback_service.dart';
+import 'package:cleanmind/utilis/snackbar.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-const MethodChannel _screenTimeChannel = MethodChannel('onlymens/screentime');
+const MethodChannel _screenTimeChannel = MethodChannel('cleanmind/screentime');
 
 Future<bool> _requestScreenTimeAuth() async {
   try {
@@ -130,7 +131,7 @@ class _ProfilePageState extends State<ProfilePage> {
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
         setState(() {
-          _userName = data['name'] ?? 'User';
+          _userName = data['name'] ?? generateRandomUserName();
           _totalDays = data['totalDays'] ?? 0;
           _currentStreak = data['currentStreak'] ?? 0;
           _isContentBlocked = data['contentBlocked'] ?? false;
@@ -141,8 +142,10 @@ class _ProfilePageState extends State<ProfilePage> {
         _calculateProgress();
         await _loadLocalAvatar(); // Load custom avatar if exists
       } else {
+        final randomName = generateRandomUserName();
+
         await profileRef.set({
-          'name': auth.currentUser?.displayName ?? 'User',
+          'name': randomName,
           'totalDays': 0,
           'currentStreak': 0,
           'contentBlocked': false,
@@ -151,7 +154,7 @@ class _ProfilePageState extends State<ProfilePage> {
         });
 
         setState(() {
-          _userName = auth.currentUser?.displayName ?? 'User';
+          _userName = randomName;
           _isLoading = false;
         });
 
@@ -1496,3 +1499,7 @@ class AvatarChangeNotifier extends ChangeNotifier {
 }
 
 final AvatarChangeNotifier avatarChangeNotifier = AvatarChangeNotifier();
+String generateRandomUserName() {
+  final rnd = Random().nextInt(999) + 1; // 1–999
+  return 'User$rnd';
+}

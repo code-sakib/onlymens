@@ -1,4 +1,4 @@
-name: onlymens
+name: cleanmind
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -73,6 +73,9 @@ dependencies:
   in_app_purchase: ^3.2.3
   flutter_screenutil: ^5.9.3
   sign_in_with_apple: ^7.0.1
+  google_fonts: ^6.3.2
+  gaimon: ^1.4.1
+  uuid: ^4.5.2
  
 
 dev_dependencies:
@@ -103,10 +106,9 @@ flutter:
     - assets/bwb/
     - assets/lottie/
     - assets/affirmations/
-    - assets/streaks/
     - assets/3d/
     - assets/relax/rain/
-    - assets/relax/fire/
+    - assets/relax/medi/
     - assets/guide/
     - assets/onboarding/
     - .env

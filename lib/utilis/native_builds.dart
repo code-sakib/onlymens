@@ -7,7 +7,7 @@ class AppMethodChannels extends StatefulWidget {
   const AppMethodChannels({super.key});
 
    static const MethodChannel _channel =
-      MethodChannel('com.sakib.onlymens/channel');
+      MethodChannel('com.sakib.cleanmind/channel');
 
   @override
   State<AppMethodChannels> createState() => _AppMethodChannelsState();

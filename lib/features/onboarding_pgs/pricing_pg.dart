@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart'; // Added ScreenUtil
-import 'package:onlymens/auth/auth_service.dart';
-import 'package:onlymens/core/apptheme.dart';
-import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/legal_screen.dart';
-import 'package:onlymens/utilis/snackbar.dart';
+import 'package:cleanmind/auth/auth_service.dart';
+import 'package:cleanmind/core/apptheme.dart';
+import 'package:cleanmind/core/globals.dart';
+import 'package:cleanmind/legal_screen.dart';
+import 'package:cleanmind/utilis/snackbar.dart';
 
 class PricingPage extends StatefulWidget {
   const PricingPage({super.key});

@@ -9,11 +9,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:onlymens/core/approuter.dart';
-import 'package:onlymens/core/apptheme.dart';
-import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/firebase_options.dart';
-import 'package:onlymens/utilis/snackbar.dart';
+import 'package:cleanmind/core/approuter.dart';
+import 'package:cleanmind/core/apptheme.dart';
+import 'package:cleanmind/core/globals.dart';
+import 'package:cleanmind/firebase_options.dart';
+import 'package:cleanmind/utilis/snackbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
@@ -34,6 +34,14 @@ void main() async {
   // c();/
   // seedAllPosts();
 
+  
+  // await deleteAllPost/sFromCollection('mUsers');
+  // seedDefaultPosts();
+
+  // seedThreeRealPosts();
+  
+  
+
   runApp(
     BetterFeedback(
       theme: FeedbackThemeData(
@@ -45,6 +53,8 @@ void main() async {
       child: const MyApp(),
     ),
   );
+
+  // seedThreeRealPosts();
 }
 
 c() {
@@ -97,8 +107,8 @@ class MyApp extends StatelessWidget {
       builder: (_, __) => SafeArea(
         child: MaterialApp.router(
           routerConfig: approutes,
-          title: 'OnlyMens',
-          theme: AppTheme2.theme,
+          title: 'CleanMind',
+          theme: AppTheme.theme,
           scaffoldMessengerKey: Utilis.messengerKey,
           debugShowCheckedModeBanner: false,
           useInheritedMediaQuery: true,
@@ -177,6 +187,197 @@ p() async {
   print(
     "Uploaded ${sorted.length} days; 3's = ${sorted.values.where((v) => v == 3).length}",
   );
+}
+
+/// Remove duplicate posts from both rUsers and mUsers collections
+/// Run this once by calling it from main(), then comment it out
+Future<void> removeDuplicatePosts() async {
+  final firestore = FirebaseFirestore.instance;
+
+  print('🧹 Starting duplicate removal...');
+
+  // Clean rUsers collection
+  await _cleanCollection(firestore, 'posts/rUsers/all', 'rUsers');
+
+  // Clean mUsers collection
+  await _cleanCollection(firestore, 'posts/mUsers/all', 'mUsers');
+
+  print('✅ Duplicate removal complete!');
+}
+
+Future<void> _cleanCollection(
+  FirebaseFirestore firestore,
+  String path,
+  String collectionName,
+) async {
+  print('🔍 Checking $collectionName for duplicates...');
+
+  final collection = firestore
+      .collection('posts')
+      .doc(collectionName == 'rUsers' ? 'rUsers' : 'mUsers')
+      .collection('all');
+
+  final snapshot = await collection.get();
+
+  if (snapshot.docs.isEmpty) {
+    print('ℹ️  No posts in $collectionName');
+    return;
+  }
+
+  print('📊 Found ${snapshot.docs.length} posts in $collectionName');
+
+  // Track seen posts by unique key
+  final Map<String, String> seenPosts = {}; // key -> firstDocId
+  final List<String> duplicatesToDelete = [];
+
+  for (var doc in snapshot.docs) {
+    final data = doc.data();
+    final postText = data['postText']?.toString() ?? '';
+    final userId = data['userId']?.toString() ?? '';
+    final timestamp = data['timestamp'] ?? 0;
+
+    // Create unique key based on content
+    final uniqueKey = '$userId-$postText-$timestamp';
+
+    if (seenPosts.containsKey(uniqueKey)) {
+      // This is a duplicate
+      duplicatesToDelete.add(doc.id);
+      print('❌ Duplicate found: ${doc.id}');
+    } else {
+      // First occurrence - keep it
+      seenPosts[uniqueKey] = doc.id;
+    }
+  }
+
+  if (duplicatesToDelete.isEmpty) {
+    print('✨ No duplicates found in $collectionName');
+    return;
+  }
+
+  print(
+    '🗑️  Deleting ${duplicatesToDelete.length} duplicates from $collectionName...',
+  );
+
+  // Delete in batches of 500 (Firestore batch limit)
+  const batchSize = 500;
+
+  for (int i = 0; i < duplicatesToDelete.length; i += batchSize) {
+    final batch = firestore.batch();
+    final end = (i + batchSize < duplicatesToDelete.length)
+        ? i + batchSize
+        : duplicatesToDelete.length;
+
+    for (int j = i; j < end; j++) {
+      final docRef = collection.doc(duplicatesToDelete[j]);
+      batch.delete(docRef);
+    }
+
+    await batch.commit();
+    print('✅ Deleted batch ${(i ~/ batchSize) + 1}');
+  }
+
+  print(
+    '✅ $collectionName cleaned! Removed ${duplicatesToDelete.length} duplicates',
+  );
+  print(
+    '📊 Remaining posts: ${snapshot.docs.length - duplicatesToDelete.length}',
+  );
+}
+
+/// Alternative: Remove ALL posts from a collection (use with caution!)
+Future<void> deleteAllPostsFromCollection(String collectionName) async {
+  final firestore = FirebaseFirestore.instance;
+
+  print('⚠️  Deleting ALL posts from $collectionName...');
+
+  final collection = firestore
+      .collection('posts')
+      .doc(collectionName)
+      .collection('all');
+
+  final snapshot = await collection.get();
+
+  if (snapshot.docs.isEmpty) {
+    print('ℹ️  Collection $collectionName is already empty');
+    return;
+  }
+
+  print('🗑️  Found ${snapshot.docs.length} posts to delete');
+
+  // Delete in batches
+  const batchSize = 500;
+  int totalDeleted = 0;
+
+  for (int i = 0; i < snapshot.docs.length; i += batchSize) {
+    final batch = firestore.batch();
+    final end = (i + batchSize < snapshot.docs.length)
+        ? i + batchSize
+        : snapshot.docs.length;
+
+    for (int j = i; j < end; j++) {
+      batch.delete(snapshot.docs[j].reference);
+    }
+
+    await batch.commit();
+    totalDeleted += (end - i);
+    print('✅ Deleted $totalDeleted / ${snapshot.docs.length} posts');
+  }
+
+  print('✅ All posts deleted from $collectionName!');
+}
+
+/// Clean up duplicates from user's personal posts collection
+Future<void> cleanUserPersonalPosts(String userId) async {
+  final firestore = FirebaseFirestore.instance;
+
+  print('🧹 Cleaning personal posts for user: $userId');
+
+  final collection = firestore
+      .collection('users')
+      .doc(userId)
+      .collection('posts');
+
+  final snapshot = await collection.get();
+
+  if (snapshot.docs.isEmpty) {
+    print('ℹ️  No posts found for this user');
+    return;
+  }
+
+  print('📊 Found ${snapshot.docs.length} posts');
+
+  final Map<String, String> seenPosts = {};
+  final List<String> duplicatesToDelete = [];
+
+  for (var doc in snapshot.docs) {
+    final data = doc.data();
+    final postText = data['postText']?.toString() ?? '';
+    final timestamp = data['timestamp'] ?? 0;
+
+    final uniqueKey = '$postText-$timestamp';
+
+    if (seenPosts.containsKey(uniqueKey)) {
+      duplicatesToDelete.add(doc.id);
+      print('❌ Duplicate found: ${doc.id}');
+    } else {
+      seenPosts[uniqueKey] = doc.id;
+    }
+  }
+
+  if (duplicatesToDelete.isEmpty) {
+    print('✨ No duplicates in user posts');
+    return;
+  }
+
+  print('🗑️  Deleting ${duplicatesToDelete.length} duplicates...');
+
+  final batch = firestore.batch();
+  for (var docId in duplicatesToDelete) {
+    batch.delete(collection.doc(docId));
+  }
+
+  await batch.commit();
+  print('✅ User posts cleaned!');
 }
 
 Future<void> seedDefaultPosts() async {
@@ -435,4 +636,58 @@ Future<void> seedAllPosts() async {
   await seedDefaultPosts();
   await seedRealUserPosts();
   print("🔥 All sample posts seeded successfully!");
+}
+
+Future<void> seedThreeRealPosts() async {
+  final firestore = FirebaseFirestore.instance;
+
+  final samplePosts = [
+    {
+      "dp": "https://picsum.photos/200?random=301",
+      "name": "Daniel West",
+      "postText": "Stayed strong today. Fewer urges than yesterday.",
+      "streaks": 3,
+      "userId": "user_A",
+      "viewCount": 15,
+    },
+    {
+      "dp": "https://picsum.photos/200?random=302",
+      "name": "Jordan Flynn",
+      "postText": "Drank more water and avoided scrolling. Felt good.",
+      "streaks": 5,
+      "userId": "user_B",
+      "viewCount": 21,
+    },
+    {
+      "dp": "https://picsum.photos/200?random=303",
+      "name": "Sam Rhodes",
+      "postText": "Took a long walk instead of giving in. Proud moment.",
+      "streaks": 2,
+      "userId": "user_C",
+      "viewCount": 12,
+    },
+  ];
+
+  int i = 0;
+
+  for (var post in samplePosts) {
+    final id = firestore.collection("posts").doc().id;
+
+    await firestore
+        .collection("posts")
+        .doc("rUsers")
+        .collection("all")
+        .doc(id)
+        .set({
+          ...post,
+          "postId": id,
+          "timestamp": DateTime.now().millisecondsSinceEpoch - (i * 4000),
+          "likes": 0,
+          "isDefault": false,
+        });
+
+    i++;
+  }
+
+  print("✔ Seeded 3 posts in rUsers!");
 }

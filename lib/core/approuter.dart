@@ -5,24 +5,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
-import 'package:onlymens/legal_screen.dart';
-import 'package:onlymens/utilis/snackbar.dart';
+import 'package:cleanmind/legal_screen.dart';
+import 'package:cleanmind/utilis/snackbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:onlymens/auth/auth_service.dart';
-import 'package:onlymens/auth/auth_screen.dart';
-import 'package:onlymens/features/affirmations/affirmations_pg.dart';
-import 'package:onlymens/features/ai_model/presentation/ai_mainpage.dart';
-import 'package:onlymens/features/ai_model/game_mode.dart';
-import 'package:onlymens/features/betterwbro/chat/messages_page.dart';
-import 'package:onlymens/features/betterwbro/presentation/bwb_page.dart';
-import 'package:onlymens/features/onboarding_pgs/pricing_pg.dart';
-import 'package:onlymens/features/panic_mode/panic_mode_pg.dart';
-import 'package:onlymens/features/streaks_page/presentation/streaks_page.dart';
-import 'package:onlymens/features/onboarding_pgs/onboarding_pgs.dart';
-import 'package:onlymens/guides/blogs.dart';
-import 'package:onlymens/profile_page.dart';
-import 'package:onlymens/sound_pg.dart';
-import 'package:onlymens/utilis/bottom_appbar.dart';
+import 'package:cleanmind/auth/auth_service.dart';
+import 'package:cleanmind/auth/auth_screen.dart';
+import 'package:cleanmind/features/affirmations/affirmations_pg.dart';
+import 'package:cleanmind/features/ai_model/presentation/ai_mainpage.dart';
+import 'package:cleanmind/features/ai_model/game_mode.dart';
+import 'package:cleanmind/features/betterwbro/chat/messages_page.dart';
+import 'package:cleanmind/features/betterwbro/presentation/bwb_page.dart';
+import 'package:cleanmind/features/onboarding_pgs/pricing_pg.dart';
+import 'package:cleanmind/features/panic_mode/panic_mode_pg.dart';
+import 'package:cleanmind/features/streaks_page/presentation/streaks_page.dart';
+import 'package:cleanmind/features/onboarding_pgs/onboarding_pgs.dart';
+import 'package:cleanmind/guides/blogs.dart';
+import 'package:cleanmind/profile_page.dart';
+import 'package:cleanmind/sound_pg.dart';
+import 'package:cleanmind/utilis/bottom_appbar.dart';
 
 final approutes = GoRouter(
   initialLocation: '/',
@@ -159,7 +159,6 @@ final approutes = GoRouter(
     GoRoute(path: '/messages', builder: (_, __) => const MessagesPage()),
     GoRoute(path: '/legal', builder: (_, __) => const LegalScreen()),
 
-
     // =============================================================
     // SHELL ROUTE (BOTTOM NAV + STREAKS FAB)
     // =============================================================
@@ -187,9 +186,7 @@ final approutes = GoRouter(
           ),
         );
       },
-      routes: [
-        GoRoute(path: '/streaks', builder: (_, __) => const StreaksPage()),
-      ],
+      routes: [GoRoute(path: '/streaks', builder: (_, __) => const StreaksPage())],
     ),
   ],
 );

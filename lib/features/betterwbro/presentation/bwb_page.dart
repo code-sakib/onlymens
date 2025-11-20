@@ -2,6 +2,12 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'package:cleanmind/core/globals.dart';
+import 'package:cleanmind/features/ai_model/presentation/ai_mainpage.dart';
+import 'package:cleanmind/features/avatar/avatar_data.dart';
+import 'package:cleanmind/features/betterwbro/chat/chat_screen.dart';
+import 'package:cleanmind/features/streaks_page/data/streaks_data.dart';
+import 'package:cleanmind/utilis/snackbar.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -10,11 +16,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:lottie/lottie.dart';
-import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/features/avatar/avatar_data.dart';
-import 'package:onlymens/features/betterwbro/chat/chat_screen.dart';
-import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
-import 'package:onlymens/utilis/snackbar.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -35,14 +36,12 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> users = [];
   bool isLoading = true;
   bool hasPermission = false;
-  bool permissionAsked = false;
   Position? currentPosition;
   Set<String> blockedUsers = {};
 
   bool isLoadingPosts = true;
   bool isLoadingMorePosts = false;
 
-  // pagination / limits
   final int _pageSize = 20;
   final int _defaultLimit = 6;
 
@@ -91,7 +90,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         });
 
     _loadCurrentUserAvatarCache();
-
     initPage();
   }
 
@@ -105,18 +103,25 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     }
   }
 
+  bool _scrollLock = false;
+
   void _onScroll() {
+    if (_scrollLock) return;
     if (!_feedScrollController.hasClients) return;
+    if (posts.isEmpty) return; // 🔥 Prevent initial double load
 
-    final position = _feedScrollController.position;
-    final threshold = position.maxScrollExtent * 0.8;
+    final pos = _feedScrollController.position;
 
-    if (position.pixels >= threshold &&
-        !_isFetchingPosts &&
-        !isLoadingMorePosts &&
-        (_hasMoreReal || _hasMoreDefault)) {
-      debugPrint("🔄 Scroll threshold reached, loading more posts...");
-      _loadMorePosts();
+    if (pos.maxScrollExtent == 0) return; // 🔥 Prevent early trigger
+
+    if (pos.pixels >= pos.maxScrollExtent * 0.8) {
+      _scrollLock = true;
+
+      _loadMorePosts().then((_) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          _scrollLock = false;
+        });
+      });
     }
   }
 
@@ -137,14 +142,14 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     setState(() => isLoading = true);
 
     await fetchBlockedUsers();
-    await loadDefaultUsers();
-    await loadPosts(forceRefresh: true);
 
-    bool granted = await checkPermissionSilently();
-    if (granted) {
-      hasPermission = true;
-      await loadNearbyUsers();
-    }
+    // Check permission silently without prompting
+    hasPermission = await checkPermissionSilently();
+
+    await loadAllUsers();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      loadPosts(forceRefresh: true);
+    });
 
     if (!mounted) return;
     setState(() => isLoading = false);
@@ -216,30 +221,131 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     return SizedBox.shrink();
   }
 
-  Future<void> loadDefaultUsers() async {
+  Future<void> loadAllUsers() async {
     try {
-      final snapshot = await _firestore
-          .collection('users')
-          .doc('mUsers')
-          .collection('userList')
-          .limit(20)
-          .get();
+      final allUsersSnap = await _firestore.collection('users').get();
+      List<Map<String, dynamic>> realUsers = [];
 
-      final data = snapshot.docs
-          .map((e) {
-            final map = Map<String, dynamic>.from(e.data() as Map);
-            map['id'] = e.id;
-            map['source'] = 'default';
-            map['isDefault'] = true;
-            return map;
-          })
-          .where((u) => !blockedUsers.contains(u['id']))
-          .toList();
+      for (var doc in allUsersSnap.docs) {
+        if (doc.id == auth.currentUser!.uid) continue;
+        if (doc.id == 'mUsers') continue;
+        if (blockedUsers.contains(doc.id)) continue;
+
+        var profileDoc = await doc.reference
+            .collection('profile')
+            .doc('data')
+            .get();
+
+        if (!profileDoc.exists) {
+          await doc.reference.collection('profile').doc('data').set({
+            'name': 'User',
+            'img': null,
+            'currentStreak': 0,
+            'totalStreaks': 0,
+            'streaks': 0,
+            'status': 'offline',
+          }, SetOptions(merge: true));
+
+          profileDoc = await doc.reference
+              .collection('profile')
+              .doc('data')
+              .get();
+        }
+
+        final data = profileDoc.data()!;
+        final userMap = Map<String, dynamic>.from(data);
+        userMap['id'] = doc.id;
+        userMap['source'] = 'real';
+        userMap['isDefault'] = false;
+
+        if (hasPermission &&
+            data['loc'] != null &&
+            data['loc']['geopoint'] != null) {
+          if (currentPosition == null) {
+            try {
+              currentPosition = await Geolocator.getCurrentPosition(
+                desiredAccuracy: LocationAccuracy.high,
+              );
+
+              await _firestore
+                  .collection('users')
+                  .doc(auth.currentUser!.uid)
+                  .collection('profile')
+                  .doc('data')
+                  .set({
+                    'loc': {
+                      'geopoint': GeoPoint(
+                        currentPosition!.latitude,
+                        currentPosition!.longitude,
+                      ),
+                    },
+                  }, SetOptions(merge: true));
+            } catch (e) {
+              debugPrint('⚠️ Could not get current position: $e');
+            }
+          }
+
+          if (currentPosition != null) {
+            GeoPoint gp = data['loc']['geopoint'];
+            double distKm =
+                Geolocator.distanceBetween(
+                  currentPosition!.latitude,
+                  currentPosition!.longitude,
+                  gp.latitude,
+                  gp.longitude,
+                ) /
+                1000;
+            userMap['distance'] = distKm;
+          }
+        }
+
+        realUsers.add(userMap);
+      }
+
+      if (hasPermission) {
+        realUsers.sort((a, b) {
+          final aDist = a['distance'] as double?;
+          final bDist = b['distance'] as double?;
+          if (aDist == null && bDist == null) return 0;
+          if (aDist == null) return 1;
+          if (bDist == null) return -1;
+          return aDist.compareTo(bDist);
+        });
+      }
+
+      List<Map<String, dynamic>> finalUsers = List.from(realUsers);
+
+      if (finalUsers.length < 10) {
+        final needed = 10 - finalUsers.length;
+        final defaultSnap = await _firestore
+            .collection('users')
+            .doc('mUsers')
+            .collection('userList')
+            .limit(20) // fetch 20 always
+            .get();
+
+        final defaults = defaultSnap.docs
+            .map(
+              (e) => {
+                ...Map<String, dynamic>.from(e.data() as Map),
+                'id': e.id,
+                'source': 'default',
+                'isDefault': true,
+              },
+            )
+            .where((u) => !blockedUsers.contains(u['id']));
+
+        finalUsers.addAll(defaults);
+      }
 
       if (!mounted) return;
-      setState(() => users = data);
+      setState(() => users = finalUsers);
+
+      debugPrint(
+        "✅ Loaded ${realUsers.length} real users and ${finalUsers.length - realUsers.length} example users",
+      );
     } catch (e) {
-      debugPrint('Error loading default users: $e');
+      debugPrint("❌ Error in loadAllUsers: $e");
     }
   }
 
@@ -279,33 +385,56 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                 style: TextStyle(fontSize: 13.sp),
               ),
               SizedBox(height: 12.h),
+
+              Text(
+                '• Long press on any post to report inappropriate content.',
+                style: TextStyle(fontSize: 13.sp),
+              ),
+              SizedBox(height: 12.h),
               Text(
                 '• Users and posts with green "Eg" badges are sample content to help understand how the app works.',
                 style: TextStyle(fontSize: 13.sp),
               ),
+              if (!hasPermission) ...[
+                SizedBox(height: 16.h),
+                Container(
+                  padding: EdgeInsets.all(12.r),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(
+                      color: Colors.deepPurple.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Text(
+                    '📍 Enable location to find people nearby based on distance',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: Colors.deepPurple,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
         actions: [
           if (!hasPermission)
             CupertinoDialogAction(
-              child: const Text('Give Permission'),
+              child: const Text('Enable Location'),
               onPressed: () async {
                 context.pop();
                 if (!mounted) return;
                 setState(() => isLoading = true);
                 final granted = await requestPermission();
                 if (granted) {
-                  await loadNearbyUsers();
-                  if (!mounted) return;
-                  setState(() {
-                    hasPermission = true;
-                    isLoading = false;
-                  });
-                } else {
-                  if (!mounted) return;
-                  setState(() => isLoading = false);
+                  hasPermission = true;
+                  await loadAllUsers();
                 }
+                if (!mounted) return;
+                setState(() => isLoading = false);
               },
             ),
           CupertinoDialogAction(
@@ -323,8 +452,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) return false;
       LocationPermission permission = await Geolocator.checkPermission();
-      return permission == LocationPermission.always ||
-          permission == LocationPermission.whileInUse;
+      return permission == LocationPermission.whileInUse;
     } catch (e) {
       debugPrint('Error checking permission: $e');
       return false;
@@ -333,9 +461,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
 
   Future<bool> requestPermission() async {
     try {
-      if (!mounted) return false;
-      setState(() => permissionAsked = true);
-
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         if (!mounted) return false;
@@ -344,7 +469,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           builder: (_) => CupertinoAlertDialog(
             title: const Text('Location Services Disabled'),
             content: const Text(
-              'Please enable location services in your device settings.',
+              'Please enable location services in your device settings to find nearby users.',
             ),
             actions: [
               CupertinoDialogAction(
@@ -369,7 +494,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           builder: (_) => CupertinoAlertDialog(
             title: const Text('Location Permission Required'),
             content: const Text(
-              'Please enable location permission in your device settings.',
+              'Please enable location permission in your device settings to find nearby users.',
             ),
             actions: [
               CupertinoDialogAction(
@@ -389,106 +514,10 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
         return false;
       }
 
-      return permission == LocationPermission.always ||
-          permission == LocationPermission.whileInUse;
+      return permission == LocationPermission.whileInUse;
     } catch (e) {
       debugPrint('Error requesting permission: $e');
       return false;
-    }
-  }
-
-  Future<void> loadNearbyUsers() async {
-    try {
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      if (!mounted) return;
-      setState(() => currentPosition = pos);
-
-      await _firestore
-          .collection('users')
-          .doc(auth.currentUser!.uid)
-          .collection('profile')
-          .doc('data')
-          .set({
-            'loc': {'geopoint': GeoPoint(pos.latitude, pos.longitude)},
-          }, SetOptions(merge: true));
-
-      final allUsersSnap = await _firestore.collection('users').get();
-      List<Map<String, dynamic>> realNearby = [];
-
-      for (var doc in allUsersSnap.docs) {
-        if (doc.id == auth.currentUser!.uid) continue;
-        if (doc.id == 'mUsers') continue; // ✅ Skip mUsers document
-        if (blockedUsers.contains(doc.id)) continue;
-
-        final profileDoc = await doc.reference
-            .collection('profile')
-            .doc('data')
-            .get();
-        if (!profileDoc.exists) continue;
-
-        final data = profileDoc.data()!;
-        if (data['loc'] == null || data['loc']['geopoint'] == null) continue;
-
-        GeoPoint gp = data['loc']['geopoint'];
-        double distKm =
-            Geolocator.distanceBetween(
-              pos.latitude,
-              pos.longitude,
-              gp.latitude,
-              gp.longitude,
-            ) /
-            1000;
-
-        if (distKm <= 50) {
-          final userMap = Map<String, dynamic>.from(data);
-          userMap['id'] = doc.id;
-          userMap['distance'] = distKm;
-          userMap['source'] = 'real'; // ✅ Mark as real user
-          userMap['isDefault'] = false; // ✅ Not a default user
-          realNearby.add(userMap);
-        }
-      }
-
-      realNearby.sort(
-        (a, b) => (a['distance'] ?? 999).compareTo(b['distance'] ?? 999),
-      );
-
-      List<Map<String, dynamic>> finalUsers = List.from(realNearby);
-
-      // ✅ Only add default users if we have less than 10 real users
-      if (finalUsers.length < 10) {
-        final needed = 10 - finalUsers.length;
-        final defaultSnap = await _firestore
-            .collection('users')
-            .doc('mUsers')
-            .collection('userList')
-            .limit(needed + 10)
-            .get();
-
-        final defaults = defaultSnap.docs
-            .map(
-              (e) => {
-                ...Map<String, dynamic>.from(e.data() as Map),
-                'id': e.id,
-                'source': 'default', // ✅ Mark as default
-                'isDefault': true, // ✅ Mark as example user
-              },
-            )
-            .where((u) => !blockedUsers.contains(u['id']))
-            .take(needed);
-        finalUsers.addAll(defaults);
-      }
-
-      if (!mounted) return;
-      setState(() => users = finalUsers);
-
-      debugPrint(
-        "✅ Loaded ${realNearby.length} real users and ${finalUsers.length - realNearby.length} example users",
-      );
-    } catch (e) {
-      debugPrint("Error in loadNearbyUsers: $e");
     }
   }
 
@@ -507,18 +536,6 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
       final newViews = (post['viewCount'] ?? 0) + 1;
       post['viewCount'] = newViews;
 
-      if (post['isDefault'] == true || post['source'] == 'default') {
-        try {
-          await _firestore
-              .collection("posts")
-              .doc("mUsers")
-              .collection("all")
-              .doc(postId)
-              .update({"viewCount": newViews});
-        } catch (_) {}
-        return;
-      }
-
       try {
         await _firestore
             .collection("posts")
@@ -533,27 +550,26 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
   }
 
   Future<void> safeIncrement(Map<String, dynamic> post) async {
-    final String postId = post['postId'].toString();
-    if (postId.isEmpty) return;
+    if (post["isDefault"] == true) return; // 🔥 FIXED
+    if (post["source"] == "default") return; // 🔥 FIXED
 
-    final int now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final postId = post['postId']?.toString();
+    if (postId == null) return;
+    if (_viewedPosts.contains(postId)) return;
 
-    if (!_firstBumpedPosts.contains(postId)) {
-      _firstBumpedPosts.add(postId);
-      _lastIncrementTs[postId] = now;
-      await incrementViewCount(post);
-      return;
-    }
+    _viewedPosts.add(postId);
 
-    if (_lastIncrementTs.containsKey(postId)) {
-      final last = _lastIncrementTs[postId]!;
-      if (now - last < 10) return;
-    }
+    try {
+      final newViews = (post['viewCount'] ?? 0) + 1;
+      post['viewCount'] = newViews;
 
-    if (_rnd.nextDouble() > 0.20) return;
-
-    _lastIncrementTs[postId] = now;
-    await incrementViewCount(post);
+      await _firestore
+          .collection("posts")
+          .doc("rUsers")
+          .collection("all")
+          .doc(postId)
+          .update({"viewCount": newViews});
+    } catch (_) {}
   }
 
   Future<String?> _getUserProfileImage(String userId, int? streaks) async {
@@ -1144,28 +1160,29 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
   Future<void> handleUserTap(Map<String, dynamic> user) async {
     final otherUserId = user['id'] ?? '';
     if (otherUserId.isEmpty) return;
+
     if (blockedUsers.contains(otherUserId)) {
       if (!mounted) return;
       _showSnackbar("This user is blocked.", Colors.red);
       return;
     }
 
-    if (!permissionAsked && !hasPermission) {
-      final granted = await requestPermission();
-      if (!granted) return;
-      hasPermission = true;
-    }
+    // Fetch the user's profile image before navigation
+    final profileImage = await _getUserProfileImage(
+      otherUserId,
+      user['streaks'] ?? 0,
+    );
 
     if (!mounted) return;
 
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ChatScreen(
+        builder: (_) => BChatScreen(
           userId: otherUserId,
           name: user['name'] ?? 'Unknown',
           status: user['status'] ?? 'offline',
-          imageUrl: user['img'],
+          imageUrl: profileImage ?? user['img'],
           distance: user['distance'],
           streaks: user['streaks'] ?? 0,
           totalStreaks: user['totalStreaks'] ?? 0,
@@ -1208,25 +1225,32 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     _isFetchingPosts = true;
 
     if (forceRefresh) {
+      posts.clear();
+      _viewedPosts.clear();
       _lastRealDoc = null;
       _lastDefaultDoc = null;
       _hasMoreReal = true;
       _hasMoreDefault = true;
-      posts.clear();
-      _viewedPosts.clear();
     }
 
-    if (mounted) setState(() => isLoadingPosts = true);
+    if (mounted) setState(() => isLoadingPosts = posts.isEmpty);
 
     try {
       final uid = auth.currentUser!.uid;
-      final Set<String> existingIds = posts
-          .map((p) => p['postId'].toString())
-          .toSet();
-      List<Map<String, dynamic>> newPosts = [];
 
+      // Create a set of ALL loaded IDs (including existing posts)
+      final Set<String> allLoadedIds = posts
+          .map((p) => p['postId']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet();
+
+      List<Map<String, dynamic>> fresh = [];
+
+      // -------------------------
+      // 1) Load real posts (primary)
+      // -------------------------
       if (_hasMoreReal) {
-        Query query = _firestore
+        Query q = _firestore
             .collection("posts")
             .doc("rUsers")
             .collection("all")
@@ -1234,46 +1258,54 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
             .limit(_pageSize);
 
         if (_lastRealDoc != null) {
-          query = query.startAfterDocument(_lastRealDoc!);
+          q = q.startAfterDocument(_lastRealDoc!);
         }
 
-        final snapshot = await query.get();
-        debugPrint("📥 Fetched ${snapshot.docs.length} real posts");
+        final snap = await q.get();
 
-        if (snapshot.docs.isNotEmpty) {
-          _lastRealDoc = snapshot.docs.last;
+        if (snap.docs.isEmpty) {
+          _hasMoreReal = false;
+        } else {
+          _lastRealDoc = snap.docs.last;
 
-          for (var doc in snapshot.docs) {
-            final data = Map<String, dynamic>.from(doc.data() as Map);
-            final postId = doc.id;
-            final userId = data['userId']?.toString() ?? '';
+          for (var d in snap.docs) {
+            final id = d.id;
 
-            if (existingIds.contains(postId)) continue;
+            // Skip if already loaded
+            if (allLoadedIds.contains(id)) {
+              debugPrint("⚠️ Skipping duplicate post: $id");
+              continue;
+            }
+
+            final data = Map<String, dynamic>.from(d.data() as Map);
+            final userId = data["userId"]?.toString() ?? "";
+
+            if (id.isEmpty) continue;
             if (blockedUsers.contains(userId)) continue;
 
-            data['postId'] = postId;
-            data['isCurrentUser'] = (userId == uid);
-            data['isDefault'] = false;
-            data['source'] = 'real';
+            fresh.add({
+              ...data,
+              "postId": id,
+              "isCurrentUser": userId == uid,
+              "isDefault": false,
+              "source": "real",
+            });
 
-            newPosts.add(data);
-            existingIds.add(postId);
+            allLoadedIds.add(id);
           }
 
-          if (snapshot.docs.length < _pageSize) {
-            _hasMoreReal = false;
-            debugPrint("✅ No more real posts");
-          }
-        } else {
-          _hasMoreReal = false;
-          debugPrint("✅ No more real posts");
+          if (snap.docs.length < _pageSize) _hasMoreReal = false;
         }
       }
 
-      if (newPosts.length < 10 && _hasMoreDefault) {
-        final needed = max(10 - newPosts.length, _defaultLimit);
+      // ------------------------------------------------
+      // 2) Load default posts only if we need more
+      // ------------------------------------------------
+      final currentTotal = posts.length + fresh.length;
+      if (currentTotal < 10 && _hasMoreDefault) {
+        final int needed = max(10 - currentTotal, 5);
 
-        Query query = _firestore
+        Query dQ = _firestore
             .collection("posts")
             .doc("mUsers")
             .collection("all")
@@ -1281,61 +1313,74 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
             .limit(needed);
 
         if (_lastDefaultDoc != null) {
-          query = query.startAfterDocument(_lastDefaultDoc!);
+          dQ = dQ.startAfterDocument(_lastDefaultDoc!);
         }
 
-        final snapshot = await query.get();
-        debugPrint("📥 Fetched ${snapshot.docs.length} default posts");
+        final snap = await dQ.get();
 
-        if (snapshot.docs.isNotEmpty) {
-          _lastDefaultDoc = snapshot.docs.last;
-
-          for (var doc in snapshot.docs) {
-            final data = Map<String, dynamic>.from(doc.data() as Map);
-            final postId = doc.id;
-
-            if (existingIds.contains(postId)) continue;
-
-            data['postId'] = postId;
-            data['isCurrentUser'] = false;
-            data['isDefault'] = true;
-            data['source'] = 'default';
-
-            newPosts.add(data);
-            existingIds.add(postId);
-          }
-
-          if (snapshot.docs.length < needed) {
-            _hasMoreDefault = false;
-            debugPrint("✅ No more default posts");
-          }
-        } else {
+        if (snap.docs.isEmpty) {
           _hasMoreDefault = false;
-          debugPrint("✅ No more default posts");
+        } else {
+          _lastDefaultDoc = snap.docs.last;
+
+          for (var doc in snap.docs) {
+            final id = doc.id;
+
+            // Skip if already loaded
+            if (allLoadedIds.contains(id)) {
+              debugPrint("⚠️ Skipping duplicate default post: $id");
+              continue;
+            }
+
+            if (id.isEmpty) continue;
+
+            final data = Map<String, dynamic>.from(doc.data() as Map);
+
+            // block default posts only if they have a userId
+            final defaultUser = data["userId"]?.toString() ?? "";
+            if (defaultUser.isNotEmpty && blockedUsers.contains(defaultUser)) {
+              continue;
+            }
+
+            fresh.add({
+              ...data,
+              "postId": id,
+              "isCurrentUser": false,
+              "isDefault": true,
+              "source": "default",
+            });
+
+            allLoadedIds.add(id);
+          }
+
+          if (snap.docs.length < needed) _hasMoreDefault = false;
         }
       }
 
-      posts.addAll(newPosts);
+      // -------------------------------------------------------
+      // 3) Add fresh posts to existing posts
+      // -------------------------------------------------------
+      if (fresh.isNotEmpty) {
+        posts.addAll(fresh);
 
-      posts.sort((a, b) {
-        final aTime = a['timestamp'] ?? 0;
-        final bTime = b['timestamp'] ?? 0;
-        return bTime.compareTo(aTime);
-      });
+        // Sort by timestamp descending
+        posts.sort((a, b) {
+          final tA = (a['timestamp'] is int) ? a['timestamp'] as int : 0;
+          final tB = (b['timestamp'] is int) ? b['timestamp'] as int : 0;
+          return tB.compareTo(tA);
+        });
 
-      debugPrint(
-        "📊 Loaded ${newPosts.length} new posts. Total now: ${posts.length}",
-      );
-      debugPrint(
-        "🔄 Has more real: $_hasMoreReal, Has more default: $_hasMoreDefault",
-      );
-    } catch (e) {
-      debugPrint("❌ loadPosts error: $e");
+        debugPrint(
+          "✅ Loaded ${fresh.length} new posts. Total: ${posts.length}",
+        );
+      }
+    } catch (e, st) {
+      debugPrint("loadPosts ERR: $e\n$st");
       _showSnackbar("Failed to load posts", Colors.red);
+    } finally {
+      if (mounted) setState(() => isLoadingPosts = false);
+      _isFetchingPosts = false;
     }
-
-    if (mounted) setState(() => isLoadingPosts = false);
-    _isFetchingPosts = false;
   }
 
   Future<void> _loadMorePosts() async {
@@ -1428,7 +1473,7 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ChatScreen(
+        builder: (_) => BChatScreen(
           userId: otherUserId,
           name: post['name'] ?? 'Unknown',
           status: 'online',
@@ -1569,6 +1614,123 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     );
   }
 
+  Widget _buildCommunityUserAvatar(Map<String, dynamic> user) {
+    final isExampleUser =
+        user['source'] == 'default' || user['isDefault'] == true;
+
+    if (isExampleUser) {
+      final imgUrl = user['img']?.toString().trim();
+
+      if (imgUrl != null && imgUrl.isNotEmpty) {
+        return ClipOval(
+          child: Image.network(
+            imgUrl,
+            width: 50.r,
+            height: 50.r,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                Icon(Icons.person, size: 24.r, color: Colors.grey[400]),
+          ),
+        );
+      }
+
+      // fallback if no img field
+      final lvl = AvatarManager.getLevelFromDays(user['streaks'] ?? 0);
+      return ClipOval(
+        child: Image.asset(
+          "assets/3d/lvl$lvl.png",
+          width: 50.r,
+          height: 50.r,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+
+    // For real users, fetch from their profile
+    final userId = user['id']?.toString() ?? '';
+    if (userId.isEmpty) {
+      return Icon(Icons.person, size: 24.r, color: Colors.grey[400]);
+    }
+
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('profile')
+          .doc('data')
+          .get()
+          .then((doc) => doc.exists ? doc.data() : null),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: SizedBox(
+              width: 20.r,
+              height: 20.r,
+              child: CupertinoActivityIndicator(radius: 10.r),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data == null) {
+          return Icon(Icons.person, size: 24.r, color: Colors.grey[400]);
+        }
+
+        final profileData = snapshot.data!;
+        final streaks = profileData['currentStreak'] ?? 0;
+        final level = AvatarManager.getLevelFromDays(streaks);
+
+        // Check for custom avatar URL
+        final customImg = profileData['customAvatarUrl'];
+        if (customImg != null && customImg.toString().trim().isNotEmpty) {
+          return ClipOval(
+            child: Image.network(
+              customImg.toString().trim(),
+              width: 50.r,
+              height: 50.r,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildStreakAvatar(level);
+              },
+            ),
+          );
+        }
+
+        // Check for img field
+        final img = profileData['img'];
+        if (img != null && img.toString().trim().isNotEmpty) {
+          return ClipOval(
+            child: Image.network(
+              img.toString().trim(),
+              width: 50.r,
+              height: 50.r,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildStreakAvatar(level);
+              },
+            ),
+          );
+        }
+
+        // Default to streak-based avatar
+        return _buildStreakAvatar(level);
+      },
+    );
+  }
+
+  Widget _buildStreakAvatar(int level) {
+    return ClipOval(
+      child: Image.asset(
+        "assets/3d/lvl$level.png",
+        width: 50.r,
+        height: 50.r,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Icon(Icons.person, size: 24.r, color: Colors.grey[400]);
+        },
+      ),
+    );
+  }
+
   Widget _buildCommunityTab(int nearbyCount) {
     if (isLoading) {
       return Center(
@@ -1606,14 +1768,16 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
           padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
           child: Row(
             children: [
-              Text(
-                nearbyCount != 0
-                    ? '$nearbyCount ${hasPermission ? 'users near you' : 'users'} on the same journey'
-                    : 'Find people near you on the same journey',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
+              Expanded(
+                child: Text(
+                  nearbyCount != 0
+                      ? '$nearbyCount ${hasPermission ? 'users near you' : 'users'} on the same journey'
+                      : 'Connect with people on the same journey',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -1626,8 +1790,9 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
             itemBuilder: (context, index) {
               final user = users[index];
               final distance = user['distance'] as double?;
+
               String subtitle = user['status'] ?? "Let's grow together";
-              if (hasPermission && distance != null) {
+              if (distance != null) {
                 subtitle = distance < 1
                     ? '${(distance * 1000).toStringAsFixed(0)}m away'
                     : '${distance.toStringAsFixed(1)}km away';
@@ -1649,11 +1814,10 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
                   ),
                   leading: CircleAvatar(
                     radius: 25.r,
-                    backgroundImage: NetworkImage(
-                      user['img'] ??
-                          'https://cdn-icons-png.flaticon.com/512/2815/2815428.png',
-                    ),
+                    backgroundColor: Colors.grey[800],
+                    child: _buildCommunityUserAvatar(user),
                   ),
+
                   title: Row(
                     children: [
                       Flexible(
@@ -1804,7 +1968,9 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
 
           final post = posts[index];
 
-          safeIncrement(post);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            safeIncrement(post);
+          });
 
           return _buildPostCard(post);
         },

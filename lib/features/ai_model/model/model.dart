@@ -6,8 +6,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
+import 'package:cleanmind/core/globals.dart';
+import 'package:cleanmind/features/streaks_page/data/streaks_data.dart';
 import 'package:path_provider/path_provider.dart';
 
 class AIModelDataService {

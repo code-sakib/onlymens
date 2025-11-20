@@ -3,9 +3,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/features/streaks_page/data/streaks_data.dart';
-import 'package:onlymens/guides/guides_manager.dart';
+import 'package:cleanmind/core/globals.dart';
+import 'package:cleanmind/features/streaks_page/data/streaks_data.dart';
+import 'package:cleanmind/guides/guides_manager.dart';
 
 /// Widget for displaying daily motivational quote
 class DailyMotivationWidget extends StatefulWidget {
@@ -530,21 +530,21 @@ class _DominatingThoughtsWidgetState extends State<DominatingThoughtsWidget> {
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E1E),
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
               'Edit Your Dominant Thought',
-              style: TextStyle(color: Colors.white, fontSize: 18.sp),
+              style: TextStyle(color: Colors.white, fontSize: 15.5.sp),
             ),
             IconButton(
               onPressed: () {
                 controller.text = defaultThought;
               },
-              icon: Icon(Icons.restore, color: Colors.orange, size: 22.r),
+              icon: Icon(Icons.restore, color: Colors.orange, size: 15.r),
               tooltip: 'Restore Default',
             ),
           ],
         ),
+
         content: TextField(
           controller: controller,
           maxLines: 3,

@@ -2,8 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:onlymens/core/globals.dart';
-import 'package:onlymens/utilis/snackbar.dart';
+import 'package:cleanmind/core/globals.dart';
+import 'package:cleanmind/utilis/snackbar.dart';
 
 class UserPostsPage extends StatefulWidget {
   const UserPostsPage({super.key});
