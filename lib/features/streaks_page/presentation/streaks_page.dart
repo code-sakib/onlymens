@@ -106,21 +106,7 @@ class _StreaksPageState extends State<StreaksPage> {
                 ),
                 SizedBox(height: 12.h),
                 LevelGuideTipsWidget(),
-
-                ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      throw Exception("This is a non-fatal test exception");
-                    } catch (e, s) {
-                      await FirebaseCrashlytics.instance.recordError(
-                        e,
-                        s,
-                        reason: "Non-fatal Crashlytics test",
-                      );
-                    }
-                  },
-                  child: const Text('Test Non-Fatal Error'),
-                ),
+                SizedBox(height: 30.h),
               ],
             ),
           ],

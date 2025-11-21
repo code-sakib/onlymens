@@ -349,7 +349,7 @@ Peace and discipline guide my path.''',
                       ),
                       IconButton(
                         onPressed: isRegenerating
-                            ? null
+                            ? (){}
                             : () async {
                                 if (_remainingGenerationsNotifier.value <= 0) {
                                   Utilis.showSnackBar(

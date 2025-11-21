@@ -1,6 +1,7 @@
 // approutes.dart — PRODUCTION VERSION with proper flow
 
 import 'dart:async';
+import 'package:cleanmind/features/streaks_page/presentation/streaks_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
@@ -17,7 +18,6 @@ import 'package:cleanmind/features/betterwbro/chat/messages_page.dart';
 import 'package:cleanmind/features/betterwbro/presentation/bwb_page.dart';
 import 'package:cleanmind/features/onboarding_pgs/pricing_pg.dart';
 import 'package:cleanmind/features/panic_mode/panic_mode_pg.dart';
-import 'package:cleanmind/features/streaks_page/presentation/streaks_page.dart';
 import 'package:cleanmind/features/onboarding_pgs/onboarding_pgs.dart';
 import 'package:cleanmind/guides/blogs.dart';
 import 'package:cleanmind/profile_page.dart';
@@ -35,8 +35,6 @@ final approutes = GoRouter(
     final loggedIn = AuthService.currentUser != null;
     final loc = state.matchedLocation;
 
-    print('🔄 [ROUTER] loc=$loc, loggedIn=$loggedIn');
-
     // --- ALLOW THESE ROUTES ALWAYS ---
     if (loc == '/onboarding' || loc == '/pricing' || loc == '/auth') {
       return null;
@@ -53,20 +51,16 @@ final approutes = GoRouter(
       if (loc == '/') {
         // Root route - determine where to send them
         if (hasPendingReceipt || onboardingDone) {
-          print('📦 Has pending receipt or completed onboarding → /pricing');
           return '/pricing';
         }
-        print('🆕 New user → /onboarding');
         return '/onboarding';
       }
 
       // Trying to access protected routes without login
       if (hasPendingReceipt || onboardingDone) {
-        print('⚠️ Not logged in, trying to access $loc → /pricing');
         return '/pricing';
       }
 
-      print('⚠️ Not logged in, trying to access $loc → /onboarding');
       return '/onboarding';
     }
 
@@ -76,7 +70,6 @@ final approutes = GoRouter(
       final sub = await AuthService.fetchSubscriptionForCurrentUser();
 
       if (sub == null) {
-        print('⚠️ Logged in but no subscription → /pricing');
         if (loc != '/pricing' && loc != '/auth') {
           return '/pricing';
         }
@@ -87,7 +80,6 @@ final approutes = GoRouter(
       final isActive = expiresMs > DateTime.now().millisecondsSinceEpoch;
 
       if (!isActive) {
-        print('⚠️ Subscription expired → /pricing');
         Future.microtask(() {
           Utilis.showSnackBar("Your subscription has expired", isErr: true);
         });
@@ -99,7 +91,6 @@ final approutes = GoRouter(
       }
 
       // Active subscription - allow access
-      print('✅ Active subscription - allowing access to $loc');
 
       // Set onboarding done if not already set
       final prefs = await SharedPreferences.getInstance();
@@ -109,7 +100,6 @@ final approutes = GoRouter(
 
       // If on root, redirect to streaks
       if (loc == '/') {
-        print('✅ Root route with active sub → /streaks');
         return '/streaks';
       }
 
@@ -187,7 +177,7 @@ final approutes = GoRouter(
         );
       },
       routes: [
-        GoRoute(path: '/streaks', builder: (_, __) => const PricingPage()),
+        GoRoute(path: '/streaks', builder: (_, __) => const StreaksPage()),
       ],
     ),
   ],
@@ -211,7 +201,6 @@ class _LoadingScreen extends StatelessWidget {
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     _subscription = stream.asBroadcastStream().listen((_) {
-      print('🔔 Auth state changed → refresh router');
       notifyListeners();
     });
   }

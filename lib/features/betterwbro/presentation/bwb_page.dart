@@ -114,6 +114,12 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
 
     if (pos.maxScrollExtent == 0) return; // 🔥 Prevent early trigger
 
+    if (_tabController.index == 1) {
+      if (pos.pixels >= pos.maxScrollExtent * 0.8) {
+        loadAllUsers(); // ✅ load both real & default users
+      }
+    }
+
     if (pos.pixels >= pos.maxScrollExtent * 0.8) {
       _scrollLock = true;
 
@@ -221,131 +227,126 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
     return SizedBox.shrink();
   }
 
-  Future<void> loadAllUsers() async {
+  // Pagination & loading state for community users
+  DocumentSnapshot? _lastUserDocForPaging;
+  bool _hasMoreUsers = true;
+  bool _isLoadingUsers = false;
+  final int _userPageSize = 12; // initial page size, adjust as needed
+
+  DocumentSnapshot? _lastRealUserDoc;
+  DocumentSnapshot? _lastDefaultUserDoc;
+
+  bool _hasMoreRealUsers = true;
+  bool _hasMoreDefaultUsers = true;
+
+  final int _realUserPageSize = 15;
+  final int _defaultUserPageSize = 10;
+
+  Future<void> loadAllUsers({bool forceRefresh = false}) async {
+    if (_isLoadingUsers) return;
+    _isLoadingUsers = true;
+
     try {
-      final allUsersSnap = await _firestore.collection('users').get();
-      List<Map<String, dynamic>> realUsers = [];
-
-      for (var doc in allUsersSnap.docs) {
-        if (doc.id == auth.currentUser!.uid) continue;
-        if (doc.id == 'mUsers') continue;
-        if (blockedUsers.contains(doc.id)) continue;
-
-        var profileDoc = await doc.reference
-            .collection('profile')
-            .doc('data')
-            .get();
-
-        if (!profileDoc.exists) {
-          await doc.reference.collection('profile').doc('data').set({
-            'name': 'User',
-            'img': null,
-            'currentStreak': 0,
-            'totalStreaks': 0,
-            'streaks': 0,
-            'status': 'offline',
-          }, SetOptions(merge: true));
-
-          profileDoc = await doc.reference
-              .collection('profile')
-              .doc('data')
-              .get();
-        }
-
-        final data = profileDoc.data()!;
-        final userMap = Map<String, dynamic>.from(data);
-        userMap['id'] = doc.id;
-        userMap['source'] = 'real';
-        userMap['isDefault'] = false;
-
-        if (hasPermission &&
-            data['loc'] != null &&
-            data['loc']['geopoint'] != null) {
-          if (currentPosition == null) {
-            try {
-              currentPosition = await Geolocator.getCurrentPosition(
-                desiredAccuracy: LocationAccuracy.high,
-              );
-
-              await _firestore
-                  .collection('users')
-                  .doc(auth.currentUser!.uid)
-                  .collection('profile')
-                  .doc('data')
-                  .set({
-                    'loc': {
-                      'geopoint': GeoPoint(
-                        currentPosition!.latitude,
-                        currentPosition!.longitude,
-                      ),
-                    },
-                  }, SetOptions(merge: true));
-            } catch (e) {
-              debugPrint('⚠️ Could not get current position: $e');
-            }
-          }
-
-          if (currentPosition != null) {
-            GeoPoint gp = data['loc']['geopoint'];
-            double distKm =
-                Geolocator.distanceBetween(
-                  currentPosition!.latitude,
-                  currentPosition!.longitude,
-                  gp.latitude,
-                  gp.longitude,
-                ) /
-                1000;
-            userMap['distance'] = distKm;
-          }
-        }
-
-        realUsers.add(userMap);
+      if (forceRefresh) {
+        users.clear();
+        _lastRealUserDoc = null;
+        _lastDefaultUserDoc = null;
+        _hasMoreRealUsers = true;
+        _hasMoreDefaultUsers = true;
       }
 
-      if (hasPermission) {
-        realUsers.sort((a, b) {
-          final aDist = a['distance'] as double?;
-          final bDist = b['distance'] as double?;
-          if (aDist == null && bDist == null) return 0;
-          if (aDist == null) return 1;
-          if (bDist == null) return -1;
-          return aDist.compareTo(bDist);
+      // ================================
+      // 1. LOAD REAL USERS FIRST
+      // ================================
+      Query realQ = _firestore
+          .collection("users")
+          .where(FieldPath.documentId, isNotEqualTo: auth.currentUser!.uid)
+          .orderBy(FieldPath.documentId)
+          .limit(_realUserPageSize);
+
+      if (_lastRealUserDoc != null) {
+        realQ = realQ.startAfterDocument(_lastRealUserDoc!);
+      }
+
+      final realSnap = await realQ.get();
+
+      List<Map<String, dynamic>> fetchedReal = [];
+
+      for (final doc in realSnap.docs) {
+        if (doc.id == "mUsers") continue;
+        if (blockedUsers.contains(doc.id)) continue;
+
+        final profileDoc = await doc.reference
+            .collection("profile")
+            .doc("data")
+            .get();
+
+        final profile = profileDoc.exists ? profileDoc.data() : {};
+
+        fetchedReal.add({
+          ...profile ?? {},
+          "id": doc.id,
+          "source": "real",
+          "isDefault": false,
         });
       }
 
-      List<Map<String, dynamic>> finalUsers = List.from(realUsers);
-
-      if (finalUsers.length < 10) {
-        final needed = 10 - finalUsers.length;
-        final defaultSnap = await _firestore
-            .collection('users')
-            .doc('mUsers')
-            .collection('userList')
-            .limit(20) // fetch 20 always
-            .get();
-
-        final defaults = defaultSnap.docs
-            .map(
-              (e) => {
-                ...Map<String, dynamic>.from(e.data() as Map),
-                'id': e.id,
-                'source': 'default',
-                'isDefault': true,
-              },
-            )
-            .where((u) => !blockedUsers.contains(u['id']));
-
-        finalUsers.addAll(defaults);
+      if (realSnap.docs.isNotEmpty) {
+        _lastRealUserDoc = realSnap.docs.last;
+        if (realSnap.docs.length < _realUserPageSize) {
+          _hasMoreRealUsers = false;
+        }
+      } else {
+        _hasMoreRealUsers = false;
       }
 
-      if (!mounted) return;
-      setState(() => users = finalUsers);
+      users.addAll(fetchedReal);
 
-      debugPrint(
-        "✅ Loaded ${realUsers.length} real users and ${finalUsers.length - realUsers.length} example users",
-      );
+      // ================================
+      // 2. IF REAL USERS < 10 → LOAD DEFAULT USERS
+      // ================================
+      if (users.length < 10 && _hasMoreDefaultUsers) {
+        Query dQ = _firestore
+            .collection("users")
+            .doc("mUsers")
+            .collection("userList")
+            .orderBy(FieldPath.documentId)
+            .limit(_defaultUserPageSize);
+
+        if (_lastDefaultUserDoc != null) {
+          dQ = dQ.startAfterDocument(_lastDefaultUserDoc!);
+        }
+
+        final dSnap = await dQ.get();
+
+        List<Map<String, dynamic>> fetchedDefaults = [];
+
+        for (var d in dSnap.docs) {
+          fetchedDefaults.add({
+            ...d.data() as Map,
+            "id": d.id,
+            "source": "default",
+            "isDefault": true,
+          });
+        }
+
+        if (dSnap.docs.isNotEmpty) {
+          _lastDefaultUserDoc = dSnap.docs.last;
+          if (dSnap.docs.length < _defaultUserPageSize) {
+            _hasMoreDefaultUsers = false;
+          }
+        } else {
+          _hasMoreDefaultUsers = false;
+        }
+
+        users.addAll(fetchedDefaults);
+      }
+
+      if (mounted) setState(() {});
     } catch (e) {
-      debugPrint("❌ Error in loadAllUsers: $e");
+      debugPrint("❌ loadAllUsers ERROR: $e");
+    } finally {
+      _isLoadingUsers = false;
     }
   }
 
