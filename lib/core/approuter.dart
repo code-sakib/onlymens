@@ -186,7 +186,9 @@ final approutes = GoRouter(
           ),
         );
       },
-      routes: [GoRoute(path: '/streaks', builder: (_, __) => const StreaksPage())],
+      routes: [
+        GoRoute(path: '/streaks', builder: (_, __) => const PricingPage()),
+      ],
     ),
   ],
 );

@@ -1819,10 +1819,18 @@ class _BWBPageState extends State<BWBPage> with SingleTickerProviderStateMixin {
               final distance = user['distance'] as double?;
 
               String subtitle = user['status'] ?? "Let's grow together";
+
               if (distance != null) {
-                subtitle = distance < 1
-                    ? '${(distance * 1000).toStringAsFixed(0)}m away'
-                    : '${distance.toStringAsFixed(1)}km away';
+                if (distance < 0.1) {
+                  // Less than 100m
+                  subtitle = '${(distance * 1000).toStringAsFixed(0)}m away';
+                } else if (distance < 100) {
+                  // Less than 100km
+                  subtitle = '${distance.toStringAsFixed(1)}km away';
+                } else {
+                  // More than 100km → show status instead
+                  subtitle = user['status'] ?? "online";
+                }
               }
 
               final isExampleUser =

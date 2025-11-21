@@ -17,7 +17,9 @@ class _AvatarLevelsDrawerState extends State<AvatarLevelsDrawer> {
     final currentLevel = AvatarManager.getLevelFromDays(currentStreakDays);
 
     return Drawer(
-      width: 0.67.sw,
+      width: MediaQuery.of(context).size.shortestSide >= 600
+          ? 420 // Tablet/iPad width
+          : MediaQuery.of(context).size.width * 0.70, // 75% width on iPhone
       child: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(

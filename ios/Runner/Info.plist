@@ -44,6 +44,8 @@
 	<string>We need Screen Time access to block adult content</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to find people near you on the same journey.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We use your location to find people near you on the same journey.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>We need microphone access to hear your voice</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

@@ -741,7 +741,7 @@ class _WelcomePageState extends State<WelcomePage> {
                   textStyle: TextStyle(
                     color: Colors.white.withValues(alpha: 0.85),
                     fontSize: 16.sp,
-                    height: 1.5,
+                    height: 1.5.h,
                   ),
                 ),
               ],

@@ -40,6 +40,7 @@ class _BChatScreenState extends State<BChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scroll = ScrollController();
   final FocusNode _focus = FocusNode();
+  final TextEditingController _reportController = TextEditingController();
 
   String? _chatRoomId;
   bool _otherTyping = false;
@@ -67,6 +68,7 @@ class _BChatScreenState extends State<BChatScreen> {
     _scroll.dispose();
     _messageController.dispose();
     _focus.dispose();
+    _reportController.dispose();
 
     if (_chatRoomId != null) {
       _chatService.clearTyping(_chatRoomId!);
@@ -427,8 +429,6 @@ class _BChatScreenState extends State<BChatScreen> {
   Future<void> _confirmBlockUser() async {
     if (_isDisposed || !mounted) return;
 
-    final reportController = TextEditingController();
-
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -450,10 +450,10 @@ class _BChatScreenState extends State<BChatScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextField(
-                controller: reportController,
+                controller: _reportController,
                 maxLines: 2,
                 decoration: InputDecoration(
-                  hintText: 'Describe the issue (optional)...',
+                  hintText: 'Describe the issue (optional)',
                   hintStyle: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 14.sp,
@@ -490,7 +490,7 @@ class _BChatScreenState extends State<BChatScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              reportController.dispose();
+              _reportController.clear(); // just clear, not dispose
               Navigator.of(context).pop();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.grey[400]),
@@ -506,10 +506,9 @@ class _BChatScreenState extends State<BChatScreen> {
               ),
             ),
             onPressed: () async {
-              final message = reportController.text.trim();
-              reportController.dispose();
+              final message = _reportController.text.trim();
+              _reportController.clear();
               Navigator.of(context).pop();
-
               await _blockUser(message);
             },
             child: Text(
@@ -521,7 +520,7 @@ class _BChatScreenState extends State<BChatScreen> {
       ),
     );
   }
-
+  
   Future<void> _blockUser(String reportMessage) async {
     final me = auth.currentUser!.uid;
     final other = widget.userId;

@@ -343,54 +343,14 @@ class _PricingPageState extends State<PricingPage> {
                 _buildPriceBreakdown(),
                 SizedBox(height: 20.h),
                 Center(
-                  child: Column(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const LegalScreen(),
-                            ),
-                          );
-                        },
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8.h),
-                          child: RichText(
-                            textAlign: TextAlign.center,
-                            text: TextSpan(
-                              style: TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 12.sp,
-                              ),
-                              children: const [
-                                TextSpan(text: "See our  "),
-                                TextSpan(
-                                  text: "Privacy Policy • Terms of Use",
-                                  style: TextStyle(color: Colors.lightBlue),
-                                ),
-                                TextSpan(
-                                  text:
-                                      "  By continuing, you're agreeing to it. Don't worry, it's all good there.",
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () async {
-                          await context.push('/auth');
-                        },
-                        child: Text(
-                          "Log in to restore your premium",
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 14.sp,
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: GestureDetector(
+                    onTap: () async {
+                      await context.push('/auth');
+                    },
+                    child: Text(
+                      "Log in to restore your premium",
+                      style: TextStyle(color: AppColors.primary, fontSize: 14.sp),
+                    ),
                   ),
                 ),
               ],

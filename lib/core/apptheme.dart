@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cleanmind/utilis/size_config.dart';
 
 class AppColors {
-  static const primary = Colors.deepPurple;
+  static const primary = Color(0xFF673AB7);
 
   static const background = Color(0xFF0F0F0F);
   static const surface = Color(0xFF1E1E1E);

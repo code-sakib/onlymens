@@ -76,6 +76,7 @@ dependencies:
   google_fonts: ^6.3.2
   gaimon: ^1.4.1
   uuid: ^4.5.2
+  firebase_crashlytics: ^5.0.5
  
 
 dev_dependencies:
@@ -112,6 +113,7 @@ flutter:
     - assets/guide/
     - assets/onboarding/
     - .env
+    - shorebird.yaml
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

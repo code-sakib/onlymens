@@ -8,6 +8,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gaimon/gaimon.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:cleanmind/core/globals.dart';
 import 'package:cleanmind/features/avatar/avatar_pg.dart';
 import 'package:cleanmind/features/streaks_page/presentation/pTimer.dart';
@@ -105,9 +106,23 @@ class _StreaksPageState extends State<StreaksPage> {
                 ),
                 SizedBox(height: 12.h),
                 LevelGuideTipsWidget(),
+
+                ElevatedButton(
+                  onPressed: () async {
+                    try {
+                      throw Exception("This is a non-fatal test exception");
+                    } catch (e, s) {
+                      await FirebaseCrashlytics.instance.recordError(
+                        e,
+                        s,
+                        reason: "Non-fatal Crashlytics test",
+                      );
+                    }
+                  },
+                  child: const Text('Test Non-Fatal Error'),
+                ),
               ],
             ),
-            SizedBox(height: 40.h),
           ],
         ),
       ),
@@ -205,7 +220,6 @@ class _PanicButtonState extends State<PanicButton>
       _isTriggered = false;
     });
 
-    // ADD THIS
     HapticFeedback.heavyImpact();
 
     _timerController.forward(from: 0);

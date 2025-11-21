@@ -314,7 +314,10 @@ class _TimerComponentsState extends State<TimerComponents> {
   // -------------------------------------------------------------------
   // HEATMAP OVERLAY
   // -------------------------------------------------------------------
+
   Widget _buildHeatmapOverlay() {
+    final bool isTablet = ScreenUtil().screenWidth >= 600;
+
     return Positioned.fill(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -327,7 +330,7 @@ class _TimerComponentsState extends State<TimerComponents> {
               elevation: 10,
               borderRadius: BorderRadius.circular(12.r),
               child: Container(
-                width: 260.w,
+                width: isTablet ? 200.w : 260.w, // 🔥 ADAPTIVE WIDTH
                 padding: EdgeInsets.all(8.r),
                 child: const CompactHeatMap(),
               ),
@@ -350,6 +353,7 @@ class _CompactHeatMapState extends State<CompactHeatMap> {
   @override
   Widget build(BuildContext context) {
     final heatmapData = StreaksData.getHeatmapData();
+    final double cellSize = ScreenUtil().screenWidth < 600 ? 25.sp : 14.sp;
 
     print('🗓️ HeatMap rebuilding with ${heatmapData.length} entries');
 
@@ -363,7 +367,8 @@ class _CompactHeatMapState extends State<CompactHeatMap> {
       datasets: heatmapData,
       showColorTip: false,
       textColor: Colors.black54,
-      size: 25.sp,
+      size: cellSize,
+
       initDate: DateTime.now(),
       colorsets: const {
         0: Color.fromARGB(255, 237, 178, 181),
@@ -605,7 +610,10 @@ class _DaysListState extends State<DaysList> {
                   return GestureDetector(
                     onTap: () {
                       if (!canUpdate) {
-                        Utilis.showSnackBar('Cannot update future dates', isErr: true);
+                        Utilis.showSnackBar(
+                          'Cannot update future dates',
+                          isErr: true,
+                        );
                         return;
                       }
                       selectedDay.value = index;
@@ -778,7 +786,7 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
                 _buildSkipButton(remainingSkips, canSkip),
                 SizedBox(width: 10.w),
                 _buildButton(
-                  'Done',
+                  'Stayed Clean',
                   () => widget.isToday
                       ? _handleDoneAndSkip(StreaksData.BOTH_TILES)
                       : _updateForPastDate(StreaksData.BOTH_TILES),
@@ -914,7 +922,7 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
       refreshTrigger.value++;
 
       String statusText = status == StreaksData.BOTH_TILES
-          ? 'Done'
+          ? 'Stayed Clean Today'
           : status == StreaksData.SKIPPED
           ? 'Skipped'
           : 'Relapsed';
